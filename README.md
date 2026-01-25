@@ -22,18 +22,21 @@ Ralph is an autonomous AI development methodology:
    - Edit `PROMPT.md` - describe what you're building
    - Edit `PRD.json` - structure your requirements
 
-3. **Start Claude Code**
-   ```bash
-   claude
+3. **Run the loop**
+   ```powershell
+   # Windows PowerShell
+   .\loop.ps1
+
+   # Windows CMD
+   loop.bat
+
+   # Mac/Linux
+   ./loop.sh
    ```
 
-4. **Launch**
-   ```
-   Read PROMPT.md and PRD.json. Generate IMPLEMENTATION_PLAN.md,
-   update CLAUDE.md, then begin Ralph workflow autonomously.
-   ```
+4. **Walk away** - the loop handles everything
 
-5. **Walk away** - check back periodically
+Press `Ctrl+C` to stop.
 
 ## Files to Edit
 

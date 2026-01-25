@@ -1,5 +1,24 @@
 # Ralph Template - Quick Start
 
+## The Easy Way (Automated Loop)
+
+```powershell
+# Windows PowerShell
+.\loop.ps1
+
+# Windows CMD
+loop.bat
+
+# Mac/Linux
+./loop.sh
+```
+
+The loop script handles everything - generates the plan on first run, then continuously executes tasks until you stop it (Ctrl+C).
+
+---
+
+## The Manual Way
+
 ## Step 1: Copy This Template
 
 ```bash
