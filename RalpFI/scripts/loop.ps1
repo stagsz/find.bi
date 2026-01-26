@@ -11,35 +11,47 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
-Set-Location $PSScriptRoot
+
+# Set working directory to project root (parent of scripts/)
+$PROJECT_ROOT = Split-Path -Parent $PSScriptRoot
+Set-Location $PROJECT_ROOT
 
 # Configuration
 $DEFAULT_MODEL = "opus"
 $Iteration = 0
 
+# Paths
+$RALPH_DIR = "ralph"
+$LOGS_DIR = "logs"
+
+# Ensure logs directory exists
+if (-not (Test-Path $LOGS_DIR)) {
+    New-Item -ItemType Directory -Path $LOGS_DIR | Out-Null
+}
+
 # Mode selection
 switch -Regex ($Mode) {
     "^(plan|planning)$" {
-        $PROMPT_FILE = "PROMPT_Plan.md"
+        $PROMPT_FILE = "$RALPH_DIR/PROMPT_Plan.md"
         Write-Host "🗺️  PLANNING MODE - Generating/updating implementation plan" -ForegroundColor Blue
     }
     "^(build|building|)$" {
-        $PROMPT_FILE = "PROMPT_Build.md"
+        $PROMPT_FILE = "$RALPH_DIR/PROMPT_Build.md"
         Write-Host "🔨 BUILDING MODE - Implementing from plan" -ForegroundColor Green
     }
     "^\d+$" {
         # If first arg is a number, treat as max iterations for build mode
         $MaxIterations = [int]$Mode
-        $PROMPT_FILE = "PROMPT_Build.md"
+        $PROMPT_FILE = "$RALPH_DIR/PROMPT_Build.md"
         Write-Host "🔨 BUILDING MODE - Max $MaxIterations iterations" -ForegroundColor Green
     }
     default {
         Write-Host "Unknown mode: $Mode" -ForegroundColor Red
-        Write-Host "Usage: .\loop.ps1 [plan|build] [max_iterations]"
-        Write-Host "  .\loop.ps1           # Build mode, unlimited"
-        Write-Host "  .\loop.ps1 plan      # Planning mode"
-        Write-Host "  .\loop.ps1 build 20  # Build mode, max 20 iterations"
-        Write-Host "  .\loop.ps1 20        # Build mode, max 20 iterations"
+        Write-Host "Usage: .\scripts\loop.ps1 [plan|build] [max_iterations]"
+        Write-Host "  .\scripts\loop.ps1           # Build mode, unlimited"
+        Write-Host "  .\scripts\loop.ps1 plan      # Planning mode"
+        Write-Host "  .\scripts\loop.ps1 build 20  # Build mode, max 20 iterations"
+        Write-Host "  .\scripts\loop.ps1 20        # Build mode, max 20 iterations"
         exit 1
     }
 }
@@ -50,13 +62,14 @@ if (-not (Test-Path $PROMPT_FILE)) {
     exit 1
 }
 
-if (-not (Test-Path "AGENTS.md")) {
-    Write-Host "Error: AGENTS.md not found" -ForegroundColor Red
+if (-not (Test-Path "$RALPH_DIR/AGENTS.md")) {
+    Write-Host "Error: $RALPH_DIR/AGENTS.md not found" -ForegroundColor Red
     exit 1
 }
 
 # Main loop
 Write-Host "Starting Ralph loop..." -ForegroundColor Yellow
+Write-Host "Project root: $PROJECT_ROOT"
 Write-Host "Press Ctrl+C to stop"
 Write-Host "---"
 
@@ -73,7 +86,7 @@ while ($true) {
     Write-Host "Iteration $Iteration $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Green
     Write-Host "═══════════════════════════════════════════════════════════" -ForegroundColor Blue
 
-    $LOG_FILE = "ralph_log_$(Get-Date -Format 'yyyyMMdd').txt"
+    $LOG_FILE = "$LOGS_DIR/ralph_log_$(Get-Date -Format 'yyyyMMdd').txt"
     $timestamp = Get-Date -Format 'HH:mm:ss'
 
     $msg = "Starting Claude at $timestamp..."

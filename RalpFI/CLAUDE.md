@@ -31,7 +31,7 @@ This project uses the **Ralph autonomous AI methodology** on an **existing codeb
 Run before every commit:
 
 ```bash
-cd D:\f1-race-replay
+cd D:\RalphTemplate\RalpFI
 python -m py_compile main.py
 python -m py_compile src/f1_data.py
 python -m py_compile src/arcade_replay.py
@@ -63,11 +63,11 @@ Types: feat, fix, test, refactor, docs, chore
 
 ## Target Codebase
 
-**Location:** `D:\f1-race-replay`
+**Location:** `D:\RalphTemplate\RalpFI`
 
 ### Existing Structure
 ```
-f1-race-replay/
+RalpFI/
 ├── main.py                 # Entry point
 ├── src/
 │   ├── f1_data.py          # Telemetry loading & processing

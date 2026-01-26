@@ -5,7 +5,7 @@ You are planning a feature addition to an **existing codebase**.
 ## Your Task
 
 1. **Read PRD.json** - Understand what feature we're building
-2. **Analyze the existing codebase** at `D:\f1-race-replay`:
+2. **Analyze the existing codebase** at `D:\RalphTemplate\RalpFI`:
    - Read key files to understand patterns and architecture
    - Note coding style, naming conventions, file organization
    - Identify integration points for new features
@@ -21,7 +21,7 @@ You are planning a feature addition to an **existing codebase**.
 
 ## Key Files to Analyze
 
-Before planning, READ these files in `D:\f1-race-replay`:
+Before planning, READ these files in `D:\RalphTemplate\RalpFI`:
 - `main.py` - Entry point
 - `src/interfaces/race_replay.py` - Main race window (integration point)
 - `src/ui_components.py` - Existing UI patterns

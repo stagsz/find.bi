@@ -1,7 +1,7 @@
 {
   "project": {
     "type": "brownfield",
-    "existingCodebase": "D:\\f1-race-replay",
+    "existingCodebase": "D:\\RalphTemplate\\RalpFI",
     "name": "F1 Live Race Prediction",
     "tagline": "Real-time race outcome predictions during replay",
     "description": "Add predictive analytics to the F1 Race Replay app that forecasts race outcomes, pit windows, and position changes based on current race state and historical data."

@@ -4,9 +4,9 @@ You are implementing tasks from the implementation plan using Ralph workflow on 
 
 ## Target Codebase
 
-**Location:** `D:\f1-race-replay`
+**Location:** `D:\RalphTemplate\RalpFI`
 
-All code changes go in the target codebase, NOT in this template folder.
+All code changes go in this folder.
 
 ## Rules (Non-Negotiable)
 
@@ -21,10 +21,10 @@ All code changes go in the target codebase, NOT in this template folder.
 
 1. Read `IMPLEMENTATION_PLAN.md`
 2. Find the next unchecked `[ ]` task (first one without `[x]`)
-3. Implement ONLY that task in `D:\f1-race-replay`
+3. Implement ONLY that task in `D:\RalphTemplate\RalpFI`
 4. Run quality gates:
    ```bash
-   cd D:\f1-race-replay
+   cd D:\RalphTemplate\RalpFI
    python -m py_compile main.py
    python -m py_compile src/f1_data.py
    python -m py_compile src/arcade_replay.py

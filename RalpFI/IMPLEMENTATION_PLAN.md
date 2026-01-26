@@ -4,17 +4,17 @@
 
 ## Current Status
 
-**Phase**: 0 - Discovery & Setup
-**Progress**: 1 / 32 tasks
-**Last Completed**: DISC-01 (fe8f156)
-**Ready to Start**: Yes - codebase analysis complete
+**Phase**: 8 - Testing & Polish
+**Progress**: 35 / 36 tasks
+**Last Completed**: TEST-02 (c0253cc)
+**Ready to Start**: TEST-03 (BLOCKED - requires manual visual testing)
 
 ---
 
 ## Project: F1 Live Race Prediction
 
 **Type**: Brownfield (adding to existing codebase)
-**Target**: `D:\f1-race-replay`
+**Target**: `D:\RalphTemplate\RalpFI`
 
 ### Codebase Analysis Summary (Completed)
 
@@ -51,17 +51,17 @@
 ### Codebase Analysis
 
 - [x] DISC-01: Document existing UI component patterns from ui_components.py (fe8f156)
-  - **File**: `D:\f1-race-replay\src\ui_components.py` (1547 lines)
-  - **Output**: Create `D:\f1-race-replay\src\predictions\PATTERNS.md` documenting:
+  - **File**: `D:\RalphTemplate\RalpFI\src\ui_components.py` (1547 lines)
+  - **Output**: Create `D:\RalphTemplate\RalpFI\src\predictions\PATTERNS.md` documenting:
     - BaseComponent class: `on_resize(window)`, `draw(window)`, `on_mouse_press(window, x, y, button, modifiers) -> bool`
     - Visibility pattern: `_visible` property, `@property visible`, `toggle_visibility() -> bool`, `set_visible()`
     - COLORS dict pattern (see RaceProgressBarComponent.COLORS for reference)
     - Text rendering: `arcade.Text(text, x, y, color, size, bold=, anchor_x=, anchor_y=).draw()`
     - Rect drawing: `arcade.XYWH(cx, cy, w, h)`, `arcade.draw_rect_filled()`, `arcade.draw_rect_outline()`
 
-- [ ] DISC-02: Document data structures in f1_data.py
-  - **File**: `D:\f1-race-replay\src\f1_data.py` (878 lines)
-  - **Output**: Add notes to `D:\f1-race-replay\src\predictions\PATTERNS.md` documenting:
+- [x] DISC-02: Document data structures in f1_data.py (036e3fb)
+  - **File**: `D:\RalphTemplate\RalpFI\src\f1_data.py` (878 lines)
+  - **Output**: Add notes to `D:\RalphTemplate\RalpFI\src\predictions\PATTERNS.md` documenting:
     - Frame structure (verified from line 375-388):
       ```python
       frame = {
@@ -86,9 +86,9 @@
     - FPS=25, DT=1/25 (line 24-25)
     - Track status codes: "1"=Green, "2"=Yellow, "4"=SC, "5"=Red, "6"/"7"=VSC
 
-- [ ] DISC-03: Map integration points in race_replay.py
-  - **File**: `D:\f1-race-replay\src\interfaces\race_replay.py` (510 lines)
-  - **Output**: Add notes to `D:\f1-race-replay\src\predictions\PATTERNS.md` documenting:
+- [x] DISC-03: Map integration points in race_replay.py (3f3a321)
+  - **File**: `D:\RalphTemplate\RalpFI\src\interfaces\race_replay.py` (510 lines)
+  - **Output**: Add notes to `D:\RalphTemplate\RalpFI\src\predictions\PATTERNS.md` documenting:
     - Component init: After line 71 (race_controls_comp), add prediction components
     - Resize registration: Line 231 - add to component list for on_resize forwarding
     - Draw order: After line 444 (race_controls_comp.draw), before line 447 (draw_overlays)
@@ -98,13 +98,13 @@
 
 ### Environment Setup
 
-- [ ] SETUP-01: Add new dependencies to requirements.txt
-  - **File**: `D:\f1-race-replay\requirements.txt`
+- [x] SETUP-01: Add new dependencies to requirements.txt (11657a6)
+  - **File**: `D:\RalphTemplate\RalpFI\requirements.txt`
   - **Current contents**: fastf1, pandas, matplotlib, numpy, arcade, pyglet, pyside6, questionary, rich
   - **Add**: `scikit-learn` and `scipy` on new lines
 
-- [ ] SETUP-02: Create src/predictions/ directory structure
-  - **Action**: Create directory `D:\f1-race-replay\src\predictions\`
+- [x] SETUP-02: Create src/predictions/ directory structure (979c40f)
+  - **Action**: Create directory `D:\RalphTemplate\RalpFI\src\predictions\`
   - **Files to create**:
     - `__init__.py` - Exports: PredictionEngine, PredictionPanelComponent, DriverPrediction, PaceModel
     - `models.py` - Data classes for predictions
@@ -115,8 +115,8 @@
 
 ## Phase 1: Core Data Models
 
-- [ ] MODEL-01: Create PaceModel dataclass
-  - **File**: `D:\f1-race-replay\src\predictions\models.py`
+- [x] MODEL-01: Create PaceModel dataclass (979c40f)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\models.py`
   - **Implementation**:
     ```python
     @dataclass
@@ -129,8 +129,8 @@
         gap_trend: float         # positive = gaining on car ahead
     ```
 
-- [ ] MODEL-02: Create DriverPrediction dataclass
-  - **File**: `D:\f1-race-replay\src\predictions\models.py`
+- [x] MODEL-02: Create DriverPrediction dataclass (979c40f)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\models.py`
   - **Implementation**:
     ```python
     @dataclass
@@ -147,8 +147,8 @@
         confidence: float           # 0.0 to 1.0
     ```
 
-- [ ] MODEL-03: Create TyreState dataclass
-  - **File**: `D:\f1-race-replay\src\predictions\models.py`
+- [x] MODEL-03: Create TyreState dataclass (979c40f)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\models.py`
   - **Implementation**:
     ```python
     @dataclass
@@ -161,8 +161,8 @@
     ```
     - Use `src/lib/tyres.py` mapping: `get_tyre_compound_str(int)` / `get_tyre_compound_int(str)`
 
-- [ ] MODEL-04: Create PredictionConfig dataclass
-  - **File**: `D:\f1-race-replay\src\predictions\models.py`
+- [x] MODEL-04: Create PredictionConfig dataclass (979c40f)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\models.py`
   - **Implementation**:
     ```python
     @dataclass
@@ -178,8 +178,8 @@
 
 ## Phase 2: Pace Calculation Engine
 
-- [ ] PACE-01: Implement lap time extraction from frame data
-  - **File**: `D:\f1-race-replay\src\predictions\engine.py`
+- [x] PACE-01: Implement lap time extraction from frame data (3339a27)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\engine.py`
   - **Function**: `extract_lap_times(frames: List[dict], driver_code: str, up_to_frame: int) -> List[dict]`
   - **Logic**:
     - Iterate frames, detect when `frame['drivers'][code]['lap']` increments
@@ -188,16 +188,16 @@
   - **Returns**: `[{"lap": int, "time": float, "tyre": int, "tyre_age": int}, ...]`
   - **Edge cases**: Handle DNF (driver disappears), safety car laps (flag as invalid)
 
-- [ ] PACE-02: Implement rolling pace calculation
-  - **File**: `D:\f1-race-replay\src\predictions\engine.py`
+- [x] PACE-02: Implement rolling pace calculation (ef59ca4)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\engine.py`
   - **Function**: `calculate_rolling_pace(lap_times: List[dict], window: int = 5) -> float`
   - **Logic**:
     - Take last N valid lap times (exclude pit laps > 120% of median)
     - Return mean of valid laps
   - **Edge cases**: < N laps completed, all laps invalid
 
-- [ ] PACE-03: Implement tyre degradation estimation
-  - **File**: `D:\f1-race-replay\src\predictions\engine.py`
+- [x] PACE-03: Implement tyre degradation estimation (4a9ec5f)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\engine.py`
   - **Function**: `estimate_tyre_degradation(lap_times: List[dict]) -> TyreState`
   - **Logic**:
     - Filter lap times on current tyre stint
@@ -205,8 +205,8 @@
     - Estimate cliff lap based on compound: SOFT ~18, MEDIUM ~30, HARD ~40
   - **Uses**: `scipy.stats.linregress` or simple numpy polyfit
 
-- [ ] PACE-04: Implement fuel-corrected pace
-  - **File**: `D:\f1-race-replay\src\predictions\engine.py`
+- [x] PACE-04: Implement fuel-corrected pace (9a39d7d)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\engine.py`
   - **Function**: `fuel_correct_pace(lap_time: float, lap_number: int, total_laps: int) -> float`
   - **Logic**: `corrected = lap_time - (0.03 * (total_laps - lap_number))`
   - **Note**: ~0.03s/lap is standard F1 fuel correction factor
@@ -215,29 +215,29 @@
 
 ## Phase 3: Win Probability Calculator
 
-- [ ] WIN-01: Implement position-based probability baseline
-  - **File**: `D:\f1-race-replay\src\predictions\engine.py`
+- [x] WIN-01: Implement position-based probability baseline (979c40f)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\engine.py`
   - **Implementation**:
     - Create `calculate_base_probability(position, total_drivers)` function
     - Use historical win probability by position (P1 ~40%, P2 ~25%, P3 ~15%, etc.)
     - Decay probability exponentially for positions > 3
 
-- [ ] WIN-02: Implement gap-based probability adjustment
-  - **File**: `D:\f1-race-replay\src\predictions\engine.py`
+- [x] WIN-02: Implement gap-based probability adjustment (f8fb1fe)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\engine.py`
   - **Implementation**:
     - Create `adjust_probability_for_gap(base_prob, gap_to_leader, laps_remaining)` function
     - Calculate catchability: gap / (pace_delta * laps_remaining)
     - Reduce probability based on uncatchable gap threshold
 
-- [ ] WIN-03: Implement tyre advantage adjustment
-  - **File**: `D:\f1-race-replay\src\predictions\engine.py`
+- [x] WIN-03: Implement tyre advantage adjustment (f8fb1fe)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\engine.py`
   - **Implementation**:
     - Create `adjust_probability_for_tyres(prob, my_tyre_age, leader_tyre_age, my_compound, leader_compound)` function
     - Fresh tyres vs worn tyres = positive adjustment
     - Calculate expected pace delta based on tyre state
 
-- [ ] WIN-04: Implement combined win probability calculator
-  - **File**: `D:\f1-race-replay\src\predictions\engine.py`
+- [x] WIN-04: Implement combined win probability calculator (3d8c1c9)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\engine.py`
   - **Implementation**:
     - Create `calculate_win_probability(frame_data, driver_code, laps_remaining, pace_models)` function
     - Combine base, gap, and tyre adjustments
@@ -247,22 +247,22 @@
 
 ## Phase 4: Pit Window Predictor
 
-- [ ] PIT-01: Implement optimal pit window calculation
-  - **File**: `D:\f1-race-replay\src\predictions\engine.py`
+- [x] PIT-01: Implement optimal pit window calculation (ab89bdb)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\engine.py`
   - **Implementation**:
     - Create `calculate_pit_window(tyre_deg_model, laps_remaining, track_position)` function
     - Estimate optimal window: when tyre deg rate crosses threshold
     - Account for undercut/overcut opportunities based on gaps
 
-- [ ] PIT-02: Implement pit recommendation logic
-  - **File**: `D:\f1-race-replay\src\predictions\engine.py`
+- [x] PIT-02: Implement pit recommendation logic (ab89bdb)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\engine.py`
   - **Implementation**:
     - Create `get_pit_recommendation(driver_state, pit_window, gap_behind)` function
     - Return "PIT NOW" if: within window AND (losing time OR undercut threat)
     - Return "STAY OUT" with reason if outside window
 
-- [ ] PIT-03: Implement strategic pit option comparison
-  - **File**: `D:\f1-race-replay\src\predictions\engine.py`
+- [x] PIT-03: Implement strategic pit option comparison (835cbcb)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\engine.py`
   - **Implementation**:
     - Create `compare_pit_strategies(current_state, laps_remaining)` function
     - Model outcomes for: pit now, pit in N laps, no stop
@@ -272,22 +272,22 @@
 
 ## Phase 5: Position Change Predictor
 
-- [ ] POS-01: Implement pace delta calculation
-  - **File**: `D:\f1-race-replay\src\predictions\engine.py`
+- [x] POS-01: Implement pace delta calculation (835cbcb)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\engine.py`
   - **Implementation**:
     - Create `calculate_pace_delta(driver1_pace, driver2_pace)` function
     - Return seconds per lap difference
     - Flag as "catching" or "pulling away"
 
-- [ ] POS-02: Implement overtake probability
-  - **File**: `D:\f1-race-replay\src\predictions\engine.py`
+- [x] POS-02: Implement overtake probability (835cbcb)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\engine.py`
   - **Implementation**:
     - Create `calculate_overtake_probability(gap, pace_delta, drs_available)` function
     - DRS zones give +30% overtake probability
     - Return probability of overtake in next N laps
 
-- [ ] POS-03: Implement danger zone detection
-  - **File**: `D:\f1-race-replay\src\predictions\engine.py`
+- [x] POS-03: Implement danger zone detection (835cbcb)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\engine.py`
   - **Implementation**:
     - Create `detect_danger_zones(frame_data, driver_code)` function
     - Flag "DANGER" if: car behind within 1.5s AND faster pace
@@ -297,40 +297,40 @@
 
 ## Phase 6: Prediction UI Components
 
-- [ ] UI-01: Create PredictionPanelComponent base
-  - **File**: `D:\f1-race-replay\src\predictions\ui.py`
+- [x] UI-01: Create PredictionPanelComponent base (979c40f)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\ui.py`
   - **Implementation**:
     - Create class extending BaseComponent pattern from ui_components.py
     - Add position properties (x, y, width, height)
     - Add visibility toggle matching existing pattern
     - Define COLORS dict matching existing UI style
 
-- [ ] UI-02: Implement win probability bars
-  - **File**: `D:\f1-race-replay\src\predictions\ui.py`
+- [x] UI-02: Implement win probability bars (979c40f)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\ui.py`
   - **Implementation**:
     - Create `draw_win_probability(predictions, top_n=5)` method
     - Draw horizontal bar chart for top N drivers
     - Color bars by team color from driver_colors
     - Show percentage labels
 
-- [ ] UI-03: Implement pit window indicator
-  - **File**: `D:\f1-race-replay\src\predictions\ui.py`
+- [x] UI-03: Implement pit window indicator (84716e9)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\ui.py`
   - **Implementation**:
     - Create `draw_pit_window(pit_state, selected_driver)` method
     - Show visual pit window timeline
     - Highlight "PIT NOW" in flashing color when recommended
     - Show laps until pit window opens/closes
 
-- [ ] UI-04: Implement danger zone warnings
-  - **File**: `D:\f1-race-replay\src\predictions\ui.py`
+- [x] UI-04: Implement danger zone warnings (84716e9)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\ui.py`
   - **Implementation**:
     - Create `draw_danger_alert(danger_states)` method
     - Show warning icons next to drivers under threat
     - Flash animation for high danger level
     - Show attacker code and gap
 
-- [ ] UI-05: Implement confidence indicator
-  - **File**: `D:\f1-race-replay\src\predictions\ui.py`
+- [x] UI-05: Implement confidence indicator (84716e9)
+  - **File**: `D:\RalphTemplate\RalpFI\src\predictions\ui.py`
   - **Implementation**:
     - Create `draw_confidence_indicator(confidence_level)` method
     - Show "Confidence: High/Medium/Low" based on data quality
@@ -340,16 +340,16 @@
 
 ## Phase 7: Integration with Race Replay
 
-- [ ] INT-01: Import prediction components into race_replay.py
-  - **File**: `D:\f1-race-replay\src\interfaces\race_replay.py`
+- [x] INT-01: Import prediction components into race_replay.py (be6588e)
+  - **File**: `D:\RalphTemplate\RalpFI\src\interfaces\race_replay.py`
   - **Changes** (at top of file, after existing imports):
     ```python
     from src.predictions.ui import PredictionPanelComponent
     from src.predictions.engine import PredictionEngine
     ```
 
-- [ ] INT-02: Initialize prediction engine in F1RaceReplayWindow.__init__
-  - **File**: `D:\f1-race-replay\src\interfaces\race_replay.py`
+- [x] INT-02: Initialize prediction engine in F1RaceReplayWindow.__init__ (be6588e)
+  - **File**: `D:\RalphTemplate\RalpFI\src\interfaces\race_replay.py`
   - **Location**: After line 71 (after `self.race_controls_comp` initialization)
   - **Add**:
     ```python
@@ -364,13 +364,13 @@
     self._cached_predictions = {}
     ```
 
-- [ ] INT-03: Register prediction panel in on_resize
-  - **File**: `D:\f1-race-replay\src\interfaces\race_replay.py`
+- [x] INT-03: Register prediction panel in on_resize (be6588e)
+  - **File**: `D:\RalphTemplate\RalpFI\src\interfaces\race_replay.py`
   - **Location**: Line 231 (in `for c in (...)` list)
   - **Add**: `self.prediction_panel` to the component list
 
-- [ ] INT-04: Add prediction update logic to on_update
-  - **File**: `D:\f1-race-replay\src\interfaces\race_replay.py`
+- [x] INT-04: Add prediction update logic to on_update (be6588e)
+  - **File**: `D:\RalphTemplate\RalpFI\src\interfaces\race_replay.py`
   - **Location**: After line 456 in `on_update()`
   - **Add**:
     ```python
@@ -386,13 +386,13 @@
         self.prediction_panel.set_predictions(self._cached_predictions)
     ```
 
-- [ ] INT-05: Add prediction panel to draw order
-  - **File**: `D:\f1-race-replay\src\interfaces\race_replay.py`
+- [x] INT-05: Add prediction panel to draw order (be6588e)
+  - **File**: `D:\RalphTemplate\RalpFI\src\interfaces\race_replay.py`
   - **Location**: After line 444 (after `self.race_controls_comp.draw(self)`)
   - **Add**: `self.prediction_panel.draw(self)`
 
-- [ ] INT-06: Add keyboard toggle for predictions
-  - **File**: `D:\f1-race-replay\src\interfaces\race_replay.py`
+- [x] INT-06: Add keyboard toggle for predictions (be6588e)
+  - **File**: `D:\RalphTemplate\RalpFI\src\interfaces\race_replay.py`
   - **Location**: In `on_key_press()`, after line 494 (after 'B' key handler)
   - **Add**:
     ```python
@@ -400,8 +400,8 @@
         self.prediction_panel.toggle_visibility()
     ```
 
-- [ ] INT-07: Update legend with new keyboard shortcut
-  - **File**: `D:\f1-race-replay\src\ui_components.py`
+- [x] INT-07: Update legend with new keyboard shortcut (086dcad)
+  - **File**: `D:\RalphTemplate\RalpFI\src\ui_components.py`
   - **Location**: In `LegendComponent.__init__`, line 38-46 (self.lines list)
   - **Add**: `("[P]       Toggle Predictions"),` to the legend lines
 
@@ -409,7 +409,7 @@
 
 ## Phase 8: Testing & Polish
 
-- [ ] TEST-01: Create test script for prediction engine
+- [x] TEST-01: Create test script for prediction engine (a63ced3)
   - **File**: `D:\f1-race-replay\test_predictions.py`
   - **Tests**:
     - Load a cached race telemetry pickle file
@@ -418,7 +418,7 @@
     - Run `estimate_tyre_degradation()` and verify reasonable deg rates
     - Measure execution time (must be < 100ms)
 
-- [ ] TEST-02: Test probability calculations
+- [x] TEST-02: Test probability calculations (c0253cc)
   - **File**: `D:\f1-race-replay\test_predictions.py`
   - **Tests**:
     - Verify `calculate_all_win_probabilities()` sums to 1.0
@@ -438,7 +438,22 @@
 
 ## Blockers
 
-*None currently*
+### TEST-03: Manual Visual Testing Required
+**Status**: Requires user action
+**Reason**: TEST-03 is an interactive visual test that requires:
+1. Running the application: `python main.py --year 2024 --round 1`
+2. Pressing 'P' key to toggle prediction panel
+3. Visual verification of win probabilities, pit windows, and danger alerts
+4. Performance verification (no lag or stuttering)
+
+**Action Required**: User must run the visual test manually and confirm:
+- [ ] Press 'P' toggles prediction panel visibility
+- [ ] Win probabilities display and update as race progresses
+- [ ] Pit window recommendations appear for selected driver
+- [ ] Danger zone alerts show for close battles
+- [ ] No visible lag or stuttering during playback
+
+Once verified, mark TEST-03 as complete in the implementation plan.
 
 ---
 
@@ -447,6 +462,42 @@
 | Task | Commit | Date |
 |------|--------|------|
 | DISC-01 | fe8f156 | 2026-01-26 |
+| DISC-02 | 036e3fb | 2026-01-26 |
+| DISC-03 | 3f3a321 | 2026-01-26 |
+| SETUP-01 | 11657a6 | 2026-01-26 |
+| SETUP-02 | 979c40f | 2026-01-26 |
+| MODEL-01 | 979c40f | 2026-01-26 |
+| MODEL-02 | 979c40f | 2026-01-26 |
+| MODEL-03 | 979c40f | 2026-01-26 |
+| MODEL-04 | 979c40f | 2026-01-26 |
+| PACE-01 | 3339a27 | 2026-01-26 |
+| PACE-02 | ef59ca4 | 2026-01-26 |
+| PACE-03 | 4a9ec5f | 2026-01-26 |
+| PACE-04 | 9a39d7d | 2026-01-26 |
+| WIN-01 | 979c40f | 2026-01-26 |
+| WIN-02 | f8fb1fe | 2026-01-26 |
+| WIN-03 | f8fb1fe | 2026-01-26 |
+| WIN-04 | 3d8c1c9 | 2026-01-26 |
+| PIT-01 | ab89bdb | 2026-01-26 |
+| PIT-02 | ab89bdb | 2026-01-26 |
+| PIT-03 | 835cbcb | 2026-01-26 |
+| POS-01 | 835cbcb | 2026-01-26 |
+| POS-02 | 835cbcb | 2026-01-26 |
+| POS-03 | 835cbcb | 2026-01-26 |
+| UI-01 | 979c40f | 2026-01-26 |
+| UI-02 | 979c40f | 2026-01-26 |
+| UI-03 | 84716e9 | 2026-01-26 |
+| UI-04 | 84716e9 | 2026-01-26 |
+| UI-05 | 84716e9 | 2026-01-26 |
+| INT-01 | be6588e | 2026-01-26 |
+| INT-02 | be6588e | 2026-01-26 |
+| INT-03 | be6588e | 2026-01-26 |
+| INT-04 | be6588e | 2026-01-26 |
+| INT-05 | be6588e | 2026-01-26 |
+| INT-06 | be6588e | 2026-01-26 |
+| INT-07 | 086dcad | 2026-01-26 |
+| TEST-01 | a63ced3 | 2026-01-26 |
+| TEST-02 | c0253cc | 2026-01-26 |
 
 ---
 
