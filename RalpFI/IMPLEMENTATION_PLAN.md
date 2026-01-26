@@ -1,12 +1,13 @@
-# Implementation Plan
+# Implementation Plan - F1 Live Race Prediction
 
 > **Ralph Workflow**: Do tasks in order. One at a time. Update this file after each commit.
 
 ## Current Status
 
-**Phase**: 0 - Discovery
-**Progress**: 0 / 35 tasks
+**Phase**: 0 - Discovery & Setup
+**Progress**: 0 / 32 tasks
 **Last Completed**: None
+**Ready to Start**: Yes - codebase analysis complete
 
 ---
 
@@ -14,6 +15,28 @@
 
 **Type**: Brownfield (adding to existing codebase)
 **Target**: `D:\f1-race-replay`
+
+### Codebase Analysis Summary (Completed)
+
+**Architecture Patterns Identified:**
+- UI components inherit from `BaseComponent` (ui_components.py:19-22)
+- Standard component methods: `on_resize(window)`, `draw(window)`, `on_mouse_press(window, x, y, button, modifiers) -> bool`
+- Visibility managed via `_visible` property + `toggle_visibility()` method
+- Frame data at 25 FPS, resampled from FastF1 telemetry (f1_data.py:24)
+- Pickle caching for computed data (f1_data.py:421-428)
+
+**Key Integration Points:**
+- `F1RaceReplayWindow.__init__` (race_replay.py:22-129) - Initialize components
+- `on_draw()` (race_replay.py:269-447) - Render components
+- `on_update()` (race_replay.py:449-456) - Update logic
+- `on_key_press()` (race_replay.py:458-494) - Keyboard handlers
+- `on_mouse_press()` (race_replay.py:496-505) - Mouse event delegation
+
+**Available Prediction Data Per Frame:**
+- Position, speed (km/h), lap number, tyre compound (0-4)
+- DRS state (>=10 = active), throttle %, brake %
+- Race distance (meters), relative lap progress (0-1)
+- Weather: track/air temp, humidity, wind, rain state
 
 ### Features to Build
 1. **PRED-01**: Win Probability Display - Real-time win probability for each driver
@@ -319,55 +342,97 @@
 
 - [ ] INT-01: Import prediction components into race_replay.py
   - **File**: `D:\f1-race-replay\src\interfaces\race_replay.py`
-  - **Changes**:
-    - Add import: `from src.predictions.ui import PredictionPanelComponent`
-    - Add import: `from src.predictions.engine import PredictionEngine`
+  - **Changes** (at top of file, after existing imports):
+    ```python
+    from src.predictions.ui import PredictionPanelComponent
+    from src.predictions.engine import PredictionEngine
+    ```
 
-- [ ] INT-02: Initialize prediction engine in F1RaceReplayWindow
+- [ ] INT-02: Initialize prediction engine in F1RaceReplayWindow.__init__
   - **File**: `D:\f1-race-replay\src\interfaces\race_replay.py`
-  - **Changes**:
-    - Add `self.prediction_engine = PredictionEngine()` in __init__
-    - Add `self.prediction_panel = PredictionPanelComponent(...)` after other components
-    - Add 'P' keyboard toggle for prediction panel
+  - **Location**: After line 71 (after `self.race_controls_comp` initialization)
+  - **Add**:
+    ```python
+    # Prediction system
+    self.prediction_engine = PredictionEngine(config=PredictionConfig())
+    self.prediction_panel = PredictionPanelComponent(
+        x=self.left_ui_margin + 20,
+        width=280,
+        visible=False  # Toggle with 'P' key
+    )
+    self._prediction_update_counter = 0
+    self._cached_predictions = {}
+    ```
 
-- [ ] INT-03: Add prediction update to on_update method
+- [ ] INT-03: Register prediction panel in on_resize
   - **File**: `D:\f1-race-replay\src\interfaces\race_replay.py`
-  - **Changes**:
-    - Call `self.prediction_engine.update(frame, laps_remaining)` every N frames
-    - Cache predictions to avoid recalculating every frame
-    - Update interval: every 25 frames (1 second of race time)
+  - **Location**: Line 231 (in `for c in (...)` list)
+  - **Add**: `self.prediction_panel` to the component list
 
-- [ ] INT-04: Add prediction panel to draw order
+- [ ] INT-04: Add prediction update logic to on_update
   - **File**: `D:\f1-race-replay\src\interfaces\race_replay.py`
-  - **Changes**:
-    - Add `self.prediction_panel.draw(self)` after other UI components
-    - Ensure prediction overlay draws on top of track but below tooltips
+  - **Location**: After line 456 in `on_update()`
+  - **Add**:
+    ```python
+    # Update predictions every 25 frames (1 second of race time)
+    self._prediction_update_counter += 1
+    if self._prediction_update_counter >= 25:
+        self._prediction_update_counter = 0
+        frame = self.frames[int(self.frame_index)]
+        laps_remaining = (self.total_laps or 0) - frame.get("lap", 1)
+        self._cached_predictions = self.prediction_engine.calculate_all(
+            self.frames, int(self.frame_index), laps_remaining
+        )
+        self.prediction_panel.set_predictions(self._cached_predictions)
+    ```
+
+- [ ] INT-05: Add prediction panel to draw order
+  - **File**: `D:\f1-race-replay\src\interfaces\race_replay.py`
+  - **Location**: After line 444 (after `self.race_controls_comp.draw(self)`)
+  - **Add**: `self.prediction_panel.draw(self)`
+
+- [ ] INT-06: Add keyboard toggle for predictions
+  - **File**: `D:\f1-race-replay\src\interfaces\race_replay.py`
+  - **Location**: In `on_key_press()`, after line 494 (after 'B' key handler)
+  - **Add**:
+    ```python
+    elif symbol == arcade.key.P:
+        self.prediction_panel.toggle_visibility()
+    ```
+
+- [ ] INT-07: Update legend with new keyboard shortcut
+  - **File**: `D:\f1-race-replay\src\ui_components.py`
+  - **Location**: In `LegendComponent.__init__`, line 38-46 (self.lines list)
+  - **Add**: `("[P]       Toggle Predictions"),` to the legend lines
 
 ---
 
 ## Phase 8: Testing & Polish
 
-- [ ] TEST-01: Create unit tests for pace calculations
-  - **File**: `D:\f1-race-replay\tests\test_predictions.py`
+- [ ] TEST-01: Create test script for prediction engine
+  - **File**: `D:\f1-race-replay\test_predictions.py`
   - **Tests**:
-    - Test extract_lap_times with sample frame data
-    - Test rolling pace with edge cases (outliers, pit laps)
-    - Test tyre degradation estimation accuracy
+    - Load a cached race telemetry pickle file
+    - Run `extract_lap_times()` and verify output structure
+    - Run `calculate_rolling_pace()` with various window sizes
+    - Run `estimate_tyre_degradation()` and verify reasonable deg rates
+    - Measure execution time (must be < 100ms)
 
-- [ ] TEST-02: Create integration test for prediction engine
-  - **File**: `D:\f1-race-replay\tests\test_predictions.py`
+- [ ] TEST-02: Test probability calculations
+  - **File**: `D:\f1-race-replay\test_predictions.py`
   - **Tests**:
-    - Test full prediction cycle with mock race data
-    - Verify probabilities sum to 1.0
-    - Verify predictions update correctly over time
+    - Verify `calculate_all_win_probabilities()` sums to 1.0
+    - Verify leader always has highest probability
+    - Verify probabilities adjust correctly with gap changes
 
-- [ ] TEST-03: Manual visual testing
-  - **Action**: Run replay with prediction panel enabled
+- [ ] TEST-03: Manual visual testing with real race data
+  - **Action**: Run `python main.py --year 2024 --round 1` with prediction panel
   - **Verify**:
-    - Predictions display correctly
-    - No lag introduced (< 100ms calculation time)
-    - Panel toggle works (P key)
-    - Predictions update as race progresses
+    - Press 'P' to toggle prediction panel
+    - Win probabilities update as race progresses
+    - Pit window recommendations appear
+    - Danger zone alerts show for close battles
+    - No visible lag or stuttering
 
 ---
 
@@ -443,3 +508,60 @@ on_draw() [called 60 FPS]
 | `src/predictions/engine.py` | New file (prediction logic) |
 | `src/predictions/ui.py` | New file (UI components) |
 | `src/interfaces/race_replay.py` | Modify (integration) |
+| `src/ui_components.py` | Minor modify (add legend entry) |
+| `test_predictions.py` | New file (tests) |
+
+### Frame Data Reference
+
+```python
+# From f1_data.py:375-388, each frame contains:
+frame = {
+    "t": 1234.567,           # Seconds from race start
+    "lap": 15,               # Leader's current lap
+    "drivers": {
+        "VER": {
+            "x": 1234.5, "y": 5678.9,    # World coordinates
+            "dist": 67890.0,              # Race distance (metres from start)
+            "lap": 15,                    # This driver's lap
+            "rel_dist": 0.45,             # 0-1 progress through current lap
+            "tyre": 1.0,                  # 0=SOFT, 1=MED, 2=HARD, 3=INTER, 4=WET
+            "position": 1,                # Current race position
+            "speed": 312.5,               # km/h
+            "gear": 8,
+            "drs": 12,                    # >=10 means DRS active
+            "throttle": 100.0,            # Percentage
+            "brake": 0.0                  # Percentage
+        },
+        "HAM": {...},
+        # ... up to 20 drivers
+    },
+    "weather": {                          # Optional, may not be present
+        "track_temp": 45.2,
+        "air_temp": 28.1,
+        "humidity": 55.0,
+        "wind_speed": 12.5,
+        "wind_direction": 180.0,
+        "rain_state": "DRY"               # or "RAINING"
+    }
+}
+```
+
+### Compound Life Estimates (for pit window calculations)
+
+| Compound | Base Life (laps) | Cliff Threshold |
+|----------|------------------|-----------------|
+| SOFT (0) | 15-20 | ~18 laps |
+| MEDIUM (1) | 25-35 | ~30 laps |
+| HARD (2) | 35-45 | ~40 laps |
+| INTERMEDIATE (3) | 20-30 | N/A (weather dependent) |
+| WET (4) | 30-40 | N/A (weather dependent) |
+
+### Track Status Codes
+
+| Code | Meaning | Prediction Impact |
+|------|---------|-------------------|
+| "1" | Green flag | Normal racing |
+| "2" | Yellow flag | Slower pace, no overtakes |
+| "4" | Safety car | Field compressed, pit opportunity |
+| "5" | Red flag | Race stopped |
+| "6", "7" | Virtual SC | Slower pace, delta time required |
