@@ -142,7 +142,7 @@ while ($true) {
         Write-Host "  - TypeScript..." -ForegroundColor Gray
         if ($scripts -contains "typecheck" -or $scripts -contains "tsc") {
             $scriptName = if ($scripts -contains "typecheck") { "typecheck" } else { "tsc" }
-            $tsc = npm run $scriptName 2>&1 | Out-String
+            $null = npm run $scriptName 2>&1 | Out-String
             if ($LASTEXITCODE -eq 0) {
                 $runReport += "- [x] TypeScript: PASS`n"
             } else {
@@ -156,7 +156,7 @@ while ($true) {
         # ESLint
         Write-Host "  - ESLint..." -ForegroundColor Gray
         if ($scripts -contains "lint") {
-            $eslint = npm run lint 2>&1 | Out-String
+            $null = npm run lint 2>&1 | Out-String
             if ($LASTEXITCODE -eq 0) {
                 $runReport += "- [x] ESLint: PASS`n"
             } else {
@@ -170,7 +170,7 @@ while ($true) {
         # Tests
         Write-Host "  - Tests..." -ForegroundColor Gray
         if ($scripts -contains "test") {
-            $tests = npm test 2>&1 | Out-String
+            $null = npm test 2>&1 | Out-String
             if ($LASTEXITCODE -eq 0) {
                 $runReport += "- [x] Tests: PASS`n"
             } else {
@@ -202,10 +202,10 @@ while ($true) {
     )
     $secretsFound = $false
     foreach ($pattern in $secretPatterns) {
-        $matches = Get-ChildItem -Recurse -Include "*.py","*.ts","*.js","*.env" -ErrorAction SilentlyContinue |
+        $foundSecrets = Get-ChildItem -Recurse -Include "*.py","*.ts","*.js","*.env" -ErrorAction SilentlyContinue |
             Where-Object { $_.FullName -notlike "*node_modules*" -and $_.FullName -notlike "*venv*" -and $_.Name -ne ".env.example" } |
             Select-String -Pattern $pattern -ErrorAction SilentlyContinue
-        if ($matches) { $secretsFound = $true; break }
+        if ($foundSecrets) { $secretsFound = $true; break }
     }
     if (-not $secretsFound) {
         $runReport += "- [x] Hardcoded Secrets: PASS`n"
