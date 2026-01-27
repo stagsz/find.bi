@@ -194,11 +194,11 @@ while ($true) {
     # Hardcoded secrets check
     Write-Host "  - Checking for hardcoded secrets..." -ForegroundColor Gray
     $secretPatterns = @(
-        "password\s*=\s*['\"][^'\"]+['\"]",
-        "api_key\s*=\s*['\"][^'\"]+['\"]",
-        "secret\s*=\s*['\"][^'\"]+['\"]",
-        "ANTHROPIC_API_KEY\s*=\s*['\"]sk-",
-        "OPENAI_API_KEY\s*=\s*['\"]sk-"
+        'password\s*=\s*[''"][^''"]+[''"]',
+        'api_key\s*=\s*[''"][^''"]+[''"]',
+        'secret\s*=\s*[''"][^''"]+[''"]',
+        'ANTHROPIC_API_KEY\s*=\s*[''"]sk-',
+        'OPENAI_API_KEY\s*=\s*[''"]sk-'
     )
     $secretsFound = $false
     foreach ($pattern in $secretPatterns) {
