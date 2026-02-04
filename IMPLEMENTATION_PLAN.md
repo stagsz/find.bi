@@ -5,8 +5,8 @@
 ## Current Status
 
 **Phase**: 5 - Time Tracking (In Progress)
-**Progress**: Timer added to contact detail page
-**Last Completed**: TIME-06 - Add timer to contact detail page
+**Progress**: Timer added to deal detail page
+**Last Completed**: TIME-07 - Add timer to deal detail page
 
 ---
 
@@ -131,7 +131,7 @@ The CRM application has been substantially built with the following features:
 - [x] TIME-04: Create TimerContext with start/stop/persist logic using localStorage - `c504ddc`
 - [x] TIME-05: Create Timer UI component (start/stop button, elapsed time display) - `e044407`
 - [x] TIME-06: Add timer to contact detail page - `40fee9a`
-- [ ] TIME-07: Add timer to deal detail page
+- [x] TIME-07: Add timer to deal detail page - `d51928e`
 - [ ] TIME-08: Implement "only one timer at a time" constraint
 - [ ] TIME-09: Add notification for timer running >8 hours
 
@@ -298,3 +298,4 @@ The CRM application has been substantially built with the following features:
 | TIME-04: TimerContext with start/stop/persist | `c504ddc` | 2026-02-04 |
 | TIME-05: Timer UI component | `e044407` | 2026-02-04 |
 | TIME-06: Timer on contact detail page | `40fee9a` | 2026-02-04 |
+| TIME-07: Timer on deal detail page | `d51928e` | 2026-02-04 |
