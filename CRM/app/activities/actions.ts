@@ -265,6 +265,57 @@ export async function getActivitiesForDeal(dealId: string) {
 }
 
 /**
+ * Update activity status (for drag-and-drop)
+ */
+export async function updateActivityStatus(
+  id: string,
+  status: 'todo' | 'in_progress' | 'completed' | 'cancelled'
+) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Unauthorized' }
+  }
+
+  const updates: Record<string, string | null> = {
+    status,
+    updated_at: new Date().toISOString()
+  }
+
+  // Auto-set completed_at when status changes to completed
+  if (status === 'completed') {
+    updates.completed_at = new Date().toISOString()
+  } else {
+    updates.completed_at = null
+  }
+
+  const { data, error } = await supabase
+    .from('activities')
+    .update(updates)
+    .eq('id', id)
+    .select('id, contact_id, deal_id')
+    .single()
+
+  if (error) {
+    console.error('Error updating activity status:', error)
+    return { error: error.message }
+  }
+
+  // Revalidate relevant pages
+  if (data.contact_id) {
+    revalidatePath(`/contacts/${data.contact_id}`)
+  }
+  if (data.deal_id) {
+    revalidatePath(`/deals/${data.deal_id}`)
+  }
+  revalidatePath('/tasks')
+  revalidatePath('/activities')
+
+  return { data, error: null }
+}
+
+/**
  * Get tasks assigned to current user
  */
 export async function getUserTasks(filters?: {
