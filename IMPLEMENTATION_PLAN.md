@@ -5,8 +5,8 @@
 ## Current Status
 
 **Phase**: 5 - Time Tracking (In Progress)
-**Progress**: Time entry form added to deal pages
-**Last Completed**: TIME-12 - Add time entry form to deal pages
+**Progress**: Track time checkbox added to activity form
+**Last Completed**: TIME-15 - Update activity form to include "Track time" checkbox
 
 ---
 
@@ -143,7 +143,7 @@ The CRM application has been substantially built with the following features:
 - [x] TIME-14: Add billable checkbox (default: true) - Included in TIME-10
 
 ### Activity-Based Auto-Tracking
-- [ ] TIME-15: Update activity form to include "Track time" checkbox
+- [x] TIME-15: Update activity form to include "Track time" checkbox - `302e924`
 - [ ] TIME-16: Auto-create time entry when activity with duration is logged
 - [ ] TIME-17: Link time entries to activities (activity_id foreign key)
 - [ ] TIME-18: Allow editing auto-created time entries
@@ -304,3 +304,4 @@ The CRM application has been substantially built with the following features:
 | TIME-10: Manual time entry form component | `8d034b8` | 2026-02-04 |
 | TIME-11: Time entry form on contact pages | `9c03b78` | 2026-02-04 |
 | TIME-12: Time entry form on deal pages | `f17fe4a` | 2026-02-04 |
+| TIME-15: Track time checkbox in activity form | `302e924` | 2026-02-04 |
