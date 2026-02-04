@@ -5,8 +5,8 @@
 ## Current Status
 
 **Phase**: 5 - Time Tracking (In Progress)
-**Progress**: Users can view and edit auto-created time entries
-**Last Completed**: TIME-18 - Allow editing auto-created time entries
+**Progress**: Submit time entry for approval action implemented
+**Last Completed**: TIME-19 - Add submit time entry action
 
 ---
 
@@ -149,7 +149,7 @@ The CRM application has been substantially built with the following features:
 - [x] TIME-18: Allow editing auto-created time entries - `6dd2b86`
 
 ### Approval Workflow
-- [ ] TIME-19: Add submit time entry action (changes status to 'submitted')
+- [x] TIME-19: Add submit time entry action (changes status to 'submitted') - `fb80e0c`
 - [ ] TIME-20: Create pending approvals view for admins
 - [ ] TIME-21: Add approve/reject actions with optional notes
 - [ ] TIME-22: Prevent users from editing approved time entries
@@ -308,3 +308,4 @@ The CRM application has been substantially built with the following features:
 | TIME-16: Auto-create time entry on activity save | `85f8b5f` | 2026-02-04 |
 | TIME-17: Link time entries to activities | `c37af74`, `85f8b5f` | 2026-02-04 |
 | TIME-18: Allow editing auto-created time entries | `6dd2b86` | 2026-02-04 |
+| TIME-19: Add submit time entry action | `fb80e0c` | 2026-02-04 |
