@@ -4,9 +4,9 @@
 
 ## Current Status
 
-**Phase**: 4 - Admin Features (In Progress)
-**Progress**: Role change functionality complete
-**Last Completed**: ADMIN-03 - Add ability to change user roles
+**Phase**: 4 - Admin Features (Complete)
+**Progress**: All admin features complete
+**Last Completed**: ADMIN-04 - Add system-wide statistics for admins
 
 ---
 
@@ -116,7 +116,7 @@ The CRM application has been substantially built with the following features:
 - [x] ADMIN-01: Create admin page route (existing)
 - [x] ADMIN-02: Add user management (list all users) - `4c1506d`
 - [x] ADMIN-03: Add ability to change user roles - `8857a92`
-- [ ] ADMIN-04: Add system-wide statistics for admins
+- [x] ADMIN-04: Add system-wide statistics for admins - `7fe2610`
 
 ---
 
@@ -294,3 +294,4 @@ The CRM application has been substantially built with the following features:
 | UI-24: Dashboard date range filter | `b5ada36` | 2026-02-04 |
 | ADMIN-02: User management with search/filters | `4c1506d` | 2026-02-04 |
 | ADMIN-03: Role change dropdown for admins | `8857a92` | 2026-02-04 |
+| ADMIN-04: System-wide statistics for admins | `7fe2610` | 2026-02-04 |
