@@ -40,9 +40,11 @@ export default function Timer({
     elapsedSeconds,
     contactId: runningContactId,
     dealId: runningDealId,
+    showLongRunningWarning,
     startTimer,
     stopTimer,
     resetTimer,
+    dismissLongRunningWarning,
   } = useTimer()
 
   // Check if timer is running for a different entity than this component
@@ -83,9 +85,24 @@ export default function Timer({
   if (compact) {
     return (
       <div className="inline-flex items-center gap-2">
+        {/* Long running warning indicator for compact mode */}
+        {showLongRunningWarning && isRunningHere && (
+          <button
+            onClick={dismissLongRunningWarning}
+            className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 transition"
+            title="Timer running for 8+ hours - click to dismiss"
+            aria-label="Timer running for 8+ hours - click to dismiss"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+            </svg>
+          </button>
+        )}
         <span
           className={`font-mono text-sm ${
-            isRunningHere
+            showLongRunningWarning && isRunningHere
+              ? 'text-amber-600 dark:text-amber-400'
+              : isRunningHere
               ? 'text-green-600 dark:text-green-400'
               : isRunningElsewhere
               ? 'text-yellow-600 dark:text-yellow-400'
@@ -220,6 +237,36 @@ export default function Timer({
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
           </svg>
           Timer running on another {runningDealId ? 'deal' : 'contact'}
+        </div>
+      )}
+
+      {/* Long running timer warning (8+ hours) */}
+      {showLongRunningWarning && isRunningHere && (
+        <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start gap-2">
+              <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+              </svg>
+              <div>
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  Timer running for 8+ hours
+                </p>
+                <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                  Did you forget to stop the timer?
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={dismissLongRunningWarning}
+              className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 transition"
+              aria-label="Dismiss warning"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
     </div>

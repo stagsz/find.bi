@@ -4,6 +4,9 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 
 const TIMER_STORAGE_KEY = 'crm-timer-state'
 
+// 8 hours in seconds
+const LONG_RUNNING_THRESHOLD_SECONDS = 8 * 60 * 60
+
 interface TimerState {
   isRunning: boolean
   startTime: number | null // Unix timestamp when timer started
@@ -11,6 +14,7 @@ interface TimerState {
   contactId: string | null
   dealId: string | null
   activityId: string | null
+  longRunningWarningDismissed: boolean // Track if user dismissed the 8h warning for this session
 }
 
 interface TimerContextType {
@@ -19,10 +23,12 @@ interface TimerContextType {
   contactId: string | null
   dealId: string | null
   activityId: string | null
+  showLongRunningWarning: boolean
   startTimer: (options?: { contactId?: string; dealId?: string; activityId?: string }) => void
   stopTimer: () => { elapsedSeconds: number; contactId: string | null; dealId: string | null; activityId: string | null }
   resetTimer: () => void
   setTimerContext: (options: { contactId?: string | null; dealId?: string | null; activityId?: string | null }) => void
+  dismissLongRunningWarning: () => void
 }
 
 const TimerContext = createContext<TimerContextType | undefined>(undefined)
@@ -34,6 +40,7 @@ const defaultState: TimerState = {
   contactId: null,
   dealId: null,
   activityId: null,
+  longRunningWarningDismissed: false,
 }
 
 function loadTimerState(): TimerState {
@@ -68,6 +75,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<TimerState>(defaultState)
   const [currentElapsed, setCurrentElapsed] = useState(0)
   const [mounted, setMounted] = useState(false)
+  const [showLongRunningWarning, setShowLongRunningWarning] = useState(false)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const autoSaveRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -97,6 +105,11 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         const now = Date.now()
         const elapsed = state.elapsedSeconds + Math.floor((now - state.startTime!) / 1000)
         setCurrentElapsed(elapsed)
+
+        // Check if timer has exceeded 8 hours and warning hasn't been dismissed
+        if (elapsed >= LONG_RUNNING_THRESHOLD_SECONDS && !state.longRunningWarningDismissed) {
+          setShowLongRunningWarning(true)
+        }
       }, 1000)
 
       // Auto-save every 60 seconds
@@ -171,6 +184,15 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   const resetTimer = useCallback(() => {
     setState(defaultState)
     setCurrentElapsed(0)
+    setShowLongRunningWarning(false)
+  }, [])
+
+  const dismissLongRunningWarning = useCallback(() => {
+    setShowLongRunningWarning(false)
+    setState((prev) => ({
+      ...prev,
+      longRunningWarningDismissed: true,
+    }))
   }, [])
 
   const setTimerContext = useCallback((options: { contactId?: string | null; dealId?: string | null; activityId?: string | null }) => {
@@ -190,10 +212,12 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         contactId: state.contactId,
         dealId: state.dealId,
         activityId: state.activityId,
+        showLongRunningWarning,
         startTimer,
         stopTimer,
         resetTimer,
         setTimerContext,
+        dismissLongRunningWarning,
       }}
     >
       {children}
