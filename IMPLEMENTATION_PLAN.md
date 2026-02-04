@@ -5,8 +5,8 @@
 ## Current Status
 
 **Phase**: 5 - Time Tracking (In Progress)
-**Progress**: Timer notifications implemented
-**Last Completed**: TIME-09 - Add notification for timer running >8 hours
+**Progress**: Manual time entry form component created
+**Last Completed**: TIME-10 - Create manual time entry form component
 
 ---
 
@@ -136,11 +136,11 @@ The CRM application has been substantially built with the following features:
 - [x] TIME-09: Add notification for timer running >8 hours - `65e2257`
 
 ### Manual Time Entry
-- [ ] TIME-10: Create manual time entry form component
+- [x] TIME-10: Create manual time entry form component - `8d034b8`
 - [ ] TIME-11: Add time entry form to contact pages
 - [ ] TIME-12: Add time entry form to deal pages
-- [ ] TIME-13: Support duration input as HH:MM or decimal
-- [ ] TIME-14: Add billable checkbox (default: true)
+- [x] TIME-13: Support duration input as HH:MM or decimal - Included in TIME-10
+- [x] TIME-14: Add billable checkbox (default: true) - Included in TIME-10
 
 ### Activity-Based Auto-Tracking
 - [ ] TIME-15: Update activity form to include "Track time" checkbox
@@ -301,3 +301,4 @@ The CRM application has been substantially built with the following features:
 | TIME-07: Timer on deal detail page | `d51928e` | 2026-02-04 |
 | TIME-08: Single timer constraint | `38abc6f` | 2026-02-04 |
 | TIME-09: Timer 8+ hour notification | `65e2257` | 2026-02-04 |
+| TIME-10: Manual time entry form component | `8d034b8` | 2026-02-04 |
