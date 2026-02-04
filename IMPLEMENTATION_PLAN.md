@@ -5,8 +5,8 @@
 ## Current Status
 
 **Phase**: 5 - Time Tracking (In Progress)
-**Progress**: Admin time tracking dashboard created
-**Last Completed**: TIME-24 - Create admin time tracking dashboard page
+**Progress**: Time summary stats (today/week/month) verified
+**Last Completed**: TIME-25 - Add total hours summary (already in TIME-24)
 
 ---
 
@@ -157,7 +157,7 @@ The CRM application has been substantially built with the following features:
 
 ### Admin Dashboard
 - [x] TIME-24: Create admin time tracking dashboard page - `4d0e2cc`
-- [ ] TIME-25: Add total hours summary (today, this week, this month)
+- [x] TIME-25: Add total hours summary (today, this week, this month) - `4d0e2cc` (included in TIME-24)
 - [ ] TIME-26: Add hours by user table (sortable)
 - [ ] TIME-27: Add hours by contact/deal breakdown (top 10)
 - [ ] TIME-28: Add date range filter
@@ -314,3 +314,4 @@ The CRM application has been substantially built with the following features:
 | TIME-22: Prevent editing approved time entries | `3789829` | 2026-02-04 |
 | TIME-23: Handle rejected time entries with resubmit | `e410e9f` | 2026-02-04 |
 | TIME-24: Create admin time tracking dashboard | `4d0e2cc` | 2026-02-04 |
+| TIME-25: Add total hours summary (today/week/month) | `4d0e2cc` | 2026-02-04 |
