@@ -4,7 +4,8 @@
       "WebFetch(domain:github.com)",
       "Bash(git add:*)",
       "Bash(git reset:*)",
-      "Bash(Remove-Item -Recurse -Force CRM/.git)"
+      "Bash(Remove-Item -Recurse -Force CRM/.git)",
+      "Bash(git commit:*)"
     ]
   }
 }
