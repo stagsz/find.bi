@@ -267,7 +267,8 @@ export async function getTimeEntriesForDeal(dealId: string) {
 }
 
 /**
- * Submit a time entry for approval (changes status from 'draft' to 'submitted')
+ * Submit a time entry for approval (changes status from 'draft' or 'rejected' to 'submitted')
+ * When resubmitting a rejected entry, clears the previous rejection notes
  */
 export async function submitTimeEntry(id: string) {
   const supabase = await createClient()
@@ -293,15 +294,19 @@ export async function submitTimeEntry(id: string) {
     return { error: 'You can only submit your own time entries' }
   }
 
-  // Only draft entries can be submitted
-  if (existing.status !== 'draft') {
-    return { error: 'Only draft time entries can be submitted for approval' }
+  // Only draft and rejected entries can be submitted
+  if (existing.status !== 'draft' && existing.status !== 'rejected') {
+    return { error: 'Only draft or rejected time entries can be submitted for approval' }
   }
 
+  // When resubmitting, clear rejection notes and approval info
   const { data, error } = await supabase
     .from('time_entries')
     .update({
       status: 'submitted',
+      approval_notes: null,
+      approved_by: null,
+      approved_at: null,
       updated_at: new Date().toISOString()
     })
     .eq('id', id)
