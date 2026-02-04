@@ -6,7 +6,7 @@
 
 **Phase**: 1 - Foundation (Mostly Complete)
 **Progress**: Core CRM built, refinements needed
-**Last Completed**: Initial CRM implementation exists in CRM/ directory
+**Last Completed**: SETUP-08 - Dependencies verified and updated
 
 ---
 
@@ -42,7 +42,7 @@ The CRM application has been substantially built with the following features:
 - [x] SETUP-05: Set up Supabase client libraries (existing)
 - [x] SETUP-06: Add TypeScript strict mode to tsconfig.json (already configured)
 - [~] SETUP-07: Add ESLint configuration with Next.js recommended rules (BLOCKED: CRM/ not in git)
-- [ ] SETUP-08: Verify all dependencies are up to date
+- [x] SETUP-08: Verify all dependencies are up to date
 
 ### Database Models
 - [x] DB-01: Create users table with RLS (existing)
@@ -123,9 +123,9 @@ The CRM application has been substantially built with the following features:
 ## Phase 5: Time Tracking (Epic 5 - IN PROGRESS)
 
 ### Database Schema
-- [ ] TIME-01: Create time_entries table migration with all fields (user_id, contact_id, deal_id, activity_id, duration_minutes, entry_date, notes, is_billable, status, approval_notes, approved_by, approved_at)
-- [ ] TIME-02: Add RLS policies for time_entries (users see own entries, admins see all)
-- [ ] TIME-03: Create indexes for time_entries (user+date, contact, deal, status, billable)
+- [x] TIME-01: Create time_entries table migration with all fields (user_id, contact_id, deal_id, activity_id, duration_minutes, entry_date, notes, is_billable, status, approval_notes, approved_by, approved_at) - `c37af74`
+- [x] TIME-02: Add RLS policies for time_entries (users see own entries, admins see all) - `db1dabc`
+- [x] TIME-03: Create indexes for time_entries (user+date, contact, deal, status, billable) - Included in TIME-01
 
 ### Timer Component
 - [ ] TIME-04: Create TimerContext with start/stop/persist logic using localStorage
