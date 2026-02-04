@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import PipelineChartWrapper from '@/components/dashboard/PipelineChartWrapper'
 import DealsDonutChartWrapper from '@/components/dashboard/DealsDonutChartWrapper'
+import DateRangeFilter, { getDateRangeFromParams, type DateRangePreset } from '@/components/dashboard/DateRangeFilter'
 
 interface DashboardStats {
   totalContacts: number
@@ -17,6 +18,12 @@ interface DashboardStats {
   upcomingTasks: any[]
 }
 
+interface SearchParams {
+  range?: string
+  start?: string
+  end?: string
+}
+
 const STAGES = {
   lead: { label: 'Lead', color: 'bg-blue-500', chartColor: '#3b82f6' },
   proposal: { label: 'Proposal', color: 'bg-purple-500', chartColor: '#a855f7' },
@@ -25,11 +32,37 @@ const STAGES = {
   'closed-lost': { label: 'Closed Lost', color: 'bg-red-500', chartColor: '#ef4444' }
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>
+}) {
   const supabase = await createClient()
+  const params = await searchParams
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
+
+  // Parse date range from search params
+  const { startDate, endDate } = getDateRangeFromParams(params)
+  const preset = (params.range || 'all') as DateRangePreset
+
+  // Build base queries with optional date filtering
+  let contactsQuery = supabase.from('contacts').select('id, created_at').is('deleted_at', null)
+  let dealsQuery = supabase.from('deals').select('*').is('deleted_at', null)
+  let tasksQuery = supabase.from('activities').select('*').eq('type', 'task').is('deleted_at', null)
+  let activitiesQuery = supabase.from('activities').select('*').is('deleted_at', null)
+
+  // Apply date filters if specified
+  if (startDate && endDate) {
+    const startDateTime = `${startDate}T00:00:00`
+    const endDateTime = `${endDate}T23:59:59`
+
+    contactsQuery = contactsQuery.gte('created_at', startDateTime).lte('created_at', endDateTime)
+    dealsQuery = dealsQuery.gte('created_at', startDateTime).lte('created_at', endDateTime)
+    tasksQuery = tasksQuery.gte('created_at', startDateTime).lte('created_at', endDateTime)
+    activitiesQuery = activitiesQuery.gte('created_at', startDateTime).lte('created_at', endDateTime)
+  }
 
   // Fetch all data in parallel
   const [
@@ -38,10 +71,10 @@ export default async function DashboardPage() {
     { data: tasks },
     { data: activities }
   ] = await Promise.all([
-    supabase.from('contacts').select('id, created_at').is('deleted_at', null),
-    supabase.from('deals').select('*').is('deleted_at', null),
-    supabase.from('activities').select('*').eq('type', 'task').is('deleted_at', null),
-    supabase.from('activities').select('*').is('deleted_at', null)
+    contactsQuery,
+    dealsQuery,
+    tasksQuery,
+    activitiesQuery
   ])
 
   // Calculate stats
@@ -54,16 +87,16 @@ export default async function DashboardPage() {
 
   const activeTasks = tasks?.filter(t => t.status !== 'completed' && t.status !== 'cancelled').length || 0
 
-  const oneWeekAgo = new Date()
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
-  const completedTasksThisWeek = tasks?.filter(t =>
+  // For "this period" metrics, use the date range or default to last 7 days
+  const periodStart = startDate ? new Date(startDate) : new Date(new Date().setDate(new Date().getDate() - 7))
+  const completedTasksInPeriod = tasks?.filter(t =>
     t.status === 'completed' &&
     t.completed_at &&
-    new Date(t.completed_at) > oneWeekAgo
+    new Date(t.completed_at) >= periodStart
   ).length || 0
 
-  const activitiesThisWeek = activities?.filter(a =>
-    new Date(a.created_at) > oneWeekAgo
+  const activitiesInPeriod = activities?.filter(a =>
+    new Date(a.created_at) >= periodStart
   ).length || 0
 
   // Group deals by stage
@@ -90,6 +123,11 @@ export default async function DashboardPage() {
     new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
   ).slice(0, 5) || []
 
+  // Format date range for display
+  const dateRangeLabel = startDate && endDate
+    ? `${new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+    : 'All Time'
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -97,7 +135,21 @@ export default async function DashboardPage() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Overview of your sales performance
+            {startDate && endDate && (
+              <span className="ml-2 text-blue-600 dark:text-blue-400">
+                • Showing data from {dateRangeLabel}
+              </span>
+            )}
           </p>
+        </div>
+
+        {/* Date Range Filter */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-8">
+          <DateRangeFilter
+            startDate={startDate || undefined}
+            endDate={endDate || undefined}
+            preset={preset}
+          />
         </div>
 
         {/* Key Metrics */}
@@ -128,7 +180,7 @@ export default async function DashboardPage() {
           <MetricCard
             title="Active Tasks"
             value={activeTasks.toLocaleString()}
-            subtitle={`${completedTasksThisWeek} completed this week`}
+            subtitle={`${completedTasksInPeriod} completed in period`}
             iconColor="bg-orange-500"
             iconLabel="T"
             href="/tasks"
@@ -207,7 +259,7 @@ export default async function DashboardPage() {
                   </Link>
                 ))
               ) : (
-                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No deals yet</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No deals in this period</p>
               )}
             </div>
           </div>
@@ -261,15 +313,17 @@ export default async function DashboardPage() {
             <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
-            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Activity This Week</h2>
+            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+              Activity {startDate ? 'in Period' : 'This Week'}
+            </h2>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="text-center">
-              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{activitiesThisWeek}</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{activitiesInPeriod}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Total Activities</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{completedTasksThisWeek}</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{completedTasksInPeriod}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Tasks Completed</p>
             </div>
             <div className="text-center">
