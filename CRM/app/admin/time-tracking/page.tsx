@@ -6,12 +6,14 @@ import ContactHoursTable from '@/components/admin/ContactHoursTable'
 import DealHoursTable from '@/components/admin/DealHoursTable'
 import DateRangeFilter, { getDateRangeFromParams, type DateRangePreset } from '@/components/dashboard/DateRangeFilter'
 import BillableFilter, { type BillablePreset } from '@/components/admin/BillableFilter'
+import ApprovalStatusFilter, { type ApprovalStatusPreset } from '@/components/admin/ApprovalStatusFilter'
 
 interface SearchParams {
   range?: string
   start?: string
   end?: string
   billable?: string
+  status?: string
 }
 
 function formatDuration(minutes: number): string {
@@ -35,6 +37,7 @@ export default async function AdminTimeTrackingDashboard({
   const { startDate, endDate } = getDateRangeFromParams(params)
   const preset = (params.range || 'all') as DateRangePreset
   const billablePreset = (params.billable || 'all') as BillablePreset
+  const statusPreset = (params.status || 'all') as ApprovalStatusPreset
 
   // Get date ranges for summary cards
   const now = new Date()
@@ -67,6 +70,11 @@ export default async function AdminTimeTrackingDashboard({
     timeEntriesQuery = timeEntriesQuery.eq('is_billable', true)
   } else if (billablePreset === 'non-billable') {
     timeEntriesQuery = timeEntriesQuery.eq('is_billable', false)
+  }
+
+  // Apply approval status filter
+  if (statusPreset !== 'all') {
+    timeEntriesQuery = timeEntriesQuery.eq('status', statusPreset)
   }
 
   const { data: allTimeEntries } = await timeEntriesQuery
@@ -190,6 +198,10 @@ export default async function AdminTimeTrackingDashboard({
           />
           <BillableFilter
             preset={billablePreset}
+            basePath="/admin/time-tracking"
+          />
+          <ApprovalStatusFilter
+            preset={statusPreset}
             basePath="/admin/time-tracking"
           />
         </div>
