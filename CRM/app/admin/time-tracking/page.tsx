@@ -5,11 +5,13 @@ import UserHoursTable from '@/components/admin/UserHoursTable'
 import ContactHoursTable from '@/components/admin/ContactHoursTable'
 import DealHoursTable from '@/components/admin/DealHoursTable'
 import DateRangeFilter, { getDateRangeFromParams, type DateRangePreset } from '@/components/dashboard/DateRangeFilter'
+import BillableFilter, { type BillablePreset } from '@/components/admin/BillableFilter'
 
 interface SearchParams {
   range?: string
   start?: string
   end?: string
+  billable?: string
 }
 
 function formatDuration(minutes: number): string {
@@ -32,6 +34,7 @@ export default async function AdminTimeTrackingDashboard({
   // Parse date range from search params
   const { startDate, endDate } = getDateRangeFromParams(params)
   const preset = (params.range || 'all') as DateRangePreset
+  const billablePreset = (params.billable || 'all') as BillablePreset
 
   // Get date ranges for summary cards
   const now = new Date()
@@ -57,6 +60,13 @@ export default async function AdminTimeTrackingDashboard({
     timeEntriesQuery = timeEntriesQuery
       .gte('entry_date', startDate)
       .lte('entry_date', endDate)
+  }
+
+  // Apply billable filter
+  if (billablePreset === 'billable') {
+    timeEntriesQuery = timeEntriesQuery.eq('is_billable', true)
+  } else if (billablePreset === 'non-billable') {
+    timeEntriesQuery = timeEntriesQuery.eq('is_billable', false)
   }
 
   const { data: allTimeEntries } = await timeEntriesQuery
@@ -170,12 +180,16 @@ export default async function AdminTimeTrackingDashboard({
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Date Range Filter */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-8">
+        {/* Filters */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-8 space-y-3">
           <DateRangeFilter
             startDate={startDate || undefined}
             endDate={endDate || undefined}
             preset={preset}
+            basePath="/admin/time-tracking"
+          />
+          <BillableFilter
+            preset={billablePreset}
             basePath="/admin/time-tracking"
           />
         </div>
