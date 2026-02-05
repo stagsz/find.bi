@@ -194,6 +194,12 @@ export default async function AdminTimeTrackingDashboard({
                 Manage Approvals
               </Link>
               <Link
+                href="/admin/time-report"
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              >
+                View Report
+              </Link>
+              <Link
                 href="/admin"
                 className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               >
