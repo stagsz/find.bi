@@ -2,6 +2,8 @@ import { requireAdmin } from '@/lib/auth/permissions'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import UserHoursTable from '@/components/admin/UserHoursTable'
+import ContactHoursTable from '@/components/admin/ContactHoursTable'
+import DealHoursTable from '@/components/admin/DealHoursTable'
 
 function formatDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60)
@@ -284,50 +286,13 @@ export default async function AdminTimeTrackingDashboard() {
           {/* Hours by Contact */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Top 10 Contacts by Hours</h3>
-            {contactHoursList.length > 0 ? (
-              <div className="space-y-3">
-                {contactHoursList.map((contact) => (
-                  <div key={contact.contactId} className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <Link
-                        href={`/contacts/${contact.contactId}`}
-                        className="text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400"
-                      >
-                        {contact.name}
-                      </Link>
-                      {contact.company && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{contact.company}</p>
-                      )}
-                    </div>
-                    <span className="ml-4 text-sm font-medium text-gray-900 dark:text-gray-100">{formatDuration(contact.totalMinutes)}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500 dark:text-gray-400">No time entries linked to contacts yet.</p>
-            )}
+            <ContactHoursTable contacts={contactHoursList} />
           </div>
 
           {/* Hours by Deal */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Top 10 Deals by Hours</h3>
-            {dealHoursList.length > 0 ? (
-              <div className="space-y-3">
-                {dealHoursList.map((deal) => (
-                  <div key={deal.dealId} className="flex items-center justify-between">
-                    <Link
-                      href={`/deals/${deal.dealId}`}
-                      className="flex-1 min-w-0 text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 truncate"
-                    >
-                      {deal.title}
-                    </Link>
-                    <span className="ml-4 text-sm font-medium text-gray-900 dark:text-gray-100">{formatDuration(deal.totalMinutes)}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500 dark:text-gray-400">No time entries linked to deals yet.</p>
-            )}
+            <DealHoursTable deals={dealHoursList} />
           </div>
         </div>
       </div>
