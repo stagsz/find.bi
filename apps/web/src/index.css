@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+/* HazOp-specific custom colors for risk levels */
+@theme {
+  --color-risk-low: #22c55e;
+  --color-risk-medium: #f59e0b;
+  --color-risk-high: #ef4444;
+}
