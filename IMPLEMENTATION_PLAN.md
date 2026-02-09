@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 1 - Foundation (In Progress)
-**Progress**: Development infrastructure configured
-**Last Completed**: SETUP-02 - Configure Docker Compose for development
-**Next Task**: SETUP-03 - Set up React 18 + TypeScript + Vite in web app
+**Progress**: Core development infrastructure complete (monorepo, Docker, React, Express)
+**Last Completed**: SETUP-04 - Set up Express.js + TypeScript in api app
+**Next Task**: SETUP-05 - Configure Tailwind CSS and Mantine UI component library
 
 ---
 
@@ -55,8 +55,8 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 ### Project Setup
 - [x] SETUP-01: Initialize Nx monorepo with apps (web, api) and shared packages (types, utils)
 - [x] SETUP-02: Configure Docker Compose for development (PostgreSQL, Redis, MinIO, RabbitMQ)
-- [ ] SETUP-03: Set up React 18 + TypeScript + Vite in web app
-- [ ] SETUP-04: Set up Express.js + TypeScript in api app
+- [x] SETUP-03: Set up React 18 + TypeScript + Vite in web app (dc838a8 - included in SETUP-01)
+- [x] SETUP-04: Set up Express.js + TypeScript in api app (dc838a8 - included in SETUP-01)
 - [ ] SETUP-05: Configure Tailwind CSS and Mantine UI component library
 - [ ] SETUP-06: Set up Vitest for frontend testing
 - [ ] SETUP-07: Set up Jest + Supertest for API testing
@@ -415,3 +415,5 @@ _No blockers currently._
 | Initial planning | - | 2026-02-09 |
 | SETUP-01: Initialize Nx monorepo | dc838a8 | 2026-02-09 |
 | SETUP-02: Configure Docker Compose | 3119b77 | 2026-02-09 |
+| SETUP-03: React 18 + TypeScript + Vite | dc838a8 | 2026-02-09 |
+| SETUP-04: Express.js + TypeScript | dc838a8 | 2026-02-09 |
