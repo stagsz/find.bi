@@ -6,8 +6,13 @@
  */
 
 import type { Request, Response } from 'express';
-import { listAllUsers } from '../services/user.service.js';
+import { listAllUsers, updateUserRole, findUserById } from '../services/user.service.js';
 import type { UserRole } from '@hazop/types';
+
+/**
+ * Valid user roles.
+ */
+const VALID_ROLES: UserRole[] = ['administrator', 'lead_analyst', 'analyst', 'viewer'];
 
 /**
  * Validation error for a specific field.
@@ -175,6 +180,160 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
     });
   } catch (error) {
     console.error('List users error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+/**
+ * Request body for updating a user's role.
+ */
+interface UpdateUserRoleBody {
+  role?: unknown;
+}
+
+/**
+ * Validate update user role request body.
+ * Returns an array of field errors if validation fails.
+ */
+function validateUpdateUserRoleBody(body: UpdateUserRoleBody): FieldError[] {
+  const errors: FieldError[] = [];
+
+  // Role is required
+  if (body.role === undefined || body.role === null) {
+    errors.push({
+      field: 'role',
+      message: 'Role is required',
+      code: 'REQUIRED',
+    });
+    return errors;
+  }
+
+  // Role must be a string
+  if (typeof body.role !== 'string') {
+    errors.push({
+      field: 'role',
+      message: 'Role must be a string',
+      code: 'INVALID_TYPE',
+    });
+    return errors;
+  }
+
+  // Role must be valid
+  if (!VALID_ROLES.includes(body.role as UserRole)) {
+    errors.push({
+      field: 'role',
+      message: `Role must be one of: ${VALID_ROLES.join(', ')}`,
+      code: 'INVALID_VALUE',
+    });
+  }
+
+  return errors;
+}
+
+/**
+ * Validate UUID format.
+ */
+function isValidUUID(id: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+}
+
+/**
+ * PUT /admin/users/:id/role
+ * Update a user's role.
+ * Requires administrator role.
+ *
+ * Path parameters:
+ * - id: User ID (UUID)
+ *
+ * Request body:
+ * - role: UserRole (required)
+ *
+ * Returns:
+ * - 200: Updated user
+ * - 400: Validation error
+ * - 401: Not authenticated
+ * - 403: Not authorized (non-admin) or self-role-change
+ * - 404: User not found
+ * - 500: Internal server error
+ */
+export async function changeUserRole(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+    const body = req.body as UpdateUserRoleBody;
+
+    // Validate user ID format
+    if (!id || !isValidUUID(id)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid user ID format',
+        },
+      });
+      return;
+    }
+
+    // Validate request body
+    const validationErrors = validateUpdateUserRoleBody(body);
+    if (validationErrors.length > 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          errors: validationErrors,
+        },
+      });
+      return;
+    }
+
+    const newRole = body.role as UserRole;
+
+    // Prevent admin from changing their own role
+    const currentUserId = (req.user as { id: string } | undefined)?.id;
+    if (currentUserId === id) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Cannot change your own role',
+        },
+      });
+      return;
+    }
+
+    // Check if user exists
+    const existingUser = await findUserById(id);
+    if (!existingUser) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'User not found',
+        },
+      });
+      return;
+    }
+
+    // Update the user's role
+    const updatedUser = await updateUserRole(id, newRole);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: updatedUser,
+      },
+    });
+  } catch (error) {
+    console.error('Change user role error:', error);
 
     res.status(500).json({
       success: false,

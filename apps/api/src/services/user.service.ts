@@ -340,3 +340,26 @@ export async function listAllUsers(
 
   return { users, total };
 }
+
+/**
+ * Update a user's role.
+ * For admin use only.
+ * Returns the updated user (without password hash).
+ */
+export async function updateUserRole(userId: string, role: UserRole): Promise<User> {
+  const pool = getPool();
+
+  const result = await pool.query<UserRow>(
+    `UPDATE hazop.users
+     SET role = $1
+     WHERE id = $2
+     RETURNING id, email, password_hash, name, role, organization, is_active, created_at, updated_at`,
+    [role, userId]
+  );
+
+  if (!result.rows[0]) {
+    throw new Error('User not found');
+  }
+
+  return rowToUser(result.rows[0]);
+}
