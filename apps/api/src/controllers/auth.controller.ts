@@ -3,10 +3,11 @@
  *
  * Handles:
  * - POST /auth/register - User registration
+ * - POST /auth/login - User login
  */
 
 import type { Request, Response } from 'express';
-import { createUser, emailExists } from '../services/user.service.js';
+import { createUser, emailExists, findUserByEmail, verifyPassword } from '../services/user.service.js';
 import { getJwtService } from '../services/jwt.service.js';
 import type { UserRole } from '../services/jwt.service.js';
 
@@ -28,6 +29,14 @@ interface RegisterRequestBody {
   name?: string;
   organization?: string;
   role?: UserRole;
+}
+
+/**
+ * Request body for user login.
+ */
+interface LoginRequestBody {
+  email?: string;
+  password?: string;
 }
 
 /**
@@ -112,6 +121,28 @@ function validateRegisterRequest(body: RegisterRequestBody): FieldError[] {
       message: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}`,
       code: 'INVALID_VALUE',
     });
+  }
+
+  return errors;
+}
+
+/**
+ * Validate login request body.
+ * Returns an array of field errors if validation fails.
+ */
+function validateLoginRequest(body: LoginRequestBody): FieldError[] {
+  const errors: FieldError[] = [];
+
+  // Email validation
+  if (!body.email) {
+    errors.push({ field: 'email', message: 'Email is required', code: 'REQUIRED' });
+  } else if (!isValidEmail(body.email)) {
+    errors.push({ field: 'email', message: 'Invalid email format', code: 'INVALID_FORMAT' });
+  }
+
+  // Password validation - only check presence for login (no strength requirements)
+  if (!body.password) {
+    errors.push({ field: 'password', message: 'Password is required', code: 'REQUIRED' });
   }
 
   return errors;
@@ -205,6 +236,117 @@ export async function register(req: Request, res: Response): Promise<void> {
       });
       return;
     }
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+/**
+ * POST /auth/login
+ * Authenticate a user and return tokens.
+ *
+ * Request body:
+ * - email: string (required) - User's email address
+ * - password: string (required) - User's password
+ *
+ * Returns:
+ * - 200: Login successful with tokens
+ * - 400: Validation error
+ * - 401: Invalid credentials or account inactive
+ * - 500: Internal server error
+ */
+export async function login(req: Request, res: Response): Promise<void> {
+  try {
+    const body = req.body as LoginRequestBody;
+
+    // Validate request body
+    const validationErrors = validateLoginRequest(body);
+    if (validationErrors.length > 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          errors: validationErrors,
+        },
+      });
+      return;
+    }
+
+    // Find user by email
+    const userRow = await findUserByEmail(body.email!);
+    if (!userRow) {
+      // Generic error to avoid email enumeration
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'INVALID_CREDENTIALS',
+          message: 'Invalid email or password',
+        },
+      });
+      return;
+    }
+
+    // Check if account is active
+    if (!userRow.is_active) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'ACCOUNT_INACTIVE',
+          message: 'Account is not active',
+        },
+      });
+      return;
+    }
+
+    // Verify password
+    const isValidPassword = await verifyPassword(body.password!, userRow.password_hash);
+    if (!isValidPassword) {
+      // Generic error to avoid password enumeration
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'INVALID_CREDENTIALS',
+          message: 'Invalid email or password',
+        },
+      });
+      return;
+    }
+
+    // Generate tokens
+    const jwtService = getJwtService();
+    await jwtService.initialize();
+    const tokens = await jwtService.generateTokenPair({
+      id: userRow.id,
+      email: userRow.email,
+      role: userRow.role,
+    });
+
+    // Return success response (without password_hash)
+    res.status(200).json({
+      success: true,
+      data: {
+        user: {
+          id: userRow.id,
+          email: userRow.email,
+          name: userRow.name,
+          role: userRow.role,
+          organization: userRow.organization,
+          isActive: userRow.is_active,
+          createdAt: userRow.created_at,
+          updatedAt: userRow.updated_at,
+        },
+        tokens,
+      },
+    });
+  } catch (error) {
+    console.error('Login error:', error);
 
     res.status(500).json({
       success: false,

@@ -8,13 +8,14 @@
 import { describe, it, expect } from '@jest/globals';
 import request from 'supertest';
 import express from 'express';
-import { register } from './auth.controller.js';
+import { register, login } from './auth.controller.js';
 
 // Create a minimal test app for validation testing
 const createTestApp = () => {
   const app = express();
   app.use(express.json());
   app.post('/auth/register', register);
+  app.post('/auth/login', login);
   return app;
 };
 
@@ -246,6 +247,97 @@ describe('POST /auth/register - Validation', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.error.errors.length).toBeGreaterThanOrEqual(4);
+    });
+  });
+});
+
+describe('POST /auth/login - Validation', () => {
+  describe('email validation', () => {
+    it('should return 400 when email is missing', async () => {
+      const app = createTestApp();
+      const response = await request(app)
+        .post('/auth/login')
+        .send({
+          password: 'Password123',
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+      expect(response.body.error.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'email', code: 'REQUIRED' }),
+        ])
+      );
+    });
+
+    it('should return 400 when email format is invalid', async () => {
+      const app = createTestApp();
+      const response = await request(app)
+        .post('/auth/login')
+        .send({
+          email: 'invalid-email',
+          password: 'Password123',
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'email', code: 'INVALID_FORMAT' }),
+        ])
+      );
+    });
+  });
+
+  describe('password validation', () => {
+    it('should return 400 when password is missing', async () => {
+      const app = createTestApp();
+      const response = await request(app)
+        .post('/auth/login')
+        .send({
+          email: 'test@example.com',
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'password', code: 'REQUIRED' }),
+        ])
+      );
+    });
+
+    it('should not enforce password strength requirements for login', async () => {
+      // Login should only require password presence, not strength
+      // This test verifies that short/weak passwords pass validation
+      // (actual auth failure would happen at database lookup level)
+      const app = createTestApp();
+      const response = await request(app)
+        .post('/auth/login')
+        .send({
+          email: 'test@example.com',
+          password: 'weak', // Short password should pass validation
+        });
+
+      // Should not be a validation error (would fail at DB level instead)
+      expect(response.status).not.toBe(400);
+    });
+  });
+
+  describe('multiple validation errors', () => {
+    it('should return all validation errors when both fields are missing', async () => {
+      const app = createTestApp();
+      const response = await request(app)
+        .post('/auth/login')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.errors.length).toBe(2);
+      expect(response.body.error.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'email', code: 'REQUIRED' }),
+          expect.objectContaining({ field: 'password', code: 'REQUIRED' }),
+        ])
+      );
     });
   });
 });
