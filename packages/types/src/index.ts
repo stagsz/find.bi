@@ -64,3 +64,47 @@ export type {
 } from './analysis-node.js';
 
 export { EQUIPMENT_TYPES, EQUIPMENT_TYPE_LABELS } from './analysis-node.js';
+
+// HazOps Analysis types
+export type {
+  GuideWord,
+  SeverityLevel,
+  LikelihoodLevel,
+  DetectabilityLevel,
+  RiskLevel,
+  RiskRanking,
+  AnalysisStatus,
+  HazopsAnalysis,
+  HazopsAnalysisWithDetails,
+  HazopsAnalysisWithProgress,
+  AnalysisEntry,
+  AnalysisEntryWithNode,
+  AnalysisEntryWithCreator,
+  CreateHazopsAnalysisPayload,
+  UpdateHazopsAnalysisPayload,
+  SubmitAnalysisForReviewPayload,
+  ReviewAnalysisPayload,
+  CreateAnalysisEntryPayload,
+  UpdateAnalysisEntryPayload,
+  UpdateRiskRankingPayload,
+} from './hazop-analysis.js';
+
+export {
+  GUIDE_WORDS,
+  GUIDE_WORD_LABELS,
+  GUIDE_WORD_DESCRIPTIONS,
+  SEVERITY_LEVELS,
+  SEVERITY_LABELS,
+  SEVERITY_DESCRIPTIONS,
+  LIKELIHOOD_LEVELS,
+  LIKELIHOOD_LABELS,
+  LIKELIHOOD_DESCRIPTIONS,
+  DETECTABILITY_LEVELS,
+  DETECTABILITY_LABELS,
+  DETECTABILITY_DESCRIPTIONS,
+  RISK_LEVELS,
+  RISK_LEVEL_LABELS,
+  RISK_THRESHOLDS,
+  ANALYSIS_STATUSES,
+  ANALYSIS_STATUS_LABELS,
+} from './hazop-analysis.js';
