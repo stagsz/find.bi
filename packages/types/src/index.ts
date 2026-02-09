@@ -108,3 +108,32 @@ export {
   ANALYSIS_STATUSES,
   ANALYSIS_STATUS_LABELS,
 } from './hazop-analysis.js';
+
+// Report types
+export type {
+  ReportFormat,
+  ReportStatus,
+  ReportParameters,
+  Report,
+  ReportWithAnalysis,
+  ReportWithGenerator,
+  ReportWithDetails,
+  ReportTemplate,
+  ReportTemplateWithCreator,
+  CreateReportPayload,
+  ReportJobResponse,
+  ReportStatusResponse,
+  CreateReportTemplatePayload,
+  UpdateReportTemplatePayload,
+  ListReportsQuery,
+  ListReportTemplatesQuery,
+} from './report.js';
+
+export {
+  REPORT_FORMATS,
+  REPORT_FORMAT_LABELS,
+  REPORT_FORMAT_EXTENSIONS,
+  REPORT_FORMAT_MIME_TYPES,
+  REPORT_STATUSES,
+  REPORT_STATUS_LABELS,
+} from './report.js';
