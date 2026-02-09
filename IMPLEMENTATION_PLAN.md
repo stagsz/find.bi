@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 1 - Foundation (In Progress)
-**Progress**: Complete testing infrastructure (Vitest, Jest, Playwright)
-**Last Completed**: SETUP-08 - Configure Playwright for E2E testing
-**Next Task**: SETUP-09 - Set up ESLint + Prettier for code quality
+**Progress**: Complete code quality infrastructure (ESLint + Prettier)
+**Last Completed**: SETUP-09 - Set up ESLint + Prettier for code quality
+**Next Task**: TYPES-01 - Create User, UserRole type definitions
 
 ---
 
@@ -61,7 +61,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] SETUP-06: Set up Vitest for frontend testing (03ed071)
 - [x] SETUP-07: Set up Jest + Supertest for API testing (4c15fcf)
 - [x] SETUP-08: Configure Playwright for E2E testing (15a2d04)
-- [ ] SETUP-09: Set up ESLint + Prettier for code quality
+- [x] SETUP-09: Set up ESLint + Prettier for code quality (e2a674a)
 
 ### Shared Types Package
 - [ ] TYPES-01: Create User, UserRole type definitions
@@ -421,3 +421,4 @@ _No blockers currently._
 | SETUP-06: Vitest frontend testing | 03ed071 | 2026-02-09 |
 | SETUP-07: Jest + Supertest API testing | 4c15fcf | 2026-02-09 |
 | SETUP-08: Playwright E2E testing | 15a2d04 | 2026-02-09 |
+| SETUP-09: ESLint + Prettier code quality | e2a674a | 2026-02-09 |
