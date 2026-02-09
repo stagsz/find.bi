@@ -57,7 +57,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] SETUP-02: Configure Docker Compose for development (PostgreSQL, Redis, MinIO, RabbitMQ)
 - [x] SETUP-03: Set up React 18 + TypeScript + Vite in web app (dc838a8 - included in SETUP-01)
 - [x] SETUP-04: Set up Express.js + TypeScript in api app (dc838a8 - included in SETUP-01)
-- [x] SETUP-05: Configure Tailwind CSS and Mantine UI component library
+- [x] SETUP-05: Configure Tailwind CSS and Mantine UI component library (8ffe440)
 - [ ] SETUP-06: Set up Vitest for frontend testing
 - [ ] SETUP-07: Set up Jest + Supertest for API testing
 - [ ] SETUP-08: Configure Playwright for E2E testing
@@ -417,4 +417,4 @@ _No blockers currently._
 | SETUP-02: Configure Docker Compose | 3119b77 | 2026-02-09 |
 | SETUP-03: React 18 + TypeScript + Vite | dc838a8 | 2026-02-09 |
 | SETUP-04: Express.js + TypeScript | dc838a8 | 2026-02-09 |
-| SETUP-05: Tailwind CSS + Mantine UI | - | 2026-02-09 |
+| SETUP-05: Tailwind CSS + Mantine UI | 8ffe440 | 2026-02-09 |
