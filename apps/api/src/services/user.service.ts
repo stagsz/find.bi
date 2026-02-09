@@ -233,3 +233,110 @@ export async function emailExistsForOtherUser(email: string, excludeUserId: stri
   );
   return result.rows.length > 0;
 }
+
+/**
+ * Filter options for listing users.
+ */
+export interface ListUsersFilters {
+  /** Search query for name or email */
+  search?: string;
+  /** Filter by role */
+  role?: UserRole;
+  /** Filter by active status */
+  isActive?: boolean;
+}
+
+/**
+ * Pagination options for listing users.
+ */
+export interface ListUsersPagination {
+  /** Page number (1-based). Defaults to 1. */
+  page?: number;
+  /** Number of items per page. Defaults to 20, max 100. */
+  limit?: number;
+  /** Field to sort by. Defaults to 'created_at'. */
+  sortBy?: 'created_at' | 'updated_at' | 'name' | 'email' | 'role';
+  /** Sort direction. Defaults to 'desc'. */
+  sortOrder?: 'asc' | 'desc';
+}
+
+/**
+ * Result from listing users.
+ */
+export interface ListUsersResult {
+  /** Array of users */
+  users: User[];
+  /** Total number of users matching the filters */
+  total: number;
+}
+
+/**
+ * List all users with optional filtering and pagination.
+ * For admin use only.
+ */
+export async function listAllUsers(
+  filters?: ListUsersFilters,
+  pagination?: ListUsersPagination
+): Promise<ListUsersResult> {
+  const pool = getPool();
+
+  // Build WHERE clause
+  const whereClauses: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  if (filters?.search) {
+    whereClauses.push(
+      `(LOWER(name) LIKE $${paramIndex} OR LOWER(email) LIKE $${paramIndex})`
+    );
+    values.push(`%${filters.search.toLowerCase()}%`);
+    paramIndex++;
+  }
+
+  if (filters?.role) {
+    whereClauses.push(`role = $${paramIndex}`);
+    values.push(filters.role);
+    paramIndex++;
+  }
+
+  if (filters?.isActive !== undefined) {
+    whereClauses.push(`is_active = $${paramIndex}`);
+    values.push(filters.isActive);
+    paramIndex++;
+  }
+
+  const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+  // Pagination
+  const page = Math.max(pagination?.page ?? 1, 1);
+  const limit = Math.min(Math.max(pagination?.limit ?? 20, 1), 100);
+  const offset = (page - 1) * limit;
+
+  // Sorting - use allowlist to prevent SQL injection
+  const allowedSortFields = ['created_at', 'updated_at', 'name', 'email', 'role'];
+  const sortBy = allowedSortFields.includes(pagination?.sortBy ?? '')
+    ? pagination!.sortBy
+    : 'created_at';
+  const sortOrder = pagination?.sortOrder === 'asc' ? 'ASC' : 'DESC';
+
+  // Get total count
+  const countResult = await pool.query<{ count: string }>(
+    `SELECT COUNT(*) as count FROM hazop.users ${whereClause}`,
+    values
+  );
+  const total = parseInt(countResult.rows[0].count, 10);
+
+  // Get users
+  const usersResult = await pool.query<UserRow>(
+    `SELECT id, email, password_hash, name, role, organization, is_active, created_at, updated_at
+     FROM hazop.users
+     ${whereClause}
+     ORDER BY ${sortBy} ${sortOrder}
+     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+    [...values, limit, offset]
+  );
+
+  const users = usersResult.rows.map(rowToUser);
+
+  return { users, total };
+}
