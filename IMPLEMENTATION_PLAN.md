@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 2 - Authentication & User Management (In Progress)
-**Progress**: Registration page complete, moving to password reset flow
-**Last Completed**: AUTH-11 - Create registration page with role selection
-**Next Task**: AUTH-12 - Create password reset flow (forgot password page)
+**Progress**: Password reset flow complete, moving to auth guards
+**Last Completed**: AUTH-12 - Create password reset flow (forgot password page)
+**Next Task**: AUTH-13 - Implement auth guards for protected routes
 
 ---
 
@@ -103,7 +103,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] AUTH-09: Create auth store with Zustand (user state, tokens) (de6fb38)
 - [x] AUTH-10: Create login page with email/password form (bf0aa75)
 - [x] AUTH-11: Create registration page with role selection (615cb4e)
-- [ ] AUTH-12: Create password reset flow (forgot password page)
+- [x] AUTH-12: Create password reset flow (forgot password page) (041b7f5)
 - [ ] AUTH-13: Implement auth guards for protected routes
 - [ ] AUTH-14: Create user profile page with edit functionality
 
@@ -451,3 +451,4 @@ _No blockers currently._
 | AUTH-09: Create auth store with Zustand | de6fb38 | 2026-02-09 |
 | AUTH-10: Create login page with email/password form | bf0aa75 | 2026-02-09 |
 | AUTH-11: Create registration page with role selection | 615cb4e | 2026-02-09 |
+| AUTH-12: Create password reset flow (forgot password) | 041b7f5 | 2026-02-09 |
