@@ -63,6 +63,7 @@ for f in migrations/*.sql; do psql $DATABASE_URL -f "$f"; done
 | `report_format` | pdf, word, excel, powerpoint | Report output formats |
 | `report_status` | pending, generating, completed, failed | Report generation |
 | `audit_operation` | INSERT, UPDATE, DELETE | Audit log operations |
+| `collaboration_session_status` | active, paused, ended | Collaboration session status |
 
 ## Schema
 
