@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 2 - Authentication & User Management (In Progress)
-**Progress**: Register endpoint complete, continuing with auth endpoints
-**Last Completed**: AUTH-03 - Create POST /auth/register endpoint
-**Next Task**: AUTH-04 - Create POST /auth/login endpoint
+**Progress**: Login endpoint complete, continuing with auth endpoints
+**Last Completed**: AUTH-04 - Create POST /auth/login endpoint
+**Next Task**: AUTH-05 - Create POST /auth/refresh endpoint
 
 ---
 
@@ -93,7 +93,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] AUTH-01: Implement JWT token generation with RS256 (access + refresh tokens) (ace7d5e)
 - [x] AUTH-02: Create Passport.js authentication strategy (c1e04c2)
 - [x] AUTH-03: Create POST /auth/register endpoint (3b648bc)
-- [ ] AUTH-04: Create POST /auth/login endpoint
+- [x] AUTH-04: Create POST /auth/login endpoint (bd0f7ae)
 - [ ] AUTH-05: Create POST /auth/refresh endpoint
 - [ ] AUTH-06: Create POST /auth/logout endpoint (invalidate refresh token)
 - [ ] AUTH-07: Create auth middleware for protected routes
@@ -443,3 +443,4 @@ _No blockers currently._
 | AUTH-01: Implement JWT token generation with RS256 | ace7d5e | 2026-02-09 |
 | AUTH-02: Create Passport.js authentication strategy | c1e04c2 | 2026-02-09 |
 | AUTH-03: Create POST /auth/register endpoint | 3b648bc | 2026-02-09 |
+| AUTH-04: Create POST /auth/login endpoint | bd0f7ae | 2026-02-09 |
