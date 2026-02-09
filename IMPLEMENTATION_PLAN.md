@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 2 - Authentication & User Management (In Progress)
-**Progress**: Refresh endpoint complete, continuing with auth endpoints
-**Last Completed**: AUTH-05 - Create POST /auth/refresh endpoint
-**Next Task**: AUTH-06 - Create POST /auth/logout endpoint
+**Progress**: Logout endpoint complete, continuing with auth middleware
+**Last Completed**: AUTH-06 - Create POST /auth/logout endpoint
+**Next Task**: AUTH-07 - Create auth middleware for protected routes
 
 ---
 
@@ -95,7 +95,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] AUTH-03: Create POST /auth/register endpoint (3b648bc)
 - [x] AUTH-04: Create POST /auth/login endpoint (bd0f7ae)
 - [x] AUTH-05: Create POST /auth/refresh endpoint (1d12302)
-- [ ] AUTH-06: Create POST /auth/logout endpoint (invalidate refresh token)
+- [x] AUTH-06: Create POST /auth/logout endpoint (da49b35)
 - [ ] AUTH-07: Create auth middleware for protected routes
 - [ ] AUTH-08: Implement role-based access control (admin, lead_analyst, analyst, viewer)
 
@@ -445,3 +445,4 @@ _No blockers currently._
 | AUTH-03: Create POST /auth/register endpoint | 3b648bc | 2026-02-09 |
 | AUTH-04: Create POST /auth/login endpoint | bd0f7ae | 2026-02-09 |
 | AUTH-05: Create POST /auth/refresh endpoint | 1d12302 | 2026-02-09 |
+| AUTH-06: Create POST /auth/logout endpoint | da49b35 | 2026-02-09 |
