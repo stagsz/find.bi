@@ -8,7 +8,12 @@
  */
 
 import type { Request, Response } from 'express';
-import { createUser, emailExists, findUserByEmail, verifyPassword } from '../services/user.service.js';
+import {
+  createUser,
+  emailExists,
+  findUserByEmail,
+  verifyPassword,
+} from '../services/user.service.js';
 import { getJwtService } from '../services/jwt.service.js';
 import type { UserRole } from '../services/jwt.service.js';
 
@@ -397,7 +402,9 @@ export async function refresh(req: Request, res: Response): Promise<void> {
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Validation failed',
-          errors: [{ field: 'refreshToken', message: 'Refresh token is required', code: 'REQUIRED' }],
+          errors: [
+            { field: 'refreshToken', message: 'Refresh token is required', code: 'REQUIRED' },
+          ],
         },
       });
       return;
@@ -470,7 +477,9 @@ export async function logout(req: Request, res: Response): Promise<void> {
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Validation failed',
-          errors: [{ field: 'refreshToken', message: 'Refresh token is required', code: 'REQUIRED' }],
+          errors: [
+            { field: 'refreshToken', message: 'Refresh token is required', code: 'REQUIRED' },
+          ],
         },
       });
       return;

@@ -1,11 +1,18 @@
 import express from 'express';
 import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.routes.js';
+import { configurePassport, initializePassport } from './config/passport.config.js';
 
 const app = express();
 const port = process.env.PORT || 4000;
 
 app.use(express.json());
+
+// Initialize Passport JWT authentication (only if JWT keys are configured)
+if (process.env.JWT_PRIVATE_KEY && process.env.JWT_PUBLIC_KEY) {
+  configurePassport();
+  app.use(initializePassport());
+}
 
 // Health check endpoint
 app.get('/health', (_req, res) => {

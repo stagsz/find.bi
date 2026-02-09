@@ -128,10 +128,9 @@ export async function findUserById(id: string): Promise<User | null> {
  */
 export async function emailExists(email: string): Promise<boolean> {
   const pool = getPool();
-  const result = await pool.query(
-    'SELECT 1 FROM hazop.users WHERE email = $1',
-    [email.toLowerCase()]
-  );
+  const result = await pool.query('SELECT 1 FROM hazop.users WHERE email = $1', [
+    email.toLowerCase(),
+  ]);
   return result.rows.length > 0;
 }
 
@@ -149,13 +148,7 @@ export async function createUser(data: CreateUserData): Promise<User> {
     `INSERT INTO hazop.users (email, password_hash, name, role, organization)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING id, email, password_hash, name, role, organization, is_active, created_at, updated_at`,
-    [
-      data.email.toLowerCase(),
-      passwordHash,
-      data.name.trim(),
-      role,
-      data.organization.trim(),
-    ]
+    [data.email.toLowerCase(), passwordHash, data.name.trim(), role, data.organization.trim()]
   );
 
   return rowToUser(result.rows[0]);

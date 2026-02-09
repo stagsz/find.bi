@@ -3,9 +3,9 @@
  */
 
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from '@jest/globals';
-import express, { type Express, type Request, type Response, type NextFunction } from 'express';
+import express, { type Express, type Request, type Response } from 'express';
 import request from 'supertest';
-import { configurePassport, initializePassport, passport, type AuthenticatedUser } from './passport.config.js';
+import { configurePassport, initializePassport, passport } from './passport.config.js';
 import { createJwtService, type JwtService, type TokenUser } from '../services/jwt.service.js';
 import type { JwtConfig } from './jwt.config.js';
 
@@ -160,9 +160,7 @@ describe('Passport JWT Strategy', () => {
 
       const token = await otherService.generateAccessToken(testUser);
 
-      const response = await request(app)
-        .get('/protected')
-        .set('Authorization', `Bearer ${token}`);
+      const response = await request(app).get('/protected').set('Authorization', `Bearer ${token}`);
 
       expect(response.status).toBe(401);
     });
@@ -174,9 +172,7 @@ describe('Passport JWT Strategy', () => {
 
       const token = await otherService.generateAccessToken(testUser);
 
-      const response = await request(app)
-        .get('/protected')
-        .set('Authorization', `Bearer ${token}`);
+      const response = await request(app).get('/protected').set('Authorization', `Bearer ${token}`);
 
       expect(response.status).toBe(401);
     });
@@ -188,9 +184,7 @@ describe('Passport JWT Strategy', () => {
 
       const token = await otherService.generateAccessToken(testUser);
 
-      const response = await request(app)
-        .get('/protected')
-        .set('Authorization', `Bearer ${token}`);
+      const response = await request(app).get('/protected').set('Authorization', `Bearer ${token}`);
 
       expect(response.status).toBe(401);
     });
@@ -201,9 +195,7 @@ describe('Passport JWT Strategy', () => {
       const adminUser: TokenUser = { ...testUser, role: 'administrator' };
       const token = await jwtService.generateAccessToken(adminUser);
 
-      const response = await request(app)
-        .get('/protected')
-        .set('Authorization', `Bearer ${token}`);
+      const response = await request(app).get('/protected').set('Authorization', `Bearer ${token}`);
 
       expect(response.status).toBe(200);
       expect(response.body.user.role).toBe('administrator');
@@ -213,9 +205,7 @@ describe('Passport JWT Strategy', () => {
       const leadUser: TokenUser = { ...testUser, role: 'lead_analyst' };
       const token = await jwtService.generateAccessToken(leadUser);
 
-      const response = await request(app)
-        .get('/protected')
-        .set('Authorization', `Bearer ${token}`);
+      const response = await request(app).get('/protected').set('Authorization', `Bearer ${token}`);
 
       expect(response.status).toBe(200);
       expect(response.body.user.role).toBe('lead_analyst');
@@ -225,9 +215,7 @@ describe('Passport JWT Strategy', () => {
       const viewerUser: TokenUser = { ...testUser, role: 'viewer' };
       const token = await jwtService.generateAccessToken(viewerUser);
 
-      const response = await request(app)
-        .get('/protected')
-        .set('Authorization', `Bearer ${token}`);
+      const response = await request(app).get('/protected').set('Authorization', `Bearer ${token}`);
 
       expect(response.status).toBe(200);
       expect(response.body.user.role).toBe('viewer');
