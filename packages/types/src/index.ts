@@ -22,3 +22,19 @@ export type {
 } from './user.js';
 
 export { USER_ROLES } from './user.js';
+
+// Project types
+export type {
+  ProjectStatus,
+  Project,
+  ProjectWithCreator,
+  ProjectMemberRole,
+  ProjectMember,
+  ProjectMemberWithUser,
+  CreateProjectPayload,
+  UpdateProjectPayload,
+  AddProjectMemberPayload,
+  UpdateProjectMemberRolePayload,
+} from './project.js';
+
+export { PROJECT_STATUSES, PROJECT_MEMBER_ROLES } from './project.js';
