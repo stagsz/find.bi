@@ -8,7 +8,7 @@
 import { describe, it, expect } from '@jest/globals';
 import request from 'supertest';
 import express from 'express';
-import { register, login, refresh } from './auth.controller.js';
+import { register, login, refresh, logout } from './auth.controller.js';
 
 // Create a minimal test app for validation testing
 const createTestApp = () => {
@@ -17,6 +17,7 @@ const createTestApp = () => {
   app.post('/auth/register', register);
   app.post('/auth/login', login);
   app.post('/auth/refresh', refresh);
+  app.post('/auth/logout', logout);
   return app;
 };
 
@@ -365,6 +366,40 @@ describe('POST /auth/refresh - Validation', () => {
       const app = createTestApp();
       const response = await request(app)
         .post('/auth/refresh')
+        .send({
+          refreshToken: 'invalid-token',
+        });
+
+      expect(response.status).toBe(401);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('INVALID_TOKEN');
+      expect(response.body.error.message).toBe('Invalid or expired refresh token');
+    });
+  });
+});
+
+describe('POST /auth/logout - Validation', () => {
+  describe('refreshToken validation', () => {
+    it('should return 400 when refreshToken is missing', async () => {
+      const app = createTestApp();
+      const response = await request(app)
+        .post('/auth/logout')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+      expect(response.body.error.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'refreshToken', code: 'REQUIRED' }),
+        ])
+      );
+    });
+
+    it('should return 401 when refreshToken is invalid', async () => {
+      const app = createTestApp();
+      const response = await request(app)
+        .post('/auth/logout')
         .send({
           refreshToken: 'invalid-token',
         });

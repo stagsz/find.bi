@@ -5,10 +5,11 @@
  * - POST /auth/register - Register a new user
  * - POST /auth/login - Authenticate a user
  * - POST /auth/refresh - Refresh access token
+ * - POST /auth/logout - Logout (invalidate refresh token)
  */
 
 import { Router } from 'express';
-import { register, login, refresh } from '../controllers/auth.controller.js';
+import { register, login, refresh, logout } from '../controllers/auth.controller.js';
 
 const router = Router();
 
@@ -29,5 +30,11 @@ router.post('/login', login);
  * Refresh access token using a valid refresh token.
  */
 router.post('/refresh', refresh);
+
+/**
+ * POST /auth/logout
+ * Logout and invalidate refresh token.
+ */
+router.post('/logout', logout);
 
 export default router;

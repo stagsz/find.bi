@@ -48,6 +48,13 @@ interface RefreshRequestBody {
 }
 
 /**
+ * Request body for logout.
+ */
+interface LogoutRequestBody {
+  refreshToken?: string;
+}
+
+/**
  * Valid user roles for registration.
  */
 const VALID_ROLES: UserRole[] = ['administrator', 'lead_analyst', 'analyst', 'viewer'];
@@ -428,6 +435,73 @@ export async function refresh(req: Request, res: Response): Promise<void> {
     });
   } catch (error) {
     console.error('Token refresh error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+/**
+ * POST /auth/logout
+ * Invalidate a refresh token (logout).
+ *
+ * Request body:
+ * - refreshToken: string (required) - Refresh token to invalidate
+ *
+ * Returns:
+ * - 200: Logout successful
+ * - 400: Validation error (missing refresh token)
+ * - 401: Invalid or expired refresh token
+ * - 500: Internal server error
+ */
+export async function logout(req: Request, res: Response): Promise<void> {
+  try {
+    const body = req.body as LogoutRequestBody;
+
+    // Validate refresh token is present
+    if (!body.refreshToken) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          errors: [{ field: 'refreshToken', message: 'Refresh token is required', code: 'REQUIRED' }],
+        },
+      });
+      return;
+    }
+
+    // Verify refresh token is valid before acknowledging logout
+    const jwtService = getJwtService();
+    await jwtService.initialize();
+    const verifyResult = await jwtService.verifyRefreshToken(body.refreshToken);
+
+    if (!verifyResult.valid) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'INVALID_TOKEN',
+          message: 'Invalid or expired refresh token',
+        },
+      });
+      return;
+    }
+
+    // Token is valid - in a stateless JWT setup, the client discards the token
+    // Future enhancement: Add token to a revocation list/blacklist
+    res.status(200).json({
+      success: true,
+      data: {
+        message: 'Logged out successfully',
+      },
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
 
     res.status(500).json({
       success: false,
