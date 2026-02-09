@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Button, TextInput, Select, Table, Alert, Pagination } from '@mantine/core';
+import { Button, TextInput, Select, Table, Alert, Pagination, Modal, Textarea } from '@mantine/core';
 import { useAuthStore, selectUser } from '../store/auth.store';
 import { authService } from '../services/auth.service';
 import {
@@ -101,6 +101,13 @@ export function ProjectsPage() {
   // Sort state
   const [sortValue, setSortValue] = useState('created_at:desc');
 
+  // Create project modal state
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDescription, setNewProjectDescription] = useState('');
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [createError, setCreateError] = useState<ApiError | null>(null);
+
   /**
    * Debounce search query.
    */
@@ -182,6 +189,56 @@ export function ProjectsPage() {
   };
 
   /**
+   * Open the create project modal.
+   */
+  const handleOpenCreateModal = () => {
+    setNewProjectName('');
+    setNewProjectDescription('');
+    setCreateError(null);
+    setIsCreateModalOpen(true);
+  };
+
+  /**
+   * Close the create project modal.
+   */
+  const handleCloseCreateModal = () => {
+    setIsCreateModalOpen(false);
+    setNewProjectName('');
+    setNewProjectDescription('');
+    setCreateError(null);
+  };
+
+  /**
+   * Submit the create project form.
+   */
+  const handleCreateProject = async () => {
+    // Validate name
+    const trimmedName = newProjectName.trim();
+    if (!trimmedName) {
+      setCreateError({ code: 'VALIDATION_ERROR', message: 'Project name is required' });
+      return;
+    }
+
+    setIsCreatingProject(true);
+    setCreateError(null);
+
+    const result = await projectsService.createProject(
+      trimmedName,
+      newProjectDescription.trim() || undefined
+    );
+
+    if (result.success && result.data) {
+      handleCloseCreateModal();
+      // Refresh the project list to include the new project
+      fetchProjects();
+    } else {
+      setCreateError(result.error || { code: 'UNKNOWN', message: 'Failed to create project' });
+    }
+
+    setIsCreatingProject(false);
+  };
+
+  /**
    * Get the user's role in the project for display.
    */
   const getUserRole = (project: ProjectListItem): string => {
@@ -246,11 +303,27 @@ export function ProjectsPage() {
 
         <div className="bg-white rounded border border-slate-200">
           {/* Page header */}
-          <div className="px-6 py-4 border-b border-slate-200">
-            <h1 className="text-xl font-semibold text-slate-900">Projects</h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Manage your HazOps study projects
-            </p>
+          <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-start">
+            <div>
+              <h1 className="text-xl font-semibold text-slate-900">Projects</h1>
+              <p className="text-sm text-slate-500 mt-1">
+                Manage your HazOps study projects
+              </p>
+            </div>
+            <Button
+              onClick={handleOpenCreateModal}
+              styles={{
+                root: {
+                  borderRadius: '4px',
+                  backgroundColor: '#1e40af',
+                  '&:hover': {
+                    backgroundColor: '#1e3a8a',
+                  },
+                },
+              }}
+            >
+              New Project
+            </Button>
           </div>
 
           {/* Filters */}
@@ -459,6 +532,121 @@ export function ProjectsPage() {
           )}
         </div>
       </main>
+
+      {/* Create Project Modal */}
+      <Modal
+        opened={isCreateModalOpen}
+        onClose={handleCloseCreateModal}
+        title={
+          <span className="font-semibold text-slate-900">
+            New Project
+          </span>
+        }
+        centered
+        styles={{
+          content: {
+            borderRadius: '4px',
+          },
+          header: {
+            borderBottom: '1px solid #e2e8f0',
+            paddingBottom: '12px',
+          },
+        }}
+      >
+        <div className="mt-4">
+          <div className="mb-4">
+            <p className="text-sm text-slate-600">
+              Create a new HazOps study project. You can add team members and upload P&ID documents after creation.
+            </p>
+          </div>
+
+          {createError && (
+            <Alert
+              color="red"
+              variant="light"
+              className="mb-4"
+              styles={{
+                root: { borderRadius: '4px' },
+              }}
+              onClose={() => setCreateError(null)}
+              withCloseButton
+            >
+              {createError.message}
+            </Alert>
+          )}
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Project Name <span className="text-red-500">*</span>
+            </label>
+            <TextInput
+              placeholder="Enter project name"
+              value={newProjectName}
+              onChange={(e) => setNewProjectName(e.target.value)}
+              styles={{
+                input: {
+                  borderRadius: '4px',
+                  '&:focus': {
+                    borderColor: '#1e40af',
+                  },
+                },
+              }}
+            />
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Description
+            </label>
+            <Textarea
+              placeholder="Enter project description (optional)"
+              value={newProjectDescription}
+              onChange={(e) => setNewProjectDescription(e.target.value)}
+              minRows={3}
+              styles={{
+                input: {
+                  borderRadius: '4px',
+                  '&:focus': {
+                    borderColor: '#1e40af',
+                  },
+                },
+              }}
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+            <Button
+              variant="subtle"
+              color="gray"
+              onClick={handleCloseCreateModal}
+              disabled={isCreatingProject}
+              styles={{
+                root: {
+                  borderRadius: '4px',
+                },
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateProject}
+              loading={isCreatingProject}
+              disabled={!newProjectName.trim()}
+              styles={{
+                root: {
+                  borderRadius: '4px',
+                  backgroundColor: '#1e40af',
+                  '&:hover': {
+                    backgroundColor: '#1e3a8a',
+                  },
+                },
+              }}
+            >
+              Create Project
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
