@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* HazOp-specific custom colors for risk levels */
 @theme {

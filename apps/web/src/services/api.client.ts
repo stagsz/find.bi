@@ -48,10 +48,7 @@ function createTimeoutController(timeout: number): AbortController {
 /**
  * Build request headers.
  */
-function buildHeaders(
-  options: RequestOptions,
-  accessToken: string | null
-): Headers {
+function buildHeaders(options: RequestOptions, accessToken: string | null): Headers {
   const headers = new Headers({
     'Content-Type': 'application/json',
     Accept: 'application/json',
@@ -104,16 +101,9 @@ export async function apiRequest<T>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<ApiResult<T>> {
-  const {
-    method = 'GET',
-    body,
-    authenticated = true,
-    timeout = REQUEST_TIMEOUT,
-  } = options;
+  const { method = 'GET', body, authenticated = true, timeout = REQUEST_TIMEOUT } = options;
 
-  const accessToken = authenticated
-    ? useAuthStore.getState().getAccessToken()
-    : null;
+  const accessToken = authenticated ? useAuthStore.getState().getAccessToken() : null;
 
   const controller = createTimeoutController(timeout);
   const url = `${API_BASE_URL}${endpoint}`;
@@ -133,10 +123,7 @@ export async function apiRequest<T>(
         // Retry the original request with new token
         const retryResponse = await fetch(url, {
           method,
-          headers: buildHeaders(
-            options,
-            useAuthStore.getState().getAccessToken()
-          ),
+          headers: buildHeaders(options, useAuthStore.getState().getAccessToken()),
           body: body ? JSON.stringify(body) : undefined,
           signal: createTimeoutController(timeout).signal,
         });
@@ -228,10 +215,7 @@ async function attemptTokenRefresh(): Promise<boolean> {
 
     const result = await response.json();
     if (result.success && result.data) {
-      useAuthStore.getState().setAccessToken(
-        result.data.accessToken,
-        result.data.expiresIn
-      );
+      useAuthStore.getState().setAccessToken(result.data.accessToken, result.data.expiresIn);
       return true;
     }
     return false;

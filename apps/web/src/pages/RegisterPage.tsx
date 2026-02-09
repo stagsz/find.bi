@@ -1,12 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import {
-  TextInput,
-  PasswordInput,
-  Button,
-  Alert,
-  Select,
-} from '@mantine/core';
+import { TextInput, PasswordInput, Button, Alert, Select } from '@mantine/core';
 import type { RegisterRequest, UserRole } from '@hazop/types';
 import { authService } from '../services/auth.service';
 import { useAuthStore } from '../store/auth.store';
@@ -181,9 +175,7 @@ export function RegisterPage() {
 
           <div className="mb-8">
             <h2 className="text-2xl font-semibold text-slate-900">Create account</h2>
-            <p className="text-slate-500 mt-1">
-              Register to request access to the platform
-            </p>
+            <p className="text-slate-500 mt-1">Register to request access to the platform</p>
           </div>
 
           {/* API Error Alert */}
@@ -379,10 +371,7 @@ export function RegisterPage() {
 
           <p className="text-center text-slate-500 text-sm mt-8">
             Already have an account?{' '}
-            <Link
-              to="/login"
-              className="text-blue-700 hover:text-blue-800 font-medium"
-            >
+            <Link to="/login" className="text-blue-700 hover:text-blue-800 font-medium">
               Sign in
             </Link>
           </p>

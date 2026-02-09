@@ -321,8 +321,8 @@ export function ResetPasswordPage() {
           <div className="mb-8">
             <h2 className="text-2xl font-semibold text-slate-900">Create new password</h2>
             <p className="text-slate-500 mt-1">
-              Enter a new password for your account. Your password must be at least 8 characters
-              and include uppercase, lowercase, and numbers.
+              Enter a new password for your account. Your password must be at least 8 characters and
+              include uppercase, lowercase, and numbers.
             </p>
           </div>
 

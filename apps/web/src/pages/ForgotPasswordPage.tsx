@@ -144,10 +144,7 @@ export function ForgotPasswordPage() {
                 <p className="text-sm font-medium mb-2">Development Mode</p>
                 <p className="text-sm">
                   Reset link:{' '}
-                  <a
-                    href={devResetUrl}
-                    className="text-blue-700 hover:underline break-all"
-                  >
+                  <a href={devResetUrl} className="text-blue-700 hover:underline break-all">
                     {devResetUrl}
                   </a>
                 </p>

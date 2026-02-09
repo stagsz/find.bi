@@ -1,12 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type {
-  User,
-  TokenPair,
-  ApiError,
-  LoginRequest,
-  RegisterRequest,
-} from '@hazop/types';
+import type { User, TokenPair, ApiError } from '@hazop/types';
 
 /**
  * Storage key for persisted auth state.
@@ -77,12 +71,7 @@ export type AuthStore = AuthState & AuthActions;
  * Role hierarchy for permission checks.
  * Higher index = more privileges.
  */
-const ROLE_HIERARCHY: User['role'][] = [
-  'viewer',
-  'analyst',
-  'lead_analyst',
-  'administrator',
-];
+const ROLE_HIERARCHY: User['role'][] = ['viewer', 'analyst', 'lead_analyst', 'administrator'];
 
 /**
  * Get the index of a role in the hierarchy.
