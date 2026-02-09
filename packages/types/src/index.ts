@@ -137,3 +137,46 @@ export {
   REPORT_STATUSES,
   REPORT_STATUS_LABELS,
 } from './report.js';
+
+// API request/response types
+export type {
+  HttpStatusCode,
+  ApiErrorCode,
+  FieldError,
+  ApiError,
+  ApiResponse,
+  ApiErrorResponse,
+  ApiResult,
+  SortOrder,
+  PaginationParams,
+  PaginationMeta,
+  PaginatedResponse,
+  LoginRequest,
+  RegisterRequest,
+  RefreshTokenRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
+  ChangePasswordRequest,
+  TokenPair,
+  AuthResponse,
+  RefreshTokenResponse,
+  JwtPayload,
+  SearchParams,
+  ListParams,
+  AuthContext,
+  RequestMeta,
+  HealthStatus,
+  ServiceHealth,
+  HealthCheckResponse,
+  WebSocketMessage,
+  WebSocketError,
+  FileUploadMeta,
+  FileUploadResponse,
+  SignedUrlResponse,
+} from './api.js';
+
+export {
+  API_ERROR_CODES,
+  PAGINATION_DEFAULTS,
+  HEALTH_STATUSES,
+} from './api.js';
