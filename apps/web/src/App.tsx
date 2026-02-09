@@ -7,6 +7,7 @@ import {
   DashboardPage,
   UnauthorizedPage,
   ProfilePage,
+  AdminPage,
 } from './pages';
 import { ProtectedRoute, PublicRoute } from './components/auth';
 
@@ -25,7 +26,7 @@ import { ProtectedRoute, PublicRoute } from './components/auth';
  * - /unauthorized - Shown when user lacks role permissions
  *
  * Role-protected routes (require specific minimum role):
- * - /admin/* - Administrator only (to be added in ADMIN-06)
+ * - /admin - Administrator only (user management)
  */
 function App() {
   return (
@@ -91,6 +92,16 @@ function App() {
           element={
             <ProtectedRoute>
               <UnauthorizedPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin routes - require administrator role */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute minRole="administrator">
+              <AdminPage />
             </ProtectedRoute>
           }
         />
