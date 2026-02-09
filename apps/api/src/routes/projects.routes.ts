@@ -3,13 +3,14 @@
  *
  * Provides endpoints for project management:
  * - GET /projects - List user's projects with search/filter/pagination
+ * - POST /projects - Create a new project
  *
  * All routes require authentication.
  */
 
 import { Router } from 'express';
 import { authenticate, requireAuth } from '../middleware/auth.middleware.js';
-import { listProjects } from '../controllers/projects.controller.js';
+import { listProjects, createProject } from '../controllers/projects.controller.js';
 
 const router = Router();
 
@@ -28,5 +29,20 @@ const router = Router();
  * - organization: string (filter by organization)
  */
 router.get('/', authenticate, requireAuth, listProjects);
+
+/**
+ * POST /projects
+ * Create a new project.
+ *
+ * Request body:
+ * - name: string (required) - Project name
+ * - description: string (optional) - Project description
+ *
+ * The organization is automatically set from the authenticated user's profile.
+ * The project status is set to 'planning' by default.
+ *
+ * Returns the created project with creator info.
+ */
+router.post('/', authenticate, requireAuth, createProject);
 
 export default router;

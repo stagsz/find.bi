@@ -369,3 +369,47 @@ export async function getUserProjectRole(
   );
   return result.rows[0]?.role ?? null;
 }
+
+/**
+ * Payload for creating a new project.
+ */
+export interface CreateProjectData {
+  name: string;
+  description?: string;
+  organization: string;
+}
+
+/**
+ * Create a new project.
+ * The project is created with 'planning' status and the creator is set as the owner.
+ *
+ * @param userId - The ID of the user creating the project
+ * @param data - Project creation data
+ * @returns The created project with creator information
+ * @throws Error with code '23505' if project name already exists in the organization
+ */
+export async function createProject(
+  userId: string,
+  data: CreateProjectData
+): Promise<ProjectWithCreator> {
+  const pool = getPool();
+
+  // Insert the new project with default status 'planning'
+  const result = await pool.query<ProjectRow>(
+    `INSERT INTO hazop.projects
+       (name, description, status, created_by_id, organization)
+     VALUES ($1, $2, 'planning', $3, $4)
+     RETURNING id, name, description, status, created_by_id, organization, created_at, updated_at`,
+    [data.name, data.description ?? '', userId, data.organization]
+  );
+
+  const row = result.rows[0];
+
+  // Fetch the project with creator info
+  const projectWithCreator = await findProjectById(row.id);
+  if (!projectWithCreator) {
+    throw new Error('Failed to fetch created project');
+  }
+
+  return projectWithCreator;
+}

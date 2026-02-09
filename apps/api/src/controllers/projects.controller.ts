@@ -3,10 +3,11 @@
  *
  * Handles:
  * - GET /projects - List user's projects with search/filter/pagination
+ * - POST /projects - Create a new project
  */
 
 import type { Request, Response } from 'express';
-import { listUserProjects } from '../services/project.service.js';
+import { listUserProjects, createProject as createProjectService } from '../services/project.service.js';
 import type { ProjectStatus } from '@hazop/types';
 import { PROJECT_STATUSES } from '@hazop/types';
 
@@ -184,6 +185,149 @@ export async function listProjects(req: Request, res: Response): Promise<void> {
     });
   } catch (error) {
     console.error('List projects error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+/**
+ * Request body for creating a project.
+ */
+interface CreateProjectBody {
+  name?: unknown;
+  description?: unknown;
+}
+
+/**
+ * Validate create project request body.
+ * Returns an array of field errors if validation fails.
+ */
+function validateCreateProjectRequest(body: CreateProjectBody): FieldError[] {
+  const errors: FieldError[] = [];
+
+  // Validate name (required, non-empty string, max 255 chars)
+  if (body.name === undefined || body.name === null) {
+    errors.push({
+      field: 'name',
+      message: 'Name is required',
+      code: 'REQUIRED',
+    });
+  } else if (typeof body.name !== 'string') {
+    errors.push({
+      field: 'name',
+      message: 'Name must be a string',
+      code: 'INVALID_TYPE',
+    });
+  } else if (body.name.trim().length === 0) {
+    errors.push({
+      field: 'name',
+      message: 'Name cannot be empty',
+      code: 'EMPTY',
+    });
+  } else if (body.name.length > 255) {
+    errors.push({
+      field: 'name',
+      message: 'Name must be 255 characters or less',
+      code: 'MAX_LENGTH',
+    });
+  }
+
+  // Validate description (optional, but if provided must be string)
+  if (body.description !== undefined && body.description !== null) {
+    if (typeof body.description !== 'string') {
+      errors.push({
+        field: 'description',
+        message: 'Description must be a string',
+        code: 'INVALID_TYPE',
+      });
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * POST /projects
+ * Create a new project for the authenticated user.
+ * The project organization is automatically set from the user's profile.
+ * The project status is set to 'planning' by default.
+ *
+ * Request body:
+ * - name: string (required) - Project name
+ * - description: string (optional) - Project description
+ *
+ * Returns:
+ * - 201: Created project with creator info
+ * - 400: Validation error
+ * - 401: Not authenticated
+ * - 409: Project name already exists in organization
+ * - 500: Internal server error
+ */
+export async function createProject(req: Request, res: Response): Promise<void> {
+  try {
+    const body = req.body as CreateProjectBody;
+
+    // Get authenticated user
+    const user = req.user as { id: string; organization: string } | undefined;
+    if (!user?.id) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required',
+        },
+      });
+      return;
+    }
+
+    // Validate request body
+    const validationErrors = validateCreateProjectRequest(body);
+    if (validationErrors.length > 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          errors: validationErrors,
+        },
+      });
+      return;
+    }
+
+    // Create the project using the user's organization
+    const project = await createProjectService(user.id, {
+      name: (body.name as string).trim(),
+      description: typeof body.description === 'string' ? body.description : undefined,
+      organization: user.organization,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: { project },
+    });
+  } catch (error) {
+    console.error('Create project error:', error);
+
+    // Handle unique constraint violation (duplicate project name in organization)
+    if (error instanceof Error && 'code' in error) {
+      const dbError = error as { code: string };
+      if (dbError.code === '23505') {
+        res.status(409).json({
+          success: false,
+          error: {
+            code: 'CONFLICT',
+            message: 'A project with this name already exists in your organization',
+          },
+        });
+        return;
+      }
+    }
 
     res.status(500).json({
       success: false,
