@@ -10,7 +10,7 @@
 
 import { Router } from 'express';
 import { authenticate, requireAuth } from '../middleware/auth.middleware.js';
-import { listProjects, createProject, getProjectById, updateProject, deleteProject } from '../controllers/projects.controller.js';
+import { listProjects, createProject, getProjectById, updateProject, deleteProject, addMember } from '../controllers/projects.controller.js';
 
 const router = Router();
 
@@ -86,5 +86,21 @@ router.put('/:id', authenticate, requireAuth, updateProject);
  * Returns the archived project with creator info and user's role.
  */
 router.delete('/:id', authenticate, requireAuth, deleteProject);
+
+/**
+ * POST /projects/:id/members
+ * Add a user as a member to a project.
+ *
+ * Path parameters:
+ * - id: string (required) - Project UUID
+ *
+ * Request body:
+ * - userId: string (required) - User UUID to add
+ * - role: ProjectMemberRole (optional) - Member role, defaults to 'member'
+ *
+ * Only project owners and leads can add members.
+ * Returns the created member with user info.
+ */
+router.post('/:id/members', authenticate, requireAuth, addMember);
 
 export default router;

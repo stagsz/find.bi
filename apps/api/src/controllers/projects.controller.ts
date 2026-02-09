@@ -17,9 +17,12 @@ import {
   updateProject as updateProjectService,
   userHasProjectAccess,
   getUserProjectRole,
+  userExists,
+  isProjectMember,
+  addProjectMember as addProjectMemberService,
 } from '../services/project.service.js';
-import type { ProjectStatus } from '@hazop/types';
-import { PROJECT_STATUSES } from '@hazop/types';
+import type { ProjectStatus, ProjectMemberRole } from '@hazop/types';
+import { PROJECT_STATUSES, PROJECT_MEMBER_ROLES } from '@hazop/types';
 
 /**
  * Validation error for a specific field.
@@ -832,6 +835,252 @@ export async function deleteProject(req: Request, res: Response): Promise<void> 
     });
   } catch (error) {
     console.error('Delete project error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+/**
+ * Request body for adding a project member.
+ */
+interface AddMemberBody {
+  userId?: unknown;
+  role?: unknown;
+}
+
+/**
+ * Validate add member request body.
+ * Returns an array of field errors if validation fails.
+ */
+function validateAddMemberRequest(body: AddMemberBody): FieldError[] {
+  const errors: FieldError[] = [];
+
+  // Validate userId (required, must be a valid UUID)
+  if (body.userId === undefined || body.userId === null) {
+    errors.push({
+      field: 'userId',
+      message: 'User ID is required',
+      code: 'REQUIRED',
+    });
+  } else if (typeof body.userId !== 'string') {
+    errors.push({
+      field: 'userId',
+      message: 'User ID must be a string',
+      code: 'INVALID_TYPE',
+    });
+  } else {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(body.userId)) {
+      errors.push({
+        field: 'userId',
+        message: 'User ID must be a valid UUID',
+        code: 'INVALID_FORMAT',
+      });
+    }
+  }
+
+  // Validate role (optional, but if provided must be a valid ProjectMemberRole)
+  // Note: 'owner' role cannot be assigned via this endpoint
+  if (body.role !== undefined && body.role !== null) {
+    if (typeof body.role !== 'string') {
+      errors.push({
+        field: 'role',
+        message: 'Role must be a string',
+        code: 'INVALID_TYPE',
+      });
+    } else if (!PROJECT_MEMBER_ROLES.includes(body.role as ProjectMemberRole)) {
+      errors.push({
+        field: 'role',
+        message: `Role must be one of: ${PROJECT_MEMBER_ROLES.join(', ')}`,
+        code: 'INVALID_VALUE',
+      });
+    } else if (body.role === 'owner') {
+      errors.push({
+        field: 'role',
+        message: 'Cannot assign owner role via this endpoint',
+        code: 'INVALID_VALUE',
+      });
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * POST /projects/:id/members
+ * Add a user as a member to a project.
+ * Only project owners and leads can add members.
+ *
+ * Path parameters:
+ * - id: string (required) - Project UUID
+ *
+ * Request body:
+ * - userId: string (required) - User UUID to add
+ * - role: ProjectMemberRole (optional) - Member role, defaults to 'member'
+ *
+ * Returns:
+ * - 201: Created member with user info
+ * - 400: Validation error
+ * - 401: Not authenticated
+ * - 403: Not authorized to add members
+ * - 404: Project or user not found
+ * - 409: User is already a member of the project
+ * - 500: Internal server error
+ */
+export async function addMember(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+    const body = req.body as AddMemberBody;
+
+    // Get authenticated user ID
+    const userId = (req.user as { id: string } | undefined)?.id;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required',
+        },
+      });
+      return;
+    }
+
+    // Validate UUID format for project ID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid project ID format',
+          errors: [
+            {
+              field: 'id',
+              message: 'Project ID must be a valid UUID',
+              code: 'INVALID_FORMAT',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    // Validate request body
+    const validationErrors = validateAddMemberRequest(body);
+    if (validationErrors.length > 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          errors: validationErrors,
+        },
+      });
+      return;
+    }
+
+    // Check if user has access to the project
+    const hasAccess = await userHasProjectAccess(userId, id);
+    if (!hasAccess) {
+      // Check if project exists to return appropriate error
+      const project = await findProjectByIdService(id);
+      if (!project) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Project not found',
+          },
+        });
+        return;
+      }
+
+      // Project exists but user doesn't have access
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this project',
+        },
+      });
+      return;
+    }
+
+    // Get user's role - only owner and lead can add members
+    const userRole = await getUserProjectRole(userId, id);
+    if (!userRole || !['owner', 'lead'].includes(userRole)) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only project owners and leads can add members',
+        },
+      });
+      return;
+    }
+
+    const targetUserId = body.userId as string;
+    const memberRole = (body.role as ProjectMemberRole) ?? 'member';
+
+    // Check if target user exists
+    const targetUserExists = await userExists(targetUserId);
+    if (!targetUserExists) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'User not found',
+        },
+      });
+      return;
+    }
+
+    // Check if user is already a member
+    const alreadyMember = await isProjectMember(id, targetUserId);
+    if (alreadyMember) {
+      res.status(409).json({
+        success: false,
+        error: {
+          code: 'CONFLICT',
+          message: 'User is already a member of this project',
+        },
+      });
+      return;
+    }
+
+    // Add the member
+    const member = await addProjectMemberService(id, {
+      userId: targetUserId,
+      role: memberRole,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: { member },
+    });
+  } catch (error) {
+    console.error('Add member error:', error);
+
+    // Handle unique constraint violation (shouldn't happen due to pre-check, but just in case)
+    if (error instanceof Error && 'code' in error) {
+      const dbError = error as { code: string };
+      if (dbError.code === '23505') {
+        res.status(409).json({
+          success: false,
+          error: {
+            code: 'CONFLICT',
+            message: 'User is already a member of this project',
+          },
+        });
+        return;
+      }
+    }
 
     res.status(500).json({
       success: false,

@@ -425,6 +425,55 @@ export interface UpdateProjectData {
 }
 
 /**
+ * Payload for adding a member to a project.
+ */
+export interface AddProjectMemberData {
+  userId: string;
+  role: ProjectMemberRole;
+}
+
+/**
+ * Project member row from the database.
+ */
+export interface ProjectMemberRow {
+  id: string;
+  project_id: string;
+  user_id: string;
+  role: ProjectMemberRole;
+  joined_at: Date;
+  user_name: string;
+  user_email: string;
+}
+
+/**
+ * Project member with user details (API response format).
+ */
+export interface ProjectMemberWithUser {
+  id: string;
+  projectId: string;
+  userId: string;
+  role: ProjectMemberRole;
+  joinedAt: Date;
+  userName: string;
+  userEmail: string;
+}
+
+/**
+ * Convert a database row to a ProjectMemberWithUser object.
+ */
+function rowToProjectMemberWithUser(row: ProjectMemberRow): ProjectMemberWithUser {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    userId: row.user_id,
+    role: row.role,
+    joinedAt: row.joined_at,
+    userName: row.user_name,
+    userEmail: row.user_email,
+  };
+}
+
+/**
  * Update a project by ID.
  * Only updates the fields provided in the data object.
  *
@@ -484,4 +533,72 @@ export async function updateProject(
 
   // Fetch the updated project with creator info
   return findProjectById(result.rows[0].id);
+}
+
+/**
+ * Check if a user exists by ID.
+ *
+ * @param userId - The user ID to check
+ * @returns True if the user exists, false otherwise
+ */
+export async function userExists(userId: string): Promise<boolean> {
+  const pool = getPool();
+  const result = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS(SELECT 1 FROM hazop.users WHERE id = $1) AS exists`,
+    [userId]
+  );
+  return result.rows[0]?.exists ?? false;
+}
+
+/**
+ * Check if a user is already a member of a project.
+ *
+ * @param projectId - The project ID
+ * @param userId - The user ID
+ * @returns True if the user is already a member, false otherwise
+ */
+export async function isProjectMember(projectId: string, userId: string): Promise<boolean> {
+  const pool = getPool();
+  const result = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS(
+       SELECT 1 FROM hazop.project_members
+       WHERE project_id = $1 AND user_id = $2
+     ) AS exists`,
+    [projectId, userId]
+  );
+  return result.rows[0]?.exists ?? false;
+}
+
+/**
+ * Add a member to a project.
+ * Creates a new membership record in the project_members table.
+ *
+ * @param projectId - The ID of the project
+ * @param data - Member data (userId and role)
+ * @returns The created member with user details
+ * @throws Error with code '23505' if user is already a member (unique constraint violation)
+ * @throws Error with code '23503' if user or project doesn't exist (foreign key violation)
+ */
+export async function addProjectMember(
+  projectId: string,
+  data: AddProjectMemberData
+): Promise<ProjectMemberWithUser> {
+  const pool = getPool();
+
+  // Insert the new member
+  const result = await pool.query<ProjectMemberRow>(
+    `INSERT INTO hazop.project_members (project_id, user_id, role)
+     VALUES ($1, $2, $3)
+     RETURNING
+       id,
+       project_id,
+       user_id,
+       role,
+       joined_at,
+       (SELECT name FROM hazop.users WHERE id = $2) AS user_name,
+       (SELECT email FROM hazop.users WHERE id = $2) AS user_email`,
+    [projectId, data.userId, data.role]
+  );
+
+  return rowToProjectMemberWithUser(result.rows[0]);
 }
