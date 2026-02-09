@@ -4,10 +4,10 @@
 
 ## Current Status
 
-**Phase**: 1 - Foundation (In Progress)
-**Progress**: Database setup in progress
-**Last Completed**: DB-10 - Add performance indexes for all tables
-**Next Task**: DB-11 - Create database triggers for updated_at timestamps
+**Phase**: 1 - Foundation (Complete) → Phase 2: Authentication & User Management (Starting)
+**Progress**: Database setup complete, moving to authentication
+**Last Completed**: DB-11 - Create database triggers for updated_at timestamps
+**Next Task**: AUTH-01 - Implement JWT token generation with RS256 (access + refresh tokens)
 
 ---
 
@@ -83,7 +83,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] DB-08: Create audit_log table for change tracking (ee49495)
 - [x] DB-09: Create reports and report_templates tables (b9de3bd)
 - [x] DB-10: Add performance indexes for all tables (b3ca5da)
-- [ ] DB-11: Create database triggers for updated_at timestamps
+- [x] DB-11: Create database triggers for updated_at timestamps (4cae1e7)
 
 ---
 
@@ -439,3 +439,4 @@ _No blockers currently._
 | DB-08: Create audit_log table for change tracking | ee49495 | 2026-02-09 |
 | DB-09: Create reports and report_templates tables | b9de3bd | 2026-02-09 |
 | DB-10: Add performance indexes for all tables | b3ca5da | 2026-02-09 |
+| DB-11: Create database triggers for updated_at timestamps | 4cae1e7 | 2026-02-09 |
