@@ -10,4 +10,15 @@
  * - Reports and compliance
  */
 
-export {};
+// User and authentication types
+export type {
+  UserRole,
+  User,
+  UserWithPassword,
+  CreateUserPayload,
+  UpdateUserPayload,
+  UpdateUserRolePayload,
+  UpdateUserStatusPayload,
+} from './user.js';
+
+export { USER_ROLES } from './user.js';
