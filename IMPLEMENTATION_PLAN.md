@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 2 - Authentication & User Management (In Progress)
-**Progress**: Auth guards implemented, moving to user profile page
-**Last Completed**: AUTH-13 - Implement auth guards for protected routes (7c9e7c4)
-**Next Task**: AUTH-14 - Create user profile page with edit functionality
+**Progress**: User profile page complete, moving to auth testing
+**Last Completed**: AUTH-14 - Create user profile page with edit functionality (1a1e187)
+**Next Task**: AUTH-15 - Add unit tests for JWT token generation/validation
 
 ---
 
@@ -105,7 +105,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] AUTH-11: Create registration page with role selection (615cb4e)
 - [x] AUTH-12: Create password reset flow (forgot password page) (041b7f5)
 - [x] AUTH-13: Implement auth guards for protected routes (7c9e7c4)
-- [ ] AUTH-14: Create user profile page with edit functionality
+- [x] AUTH-14: Create user profile page with edit functionality (1a1e187)
 
 ### Auth Testing
 - [ ] AUTH-15: Add unit tests for JWT token generation/validation
@@ -453,3 +453,4 @@ _No blockers currently._
 | AUTH-11: Create registration page with role selection | 615cb4e | 2026-02-09 |
 | AUTH-12: Create password reset flow (forgot password) | 041b7f5 | 2026-02-09 |
 | AUTH-13: Implement auth guards for protected routes | 7c9e7c4 | 2026-02-09 |
+| AUTH-14: Create user profile page with edit functionality | 1a1e187 | 2026-02-09 |
