@@ -10,7 +10,7 @@
 
 import { Router } from 'express';
 import { authenticate, requireAuth } from '../middleware/auth.middleware.js';
-import { listProjects, createProject } from '../controllers/projects.controller.js';
+import { listProjects, createProject, getProjectById } from '../controllers/projects.controller.js';
 
 const router = Router();
 
@@ -44,5 +44,17 @@ router.get('/', authenticate, requireAuth, listProjects);
  * Returns the created project with creator info.
  */
 router.post('/', authenticate, requireAuth, createProject);
+
+/**
+ * GET /projects/:id
+ * Get a project by ID.
+ *
+ * Path parameters:
+ * - id: string (required) - Project UUID
+ *
+ * Returns the project details with creator info and user's role.
+ * Only accessible if the user is the project creator or a member.
+ */
+router.get('/:id', authenticate, requireAuth, getProjectById);
 
 export default router;
