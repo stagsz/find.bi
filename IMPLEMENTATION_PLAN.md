@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 2 - Authentication & User Management (In Progress)
-**Progress**: Password reset flow complete, moving to auth guards
-**Last Completed**: AUTH-12 - Create password reset flow (forgot password page)
-**Next Task**: AUTH-13 - Implement auth guards for protected routes
+**Progress**: Auth guards implemented, moving to user profile page
+**Last Completed**: AUTH-13 - Implement auth guards for protected routes (7c9e7c4)
+**Next Task**: AUTH-14 - Create user profile page with edit functionality
 
 ---
 
@@ -104,7 +104,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] AUTH-10: Create login page with email/password form (bf0aa75)
 - [x] AUTH-11: Create registration page with role selection (615cb4e)
 - [x] AUTH-12: Create password reset flow (forgot password page) (041b7f5)
-- [ ] AUTH-13: Implement auth guards for protected routes
+- [x] AUTH-13: Implement auth guards for protected routes (7c9e7c4)
 - [ ] AUTH-14: Create user profile page with edit functionality
 
 ### Auth Testing
@@ -452,3 +452,4 @@ _No blockers currently._
 | AUTH-10: Create login page with email/password form | bf0aa75 | 2026-02-09 |
 | AUTH-11: Create registration page with role selection | 615cb4e | 2026-02-09 |
 | AUTH-12: Create password reset flow (forgot password) | 041b7f5 | 2026-02-09 |
+| AUTH-13: Implement auth guards for protected routes | 7c9e7c4 | 2026-02-09 |
