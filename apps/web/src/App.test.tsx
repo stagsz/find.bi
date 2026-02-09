@@ -14,15 +14,11 @@ describe('App', () => {
 
   it('renders the subtitle', () => {
     renderWithProviders(<App />);
-    expect(
-      screen.getByText('Industrial safety analysis platform')
-    ).toBeInTheDocument();
+    expect(screen.getByText('Industrial safety analysis platform')).toBeInTheDocument();
   });
 
   it('renders the get started button', () => {
     renderWithProviders(<App />);
-    expect(
-      screen.getByRole('button', { name: /get started/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /get started/i })).toBeInTheDocument();
   });
 });

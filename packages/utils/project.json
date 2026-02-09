@@ -24,6 +24,13 @@
         "command": "npm run test",
         "cwd": "packages/utils"
       }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run lint",
+        "cwd": "packages/utils"
+      }
     }
   }
 }
