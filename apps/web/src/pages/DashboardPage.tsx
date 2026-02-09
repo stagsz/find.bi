@@ -1,5 +1,5 @@
 import { Button } from '@mantine/core';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore, selectUser } from '../store/auth.store';
 import { authService } from '../services/auth.service';
 
@@ -30,9 +30,12 @@ export function DashboardPage() {
             </div>
 
             <div className="flex items-center gap-4">
-              <span className="text-sm text-slate-600">
+              <Link
+                to="/profile"
+                className="text-sm text-slate-600 hover:text-slate-900"
+              >
                 {user?.name} ({user?.role.replace('_', ' ')})
-              </span>
+              </Link>
               <Button
                 variant="subtle"
                 color="gray"

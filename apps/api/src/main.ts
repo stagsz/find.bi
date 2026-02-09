@@ -1,6 +1,7 @@
 import express from 'express';
 import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.routes.js';
+import usersRoutes from './routes/users.routes.js';
 import { configurePassport, initializePassport } from './config/passport.config.js';
 
 const app = express();
@@ -26,6 +27,9 @@ app.get('/', (_req, res) => {
 
 // Authentication routes
 app.use('/auth', authRoutes);
+
+// User routes
+app.use('/users', usersRoutes);
 
 // Only start the server when this file is run directly (not imported for testing)
 const isMainModule = process.argv[1] === fileURLToPath(import.meta.url);

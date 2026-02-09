@@ -6,6 +6,7 @@ import {
   ResetPasswordPage,
   DashboardPage,
   UnauthorizedPage,
+  ProfilePage,
 } from './pages';
 import { ProtectedRoute, PublicRoute } from './components/auth';
 
@@ -20,6 +21,7 @@ import { ProtectedRoute, PublicRoute } from './components/auth';
  *
  * Protected routes (require authentication):
  * - / - Dashboard (any authenticated user)
+ * - /profile - User profile page (any authenticated user)
  * - /unauthorized - Shown when user lacks role permissions
  *
  * Role-protected routes (require specific minimum role):
@@ -69,6 +71,16 @@ function App() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Profile page - accessible to all authenticated users */}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
             </ProtectedRoute>
           }
         />

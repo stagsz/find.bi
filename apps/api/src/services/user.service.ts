@@ -153,3 +153,83 @@ export async function createUser(data: CreateUserData): Promise<User> {
 
   return rowToUser(result.rows[0]);
 }
+
+/**
+ * Payload for updating a user's profile.
+ */
+export interface UpdateProfileData {
+  name?: string;
+  email?: string;
+  organization?: string;
+}
+
+/**
+ * Update a user's profile.
+ * Only updates fields that are provided.
+ * Returns the updated user (without password hash).
+ */
+export async function updateUserProfile(userId: string, data: UpdateProfileData): Promise<User> {
+  const pool = getPool();
+
+  // Build dynamic update query based on provided fields
+  const updates: string[] = [];
+  const values: (string | undefined)[] = [];
+  let paramIndex = 1;
+
+  if (data.name !== undefined) {
+    updates.push(`name = $${paramIndex}`);
+    values.push(data.name.trim());
+    paramIndex++;
+  }
+
+  if (data.email !== undefined) {
+    updates.push(`email = $${paramIndex}`);
+    values.push(data.email.toLowerCase());
+    paramIndex++;
+  }
+
+  if (data.organization !== undefined) {
+    updates.push(`organization = $${paramIndex}`);
+    values.push(data.organization.trim());
+    paramIndex++;
+  }
+
+  // If no updates provided, just return the current user
+  if (updates.length === 0) {
+    const user = await findUserById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    return user;
+  }
+
+  // Add the user ID as the last parameter
+  values.push(userId);
+
+  const query = `
+    UPDATE hazop.users
+    SET ${updates.join(', ')}
+    WHERE id = $${paramIndex}
+    RETURNING id, email, password_hash, name, role, organization, is_active, created_at, updated_at
+  `;
+
+  const result = await pool.query<UserRow>(query, values);
+
+  if (!result.rows[0]) {
+    throw new Error('User not found');
+  }
+
+  return rowToUser(result.rows[0]);
+}
+
+/**
+ * Check if an email is already used by another user (excluding the specified user).
+ */
+export async function emailExistsForOtherUser(email: string, excludeUserId: string): Promise<boolean> {
+  const pool = getPool();
+  const result = await pool.query(
+    'SELECT 1 FROM hazop.users WHERE email = $1 AND id != $2',
+    [email.toLowerCase(), excludeUserId]
+  );
+  return result.rows.length > 0;
+}
