@@ -10,7 +10,7 @@
 
 import { Router } from 'express';
 import { authenticate, requireAuth } from '../middleware/auth.middleware.js';
-import { listProjects, createProject, getProjectById } from '../controllers/projects.controller.js';
+import { listProjects, createProject, getProjectById, updateProject } from '../controllers/projects.controller.js';
 
 const router = Router();
 
@@ -56,5 +56,22 @@ router.post('/', authenticate, requireAuth, createProject);
  * Only accessible if the user is the project creator or a member.
  */
 router.get('/:id', authenticate, requireAuth, getProjectById);
+
+/**
+ * PUT /projects/:id
+ * Update a project by ID.
+ *
+ * Path parameters:
+ * - id: string (required) - Project UUID
+ *
+ * Request body:
+ * - name: string (optional) - New project name
+ * - description: string (optional) - New project description
+ * - status: ProjectStatus (optional) - New project status
+ *
+ * Only project owners and leads can update project details.
+ * Returns the updated project with creator info and user's role.
+ */
+router.put('/:id', authenticate, requireAuth, updateProject);
 
 export default router;

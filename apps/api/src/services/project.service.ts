@@ -413,3 +413,75 @@ export async function createProject(
 
   return projectWithCreator;
 }
+
+/**
+ * Payload for updating a project.
+ * All fields are optional - only provided fields are updated.
+ */
+export interface UpdateProjectData {
+  name?: string;
+  description?: string;
+  status?: ProjectStatus;
+}
+
+/**
+ * Update a project by ID.
+ * Only updates the fields provided in the data object.
+ *
+ * @param projectId - The ID of the project to update
+ * @param data - Update data (name, description, status - all optional)
+ * @returns The updated project with creator information
+ * @throws Error with code '23505' if name conflicts with existing project in organization
+ */
+export async function updateProject(
+  projectId: string,
+  data: UpdateProjectData
+): Promise<ProjectWithCreator | null> {
+  const pool = getPool();
+
+  // Build dynamic SET clause based on provided fields
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  if (data.name !== undefined) {
+    setClauses.push(`name = $${paramIndex}`);
+    values.push(data.name);
+    paramIndex++;
+  }
+
+  if (data.description !== undefined) {
+    setClauses.push(`description = $${paramIndex}`);
+    values.push(data.description);
+    paramIndex++;
+  }
+
+  if (data.status !== undefined) {
+    setClauses.push(`status = $${paramIndex}`);
+    values.push(data.status);
+    paramIndex++;
+  }
+
+  // If no fields to update, just return the existing project
+  if (setClauses.length === 0) {
+    return findProjectById(projectId);
+  }
+
+  // Add project ID as the last parameter
+  values.push(projectId);
+
+  const result = await pool.query<ProjectRow>(
+    `UPDATE hazop.projects
+     SET ${setClauses.join(', ')}
+     WHERE id = $${paramIndex}
+     RETURNING id, name, description, status, created_by_id, organization, created_at, updated_at`,
+    values
+  );
+
+  if (!result.rows[0]) {
+    return null;
+  }
+
+  // Fetch the updated project with creator info
+  return findProjectById(result.rows[0].id);
+}

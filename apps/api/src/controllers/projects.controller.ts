@@ -11,6 +11,7 @@ import {
   listUserProjects,
   createProject as createProjectService,
   findProjectById as findProjectByIdService,
+  updateProject as updateProjectService,
   userHasProjectAccess,
   getUserProjectRole,
 } from '../services/project.service.js';
@@ -452,6 +453,253 @@ export async function getProjectById(req: Request, res: Response): Promise<void>
     });
   } catch (error) {
     console.error('Get project by ID error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+/**
+ * Request body for updating a project.
+ */
+interface UpdateProjectBody {
+  name?: unknown;
+  description?: unknown;
+  status?: unknown;
+}
+
+/**
+ * Validate update project request body.
+ * Returns an array of field errors if validation fails.
+ * All fields are optional but must be valid if provided.
+ */
+function validateUpdateProjectRequest(body: UpdateProjectBody): FieldError[] {
+  const errors: FieldError[] = [];
+
+  // Validate name (optional, but if provided: non-empty string, max 255 chars)
+  if (body.name !== undefined && body.name !== null) {
+    if (typeof body.name !== 'string') {
+      errors.push({
+        field: 'name',
+        message: 'Name must be a string',
+        code: 'INVALID_TYPE',
+      });
+    } else if (body.name.trim().length === 0) {
+      errors.push({
+        field: 'name',
+        message: 'Name cannot be empty',
+        code: 'EMPTY',
+      });
+    } else if (body.name.length > 255) {
+      errors.push({
+        field: 'name',
+        message: 'Name must be 255 characters or less',
+        code: 'MAX_LENGTH',
+      });
+    }
+  }
+
+  // Validate description (optional, but if provided must be string)
+  if (body.description !== undefined && body.description !== null) {
+    if (typeof body.description !== 'string') {
+      errors.push({
+        field: 'description',
+        message: 'Description must be a string',
+        code: 'INVALID_TYPE',
+      });
+    }
+  }
+
+  // Validate status (optional, but if provided must be a valid ProjectStatus)
+  if (body.status !== undefined && body.status !== null) {
+    if (typeof body.status !== 'string') {
+      errors.push({
+        field: 'status',
+        message: 'Status must be a string',
+        code: 'INVALID_TYPE',
+      });
+    } else if (!PROJECT_STATUSES.includes(body.status as ProjectStatus)) {
+      errors.push({
+        field: 'status',
+        message: `Status must be one of: ${PROJECT_STATUSES.join(', ')}`,
+        code: 'INVALID_VALUE',
+      });
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * PUT /projects/:id
+ * Update a project by ID.
+ * Only the project creator or users with 'owner' or 'lead' role can update the project.
+ *
+ * Path parameters:
+ * - id: string (required) - Project UUID
+ *
+ * Request body:
+ * - name: string (optional) - New project name
+ * - description: string (optional) - New project description
+ * - status: ProjectStatus (optional) - New project status
+ *
+ * Returns:
+ * - 200: Updated project with creator info and user's role
+ * - 400: Validation error
+ * - 401: Not authenticated
+ * - 403: Not authorized to update this project
+ * - 404: Project not found
+ * - 409: Project name already exists in organization
+ * - 500: Internal server error
+ */
+export async function updateProject(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+    const body = req.body as UpdateProjectBody;
+
+    // Get authenticated user ID
+    const userId = (req.user as { id: string } | undefined)?.id;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required',
+        },
+      });
+      return;
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid project ID format',
+          errors: [
+            {
+              field: 'id',
+              message: 'Project ID must be a valid UUID',
+              code: 'INVALID_FORMAT',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    // Validate request body
+    const validationErrors = validateUpdateProjectRequest(body);
+    if (validationErrors.length > 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          errors: validationErrors,
+        },
+      });
+      return;
+    }
+
+    // Check if user has access to the project
+    const hasAccess = await userHasProjectAccess(userId, id);
+    if (!hasAccess) {
+      // Check if project exists to return appropriate error
+      const project = await findProjectByIdService(id);
+      if (!project) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Project not found',
+          },
+        });
+        return;
+      }
+
+      // Project exists but user doesn't have access
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this project',
+        },
+      });
+      return;
+    }
+
+    // Get user's role - only owner and lead can update projects
+    const userRole = await getUserProjectRole(userId, id);
+    if (!userRole || !['owner', 'lead'].includes(userRole)) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only project owners and leads can update project details',
+        },
+      });
+      return;
+    }
+
+    // Build update data from validated fields
+    const updateData: { name?: string; description?: string; status?: ProjectStatus } = {};
+    if (typeof body.name === 'string') {
+      updateData.name = body.name.trim();
+    }
+    if (typeof body.description === 'string') {
+      updateData.description = body.description;
+    }
+    if (typeof body.status === 'string' && PROJECT_STATUSES.includes(body.status as ProjectStatus)) {
+      updateData.status = body.status as ProjectStatus;
+    }
+
+    // Update the project
+    const updatedProject = await updateProjectService(id, updateData);
+    if (!updatedProject) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Project not found',
+        },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        project: {
+          ...updatedProject,
+          userRole,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Update project error:', error);
+
+    // Handle unique constraint violation (duplicate project name in organization)
+    if (error instanceof Error && 'code' in error) {
+      const dbError = error as { code: string };
+      if (dbError.code === '23505') {
+        res.status(409).json({
+          success: false,
+          error: {
+            code: 'CONFLICT',
+            message: 'A project with this name already exists in your organization',
+          },
+        });
+        return;
+      }
+    }
 
     res.status(500).json({
       success: false,
