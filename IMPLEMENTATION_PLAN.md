@@ -6,8 +6,8 @@
 
 **Phase**: 2 - Authentication & User Management (In Progress)
 **Progress**: Admin User Management in progress
-**Last Completed**: ADMIN-03 - Create PUT /admin/users/:id/status endpoint (da37825)
-**Next Task**: ADMIN-04 - Create admin user management page with data table
+**Last Completed**: ADMIN-04 - Create admin user management page with data table (e06d280)
+**Next Task**: ADMIN-05 - Create user role editor modal
 
 ---
 
@@ -116,7 +116,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] ADMIN-01: Create GET /admin/users endpoint (list all users with search/filter) (31b1001)
 - [x] ADMIN-02: Create PUT /admin/users/:id/role endpoint (change user role) (1d9e2fd)
 - [x] ADMIN-03: Create PUT /admin/users/:id/status endpoint (activate/deactivate user) (da37825)
-- [ ] ADMIN-04: Create admin user management page with data table
+- [x] ADMIN-04: Create admin user management page with data table (e06d280)
 - [ ] ADMIN-05: Create user role editor modal
 - [ ] ADMIN-06: Add admin route guard (restrict to administrator role)
 - [ ] ADMIN-07: Add API tests for admin endpoints
@@ -460,3 +460,4 @@ _No blockers currently._
 | ADMIN-01: Create GET /admin/users endpoint | 31b1001 | 2026-02-09 |
 | ADMIN-02: Create PUT /admin/users/:id/role endpoint | 1d9e2fd | 2026-02-09 |
 | ADMIN-03: Create PUT /admin/users/:id/status endpoint | da37825 | 2026-02-09 |
+| ADMIN-04: Create admin user management page with data table | e06d280 | 2026-02-09 |
