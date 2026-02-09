@@ -9,6 +9,7 @@ import {
   ProfilePage,
   AdminPage,
   ProjectsPage,
+  ProjectDetailPage,
 } from './pages';
 import { ProtectedRoute, PublicRoute } from './components/auth';
 
@@ -103,6 +104,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ProjectsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId"
+          element={
+            <ProtectedRoute>
+              <ProjectDetailPage />
             </ProtectedRoute>
           }
         />

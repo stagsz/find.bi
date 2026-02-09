@@ -11,3 +11,4 @@ export { UnauthorizedPage } from './UnauthorizedPage';
 export { ProfilePage } from './ProfilePage';
 export { AdminPage } from './AdminPage';
 export { ProjectsPage } from './ProjectsPage';
+export { ProjectDetailPage } from './ProjectDetailPage';
