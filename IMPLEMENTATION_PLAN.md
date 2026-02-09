@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 2 - Authentication & User Management (In Progress)
-**Progress**: Auth middleware complete, continuing with role-based access control
-**Last Completed**: AUTH-07 - Create auth middleware for protected routes
-**Next Task**: AUTH-08 - Implement role-based access control
+**Progress**: Backend auth complete, moving to frontend auth
+**Last Completed**: AUTH-08 - Implement role-based access control
+**Next Task**: AUTH-09 - Create auth store with Zustand
 
 ---
 
@@ -97,7 +97,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] AUTH-05: Create POST /auth/refresh endpoint (1d12302)
 - [x] AUTH-06: Create POST /auth/logout endpoint (da49b35)
 - [x] AUTH-07: Create auth middleware for protected routes (325d01c)
-- [ ] AUTH-08: Implement role-based access control (admin, lead_analyst, analyst, viewer)
+- [x] AUTH-08: Implement role-based access control (admin, lead_analyst, analyst, viewer) (af11d4f)
 
 ### Frontend Auth
 - [ ] AUTH-09: Create auth store with Zustand (user state, tokens)
@@ -447,3 +447,4 @@ _No blockers currently._
 | AUTH-05: Create POST /auth/refresh endpoint | 1d12302 | 2026-02-09 |
 | AUTH-06: Create POST /auth/logout endpoint | da49b35 | 2026-02-09 |
 | AUTH-07: Create auth middleware for protected routes | 325d01c | 2026-02-09 |
+| AUTH-08: Implement role-based access control | af11d4f | 2026-02-09 |
