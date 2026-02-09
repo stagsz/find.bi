@@ -6,8 +6,8 @@
 
 **Phase**: 1 - Foundation (In Progress)
 **Progress**: Database setup in progress
-**Last Completed**: DB-02 - Create users table with password_hash, role, organization
-**Next Task**: DB-03 - Create projects and project_members tables
+**Last Completed**: DB-03 - Create projects and project_members tables
+**Next Task**: DB-04 - Create pid_documents table with processing_status
 
 ---
 
@@ -75,7 +75,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 ### Database Setup
 - [x] DB-01: Create PostgreSQL schema with custom enum types (user_role, project_status, etc.) (977df3c)
 - [x] DB-02: Create users table with password_hash, role, organization (14437cf)
-- [ ] DB-03: Create projects and project_members tables
+- [x] DB-03: Create projects and project_members tables (3d517f7)
 - [ ] DB-04: Create pid_documents table with processing_status
 - [ ] DB-05: Create analysis_nodes table with equipment_type and coordinates
 - [ ] DB-06: Create hazop_analyses and analysis_entries tables
@@ -431,3 +431,4 @@ _No blockers currently._
 | TYPES-07: API request/response type definitions | eeb81c5 | 2026-02-09 |
 | DB-01: PostgreSQL schema with custom enum types | 977df3c | 2026-02-09 |
 | DB-02: Create users table migration | 14437cf | 2026-02-09 |
+| DB-03: Create projects and project_members tables | 3d517f7 | 2026-02-09 |
