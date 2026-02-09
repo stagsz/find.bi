@@ -15,6 +15,10 @@ import {
   verifyPassword,
 } from '../services/user.service.js';
 import { getJwtService } from '../services/jwt.service.js';
+import {
+  requestPasswordReset,
+  resetPassword as resetPasswordService,
+} from '../services/password-reset.service.js';
 import type { UserRole } from '../services/jwt.service.js';
 
 /**
@@ -57,6 +61,21 @@ interface RefreshRequestBody {
  */
 interface LogoutRequestBody {
   refreshToken?: string;
+}
+
+/**
+ * Request body for forgot password.
+ */
+interface ForgotPasswordRequestBody {
+  email?: string;
+}
+
+/**
+ * Request body for password reset.
+ */
+interface ResetPasswordRequestBody {
+  token?: string;
+  newPassword?: string;
 }
 
 /**
@@ -511,6 +530,177 @@ export async function logout(req: Request, res: Response): Promise<void> {
     });
   } catch (error) {
     console.error('Logout error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+/**
+ * POST /auth/forgot-password
+ * Request a password reset email.
+ *
+ * Request body:
+ * - email: string (required) - User's email address
+ *
+ * Returns:
+ * - 200: Request processed (always returns success to prevent email enumeration)
+ * - 400: Validation error (invalid email format)
+ * - 500: Internal server error
+ *
+ * Note: In development mode, the token is returned in the response.
+ * In production, an email would be sent with the reset link.
+ */
+export async function forgotPassword(req: Request, res: Response): Promise<void> {
+  try {
+    const body = req.body as ForgotPasswordRequestBody;
+
+    // Validate email is present and valid
+    if (!body.email) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          errors: [{ field: 'email', message: 'Email is required', code: 'REQUIRED' }],
+        },
+      });
+      return;
+    }
+
+    if (!isValidEmail(body.email)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          errors: [{ field: 'email', message: 'Invalid email format', code: 'INVALID_FORMAT' }],
+        },
+      });
+      return;
+    }
+
+    // Request password reset
+    const result = await requestPasswordReset(body.email);
+
+    // In development, return the token for testing
+    // In production, always return success to prevent email enumeration
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+
+    if (isDevelopment && result.success && result.token) {
+      res.status(200).json({
+        success: true,
+        data: {
+          message: 'If an account with that email exists, a password reset link has been sent.',
+          // Development only: include token for testing
+          _dev: {
+            token: result.token,
+            resetUrl: `${process.env.FRONTEND_URL || 'http://localhost:5174'}/reset-password?token=${result.token}`,
+          },
+        },
+      });
+    } else {
+      // Always return success in production to prevent email enumeration
+      res.status(200).json({
+        success: true,
+        data: {
+          message: 'If an account with that email exists, a password reset link has been sent.',
+        },
+      });
+    }
+  } catch (error) {
+    console.error('Forgot password error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+/**
+ * POST /auth/reset-password
+ * Reset password using a valid reset token.
+ *
+ * Request body:
+ * - token: string (required) - Password reset token from email
+ * - newPassword: string (required) - New password
+ *
+ * Returns:
+ * - 200: Password reset successful
+ * - 400: Validation error or invalid/expired token
+ * - 500: Internal server error
+ */
+export async function resetPassword(req: Request, res: Response): Promise<void> {
+  try {
+    const body = req.body as ResetPasswordRequestBody;
+    const errors: FieldError[] = [];
+
+    // Validate token
+    if (!body.token) {
+      errors.push({ field: 'token', message: 'Reset token is required', code: 'REQUIRED' });
+    }
+
+    // Validate new password
+    if (!body.newPassword) {
+      errors.push({ field: 'newPassword', message: 'New password is required', code: 'REQUIRED' });
+    } else {
+      const passwordResult = validatePassword(body.newPassword);
+      if (!passwordResult.valid) {
+        errors.push({ field: 'newPassword', message: passwordResult.message!, code: 'WEAK_PASSWORD' });
+      }
+    }
+
+    if (errors.length > 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          errors,
+        },
+      });
+      return;
+    }
+
+    // Attempt to reset password
+    const result = await resetPasswordService(body.token!, body.newPassword!);
+
+    if (!result.success) {
+      // Map error codes to user-friendly messages
+      const errorMessages: Record<string, string> = {
+        INVALID_TOKEN: 'Invalid or expired reset token',
+        TOKEN_EXPIRED: 'Reset token has expired. Please request a new one.',
+        TOKEN_USED: 'This reset token has already been used',
+        USER_NOT_FOUND: 'User account not found',
+      };
+
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_TOKEN',
+          message: errorMessages[result.error!] || 'Invalid reset token',
+        },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        message: 'Password has been reset successfully. You can now log in with your new password.',
+      },
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
 
     res.status(500).json({
       success: false,

@@ -3,6 +3,8 @@ import type {
   LoginRequest,
   RegisterRequest,
   RefreshTokenResponse,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
   ApiResult,
 } from '@hazop/types';
 import { api } from './api.client';
@@ -153,5 +155,57 @@ export const authService = {
     }
 
     return true;
+  },
+
+  /**
+   * Request a password reset email.
+   *
+   * @param data - Forgot password request with email
+   * @returns Promise resolving to the API result
+   */
+  async forgotPassword(
+    data: ForgotPasswordRequest
+  ): Promise<ApiResult<{ message: string; _dev?: { token: string; resetUrl: string } }>> {
+    const store = useAuthStore.getState();
+    store.setLoading(true);
+    store.setError(null);
+
+    const result = await api.post<{ message: string; _dev?: { token: string; resetUrl: string } }>(
+      '/auth/forgot-password',
+      data,
+      { authenticated: false }
+    );
+
+    store.setLoading(false);
+
+    if (!result.success) {
+      store.setError(result.error);
+    }
+
+    return result;
+  },
+
+  /**
+   * Reset password using a token.
+   *
+   * @param data - Reset password request with token and new password
+   * @returns Promise resolving to the API result
+   */
+  async resetPassword(data: ResetPasswordRequest): Promise<ApiResult<{ message: string }>> {
+    const store = useAuthStore.getState();
+    store.setLoading(true);
+    store.setError(null);
+
+    const result = await api.post<{ message: string }>('/auth/reset-password', data, {
+      authenticated: false,
+    });
+
+    store.setLoading(false);
+
+    if (!result.success) {
+      store.setError(result.error);
+    }
+
+    return result;
   },
 };
