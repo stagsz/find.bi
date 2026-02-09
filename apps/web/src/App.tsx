@@ -1,33 +1,90 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from './pages';
+import {
+  LoginPage,
+  RegisterPage,
+  ForgotPasswordPage,
+  ResetPasswordPage,
+  DashboardPage,
+  UnauthorizedPage,
+} from './pages';
+import { ProtectedRoute, PublicRoute } from './components/auth';
 
 /**
  * Main application component with routing.
  *
- * Public routes:
+ * Public routes (redirect authenticated users to dashboard):
  * - /login - Login page
  * - /register - Registration page
  * - /forgot-password - Password reset request page
  * - /reset-password - Password reset confirmation page (with token)
  *
- * Protected routes (TODO: AUTH-13):
- * - / - Dashboard (requires authentication)
+ * Protected routes (require authentication):
+ * - / - Dashboard (any authenticated user)
+ * - /unauthorized - Shown when user lacks role permissions
+ *
+ * Role-protected routes (require specific minimum role):
+ * - /admin/* - Administrator only (to be added in ADMIN-06)
  */
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public routes */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        {/* Public routes - redirect authenticated users away */}
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <LoginPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicRoute>
+              <RegisterPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicRoute>
+              <ForgotPasswordPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={
+            <PublicRoute>
+              <ResetPasswordPage />
+            </PublicRoute>
+          }
+        />
 
-        {/* Placeholder: redirect root to login for now */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        {/* Protected routes - require authentication */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
 
-        {/* Catch-all: redirect unknown routes to login */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Unauthorized page - accessible to all authenticated users */}
+        <Route
+          path="/unauthorized"
+          element={
+            <ProtectedRoute>
+              <UnauthorizedPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Catch-all: redirect unknown routes to dashboard (auth guard handles login redirect) */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
