@@ -132,7 +132,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] PROJ-04: Create PUT /projects/:id endpoint (update project) (ceda9af)
 - [x] PROJ-05: Create DELETE /projects/:id endpoint (archive project) (28765eb)
 - [x] PROJ-06: Create POST /projects/:id/members endpoint (invite team member) (01f8bb8)
-- [x] PROJ-07: Create DELETE /projects/:id/members/:userId endpoint (remove member)
+- [x] PROJ-07: Create DELETE /projects/:id/members/:userId endpoint (remove member) (9947b15)
 
 ### Frontend UI
 - [ ] PROJ-08: Create projects list page with status filters
@@ -470,4 +470,4 @@ _No blockers currently._
 | PROJ-04: Create PUT /projects/:id endpoint | ceda9af | 2026-02-09 |
 | PROJ-05: Create DELETE /projects/:id endpoint | 28765eb | 2026-02-09 |
 | PROJ-06: Create POST /projects/:id/members endpoint | 01f8bb8 | 2026-02-09 |
-| PROJ-07: Create DELETE /projects/:id/members/:userId endpoint | - | 2026-02-09 |
+| PROJ-07: Create DELETE /projects/:id/members/:userId endpoint | 9947b15 | 2026-02-09 |
