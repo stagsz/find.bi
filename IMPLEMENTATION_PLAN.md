@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 1 - Foundation (In Progress)
-**Progress**: Core development infrastructure with frontend testing
-**Last Completed**: SETUP-06 - Set up Vitest for frontend testing
-**Next Task**: SETUP-07 - Set up Jest + Supertest for API testing
+**Progress**: Core development infrastructure with API testing
+**Last Completed**: SETUP-07 - Set up Jest + Supertest for API testing
+**Next Task**: SETUP-08 - Configure Playwright for E2E testing
 
 ---
 
@@ -59,7 +59,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] SETUP-04: Set up Express.js + TypeScript in api app (dc838a8 - included in SETUP-01)
 - [x] SETUP-05: Configure Tailwind CSS and Mantine UI component library (8ffe440)
 - [x] SETUP-06: Set up Vitest for frontend testing (03ed071)
-- [ ] SETUP-07: Set up Jest + Supertest for API testing
+- [x] SETUP-07: Set up Jest + Supertest for API testing (4c15fcf)
 - [ ] SETUP-08: Configure Playwright for E2E testing
 - [ ] SETUP-09: Set up ESLint + Prettier for code quality
 
@@ -419,3 +419,4 @@ _No blockers currently._
 | SETUP-04: Express.js + TypeScript | dc838a8 | 2026-02-09 |
 | SETUP-05: Tailwind CSS + Mantine UI | 8ffe440 | 2026-02-09 |
 | SETUP-06: Vitest frontend testing | 03ed071 | 2026-02-09 |
+| SETUP-07: Jest + Supertest API testing | 4c15fcf | 2026-02-09 |
