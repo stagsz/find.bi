@@ -9,3 +9,13 @@ export {
   getAuthUser,
   getAuthUserId,
 } from './auth.middleware.js';
+
+export {
+  requireRole,
+  requireAnyRole,
+  requireMinimumRole,
+  hasRole,
+  hasAnyRole,
+  hasMinimumRole,
+  isAdmin,
+} from './rbac.middleware.js';
