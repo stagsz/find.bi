@@ -33,6 +33,13 @@ node_modules/
 npm-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+package-lock.json
+
+# Build outputs
+dist/
+.nx/
+.cache/
+tmp/
 
 # Environment
 .env

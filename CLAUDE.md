@@ -30,11 +30,14 @@ This project uses the **Ralph autonomous AI methodology**.
 Run before every commit:
 
 ```bash
-# Backend (Python)
-cd backend && mypy app && ruff check app && pytest
+# Backend (Node.js/Express)
+cd apps/api && npm run typecheck && npm run lint && npm test
 
-# Frontend (Node)
-cd frontend && npm run typecheck && npm run lint && npm test
+# Frontend (React/Vite)
+cd apps/web && npm run typecheck && npm run lint && npm test
+
+# E2E Tests
+npm run test:e2e
 ```
 
 ### Commit Format
@@ -56,7 +59,16 @@ Types: feat, fix, test, refactor, docs, chore
 
 ## Project Overview
 
-**Simple CRM** - A fast, lightweight CRM for small sales teams. Features contact management, deal pipeline tracking, activity logging, and task management with a clean, modern UI.
+**HazOp Assistant** - An integrated platform for conducting Hazard and Operability Studies (HazOps) in the process industry. The system guides engineers through established HazOps methodology while automating documentation, risk assessment, and compliance validation.
+
+### Key Features
+- P&ID (Piping & Instrumentation Diagram) interpretation and analysis
+- Node-by-node HazOps analysis with standard guide words
+- Risk assessment using severity × likelihood × detectability methodology
+- LOPA (Layers of Protection Analysis) validation
+- Regulatory compliance cross-referencing (IEC 61511, ISO 31000, OSHA PSM, etc.)
+- Professional report generation (Word, PDF, Excel, PowerPoint)
+- Real-time collaborative analysis sessions
 
 ---
 
@@ -64,49 +76,107 @@ Types: feat, fix, test, refactor, docs, chore
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | Next.js 15, React 19, Tailwind CSS 4, Recharts |
-| Backend | Next.js Server Actions, Supabase |
-| Database | PostgreSQL (via Supabase) with Row Level Security |
-| Auth | Supabase Auth with role-based access (admin/user) |
-| Testing | Vitest (unit), Playwright (e2e), Testing Library |
+| Frontend | React 18, TypeScript 5.3+, Vite, Tailwind CSS, Mantine UI |
+| Backend | Node.js 20.x, Express.js, TypeScript |
+| Database | PostgreSQL 15+ |
+| Cache | Redis 7.x |
+| File Storage | MinIO (S3-compatible) |
+| Message Queue | RabbitMQ |
+| Real-time | Socket.io |
+| Authentication | JWT + Passport.js |
+| Testing | Vitest (frontend), Jest (backend), Playwright (E2E) |
+| Monorepo | Nx |
+| Deployment | Docker Compose, Nginx |
+| Monitoring | Prometheus, Grafana, Winston, Loki |
 
 ---
 
 ## Domain Knowledge
 
-### CRM Entities
-- **Contact**: A person in the CRM (lead or customer). Has first_name, last_name, email, phone, company, title, status, custom_fields
-- **Deal**: A sales opportunity linked to a contact. Has title, amount, stage (lead → proposal → negotiation → closed-won/lost), probability, expected_close_date
-- **Activity**: An interaction or task. Types: call, meeting, email, note, task. Linked to a contact and/or deal
-- **User**: Application user with role (admin or user). Admins can see all data; users see only their own
+### HazOps Methodology
+A **Hazard and Operability Study (HazOps)** is a structured technique for identifying potential hazards in industrial processes. The methodology uses guide words applied to process parameters to systematically identify deviations.
 
-### Deal Stages
-1. `lead` - Initial qualification
-2. `proposal` - Proposal sent
-3. `negotiation` - In negotiation
-4. `closed-won` - Deal won
-5. `closed-lost` - Deal lost
+### Guide Words
+Standard guide words used in HazOps analysis:
+- **NO** - Complete negation of intention (e.g., no flow)
+- **MORE** - Quantitative increase (e.g., more pressure)
+- **LESS** - Quantitative decrease (e.g., less temperature)
+- **REVERSE** - Opposite of intention (e.g., reverse flow)
+- **EARLY** - Timing-related early occurrence
+- **LATE** - Timing-related late occurrence
+- **OTHER THAN** - Qualitative deviation (e.g., wrong composition)
 
-### Activity Statuses
-- `todo` - Not started
-- `in_progress` - Currently working
-- `completed` - Done
-- `cancelled` - Cancelled
+### Analysis Workflow
+```
+Node Selection → Guide Word → Deviation → Cause → Consequence → Safeguard → Recommendation → Risk Assessment → Compliance Check
+```
+
+### Risk Assessment
+- **Severity**: Impact of consequence (1-5 scale: Negligible → Catastrophic)
+- **Likelihood**: Probability of occurrence (1-5 scale: Rare → Almost Certain)
+- **Detectability**: Ability to detect before impact (1-5 scale: Almost Certain → Undetectable)
+- **Risk Score**: Severity × Likelihood × Detectability (1-125)
+- **Risk Level**: Low (1-20), Medium (21-60), High (61-125)
+
+### User Roles
+- `administrator` - Full system access, user management
+- `lead_analyst` - Project management, analysis review/approval
+- `analyst` - Conduct HazOps analyses, create reports
+- `viewer` - Read-only access to projects and reports
+
+### Project Statuses
+- `planning` - Initial setup, P&ID upload
+- `active` - Analysis in progress
+- `review` - Analysis complete, awaiting approval
+- `completed` - Approved and finalized
+- `archived` - Historical record
+
+### Equipment Types (P&ID Nodes)
+- `pump` - Fluid moving equipment
+- `valve` - Flow control devices
+- `reactor` - Chemical reaction vessels
+- `heat_exchanger` - Heat transfer equipment
+- `pipe` - Process piping
+- `tank` - Storage vessels
+- `other` - Miscellaneous equipment
+
+### Regulatory Standards
+- **IEC 61511** - Functional safety for process industries
+- **ISO 31000** - Risk management principles
+- **ISO 9001** - Quality management systems
+- **ATEX/DSEAR** - Explosive atmospheres directives
+- **PED** - Pressure Equipment Directive
+- **OSHA PSM** - Process Safety Management (US)
+- **EPA RMP** - Risk Management Program (US)
+- **SEVESO III** - Major accident hazards directive (EU)
 
 ### Project Structure
 ```
-CRM/
-├── app/                    # Next.js App Router pages
-│   ├── (auth)/            # Auth pages (login, signup, reset)
-│   ├── activities/        # Activity actions
-│   ├── contacts/          # Contact pages & actions
-│   ├── dashboard/         # Dashboard page
-│   ├── deals/             # Deal pages & actions
-│   ├── profile/           # User profile
-│   └── tasks/             # Task Kanban board
-├── components/            # React components
-├── lib/                   # Utilities & Supabase clients
-├── supabase/migrations/   # Database migrations
-└── __tests__/             # Unit tests
+hazop-assistant/
+├── apps/
+│   ├── api/                    # Express.js backend
+│   │   ├── src/
+│   │   │   ├── controllers/   # Route handlers
+│   │   │   ├── services/      # Business logic
+│   │   │   ├── models/        # Database models
+│   │   │   ├── middleware/    # Auth, validation, etc.
+│   │   │   ├── routes/        # API routes
+│   │   │   └── utils/         # Helper functions
+│   │   └── tests/
+│   └── web/                    # React frontend
+│       ├── src/
+│       │   ├── components/    # Reusable UI components
+│       │   ├── pages/         # Route-level pages
+│       │   ├── layouts/       # Layout components
+│       │   ├── hooks/         # Custom React hooks
+│       │   ├── services/      # API client
+│       │   ├── store/         # Zustand state
+│       │   └── utils/         # Helpers, types
+│       └── tests/
+├── packages/
+│   ├── types/                  # Shared TypeScript types
+│   └── utils/                  # Shared utilities
+├── docker/                     # Docker configurations
+├── migrations/                 # Database migrations
+└── e2e/                        # Playwright E2E tests
 ```
-
