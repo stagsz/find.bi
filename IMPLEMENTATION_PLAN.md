@@ -6,8 +6,8 @@
 
 **Phase**: 1 - Foundation (In Progress)
 **Progress**: Database setup in progress
-**Last Completed**: DB-05 - Create analysis_nodes table with equipment_type and coordinates
-**Next Task**: DB-06 - Create hazop_analyses and analysis_entries tables
+**Last Completed**: DB-06 - Create hazop_analyses and analysis_entries tables
+**Next Task**: DB-07 - Create collaboration_sessions and session_participants tables
 
 ---
 
@@ -78,7 +78,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] DB-03: Create projects and project_members tables (3d517f7)
 - [x] DB-04: Create pid_documents table with processing_status (5aa6df5)
 - [x] DB-05: Create analysis_nodes table with equipment_type and coordinates (288e8a9)
-- [ ] DB-06: Create hazop_analyses and analysis_entries tables
+- [x] DB-06: Create hazop_analyses and analysis_entries tables (138ddb4)
 - [ ] DB-07: Create collaboration_sessions and session_participants tables
 - [ ] DB-08: Create audit_log table for change tracking
 - [ ] DB-09: Create reports and report_templates tables
@@ -434,3 +434,4 @@ _No blockers currently._
 | DB-03: Create projects and project_members tables | 3d517f7 | 2026-02-09 |
 | DB-04: Create pid_documents table | 5aa6df5 | 2026-02-09 |
 | DB-05: Create analysis_nodes table | 288e8a9 | 2026-02-09 |
+| DB-06: Create hazop_analyses and analysis_entries tables | 138ddb4 | 2026-02-09 |
