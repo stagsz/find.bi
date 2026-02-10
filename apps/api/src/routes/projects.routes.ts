@@ -13,6 +13,7 @@ import { Router } from 'express';
 import { authenticate, requireAuth } from '../middleware/auth.middleware.js';
 import { listProjects, createProject, getProjectById, updateProject, deleteProject, addMember, removeMember, listMembers } from '../controllers/projects.controller.js';
 import { listDocuments, uploadDocument } from '../controllers/documents.controller.js';
+import { createAnalysis } from '../controllers/analyses.controller.js';
 import { uploadPID, handleMulterError, validatePIDUpload } from '../middleware/upload.middleware.js';
 
 const router = Router();
@@ -176,5 +177,23 @@ router.post(
   validatePIDUpload,
   uploadDocument
 );
+
+/**
+ * POST /projects/:id/analyses
+ * Create a new HazOps analysis session for a project.
+ *
+ * Path parameters:
+ * - id: string (required) - Project UUID
+ *
+ * Request body:
+ * - documentId: string (required) - P&ID Document UUID to analyze
+ * - name: string (required) - Analysis session name
+ * - description: string (optional) - Analysis description
+ * - leadAnalystId: string (optional) - Lead analyst UUID (defaults to creator)
+ *
+ * Only project members can create analyses.
+ * Returns the created analysis with details.
+ */
+router.post('/:id/analyses', authenticate, requireAuth, createAnalysis);
 
 export default router;
