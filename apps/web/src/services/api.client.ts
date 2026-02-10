@@ -242,4 +242,126 @@ export const api = {
 
   delete: <T>(endpoint: string, options?: Omit<RequestOptions, 'method' | 'body'>) =>
     apiRequest<T>(endpoint, { ...options, method: 'DELETE' }),
+
+  /**
+   * Upload a file using multipart/form-data.
+   *
+   * @param endpoint - API endpoint path (e.g., '/projects/:id/documents')
+   * @param formData - FormData containing the file
+   * @param options - Request options (excluding method and body)
+   * @returns Promise resolving to ApiResult<T>
+   */
+  upload: <T>(
+    endpoint: string,
+    formData: FormData,
+    options?: Omit<RequestOptions, 'method' | 'body'>
+  ) => uploadFile<T>(endpoint, formData, options),
 };
+
+/**
+ * Upload a file using multipart/form-data.
+ * Does not set Content-Type header (browser sets it with boundary).
+ */
+async function uploadFile<T>(
+  endpoint: string,
+  formData: FormData,
+  options: Omit<RequestOptions, 'method' | 'body'> = {}
+): Promise<ApiResult<T>> {
+  const { authenticated = true, timeout = REQUEST_TIMEOUT } = options;
+
+  const accessToken = authenticated ? useAuthStore.getState().getAccessToken() : null;
+
+  const controller = createTimeoutController(timeout);
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  // Build headers without Content-Type (browser sets it for FormData)
+  const headers = new Headers({
+    Accept: 'application/json',
+    ...options.headers,
+  });
+
+  if (authenticated && accessToken) {
+    headers.set('Authorization', `Bearer ${accessToken}`);
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+      signal: controller.signal,
+    });
+
+    // Handle 401 Unauthorized - attempt token refresh
+    if (response.status === 401 && authenticated) {
+      const refreshResult = await attemptTokenRefresh();
+      if (refreshResult) {
+        // Retry the original request with new token
+        const retryHeaders = new Headers({
+          Accept: 'application/json',
+          ...options.headers,
+        });
+        retryHeaders.set('Authorization', `Bearer ${useAuthStore.getState().getAccessToken()}`);
+
+        const retryResponse = await fetch(url, {
+          method: 'POST',
+          headers: retryHeaders,
+          body: formData,
+          signal: createTimeoutController(timeout).signal,
+        });
+
+        if (retryResponse.ok) {
+          const data = await retryResponse.json();
+          return data as ApiResult<T>;
+        }
+        // Retry also failed, clear auth and return error
+        useAuthStore.getState().clearAuth();
+        return {
+          success: false,
+          error: await parseErrorResponse(retryResponse),
+        };
+      }
+      // Refresh failed, clear auth
+      useAuthStore.getState().clearAuth();
+      return {
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Session expired. Please log in again.',
+        },
+      };
+    }
+
+    // Handle other error responses
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await parseErrorResponse(response),
+      };
+    }
+
+    // Parse successful response
+    const data = await response.json();
+    return data as ApiResult<T>;
+  } catch (error) {
+    // Handle abort/timeout
+    if (error instanceof Error && error.name === 'AbortError') {
+      return {
+        success: false,
+        error: {
+          code: 'SERVICE_UNAVAILABLE',
+          message: 'Request timed out. Please try again.',
+        },
+      };
+    }
+
+    // Handle network errors
+    return {
+      success: false,
+      error: {
+        code: 'SERVICE_UNAVAILABLE',
+        message: 'Unable to connect to the server. Please check your connection.',
+      },
+    };
+  }
+}

@@ -6,7 +6,8 @@ import { authService } from '../services/auth.service';
 import { projectsService, type ProjectListItem } from '../services/projects.service';
 import { TeamMemberPanel } from '../components/projects/TeamMemberPanel';
 import { ProjectSettingsPanel } from '../components/projects/ProjectSettingsPanel';
-import type { ProjectStatus, ProjectMemberRole, ApiError } from '@hazop/types';
+import { PIDUpload } from '../components/documents';
+import type { ProjectStatus, ProjectMemberRole, ApiError, PIDDocumentWithUploader } from '@hazop/types';
 
 /**
  * Project status display labels.
@@ -63,6 +64,79 @@ const formatDateTime = (date: Date | string): string => {
     minute: '2-digit',
   });
 };
+
+/**
+ * Props for the DocumentsTab component.
+ */
+interface DocumentsTabProps {
+  project: ProjectListItem;
+  currentUser: { id: string; role: string } | null;
+  onDocumentUpload?: () => void;
+}
+
+/**
+ * Documents tab component for the project detail page.
+ * Shows the P&ID upload component and placeholder for document list.
+ */
+function DocumentsTab({ project, currentUser, onDocumentUpload }: DocumentsTabProps) {
+  // Determine user's role in project
+  const userRole = project.memberRole || (project.createdById === currentUser?.id ? 'owner' : null);
+
+  // Only viewers cannot upload
+  const canUpload =
+    userRole === 'owner' || userRole === 'lead' || userRole === 'member';
+
+  /**
+   * Handle document upload completion.
+   */
+  const handleUploadComplete = (document: PIDDocumentWithUploader) => {
+    // Refresh project data (which could include document count)
+    onDocumentUpload?.();
+    // TODO: In PID-15, this will also refresh the document list
+  };
+
+  return (
+    <div>
+      {/* Upload section */}
+      <div className="mb-6">
+        <h2 className="text-sm font-semibold text-slate-900 mb-3 uppercase tracking-wide">
+          Upload P&ID Document
+        </h2>
+        <PIDUpload
+          projectId={project.id}
+          onUploadComplete={handleUploadComplete}
+          disabled={!canUpload}
+        />
+      </div>
+
+      {/* Documents list placeholder - will be implemented in PID-15 */}
+      <div>
+        <h2 className="text-sm font-semibold text-slate-900 mb-3 uppercase tracking-wide">
+          Documents
+        </h2>
+        <div className="text-center py-8 border border-dashed border-slate-300 rounded">
+          <div className="mx-auto h-10 w-10 text-slate-400">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+              />
+            </svg>
+          </div>
+          <p className="mt-2 text-sm text-slate-500">No documents yet</p>
+          <p className="text-xs text-slate-400">Upload a P&ID document to get started</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Project detail page with tabs for Overview, Documents, Analysis, and Team.
@@ -420,27 +494,11 @@ export function ProjectDetailPage() {
 
             {/* Documents Tab */}
             <Tabs.Panel value="documents">
-              <div className="text-center py-12">
-                <div className="mx-auto h-12 w-12 text-slate-400">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="mt-4 text-sm font-semibold text-slate-900">No documents</h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  P&ID documents will be managed here. Upload functionality coming soon.
-                </p>
-              </div>
+              <DocumentsTab
+                project={project}
+                currentUser={currentUser}
+                onDocumentUpload={fetchProject}
+              />
             </Tabs.Panel>
 
             {/* Analysis Tab */}
