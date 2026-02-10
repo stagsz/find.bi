@@ -349,3 +349,44 @@ export async function listProjectDocuments(
 
   return { documents, total };
 }
+
+/**
+ * Delete a P&ID document by ID.
+ * Returns the deleted document (for cleanup operations like file deletion).
+ *
+ * @param documentId - The document ID
+ * @returns The deleted document, or null if not found
+ */
+export async function deletePIDDocument(
+  documentId: string
+): Promise<PIDDocument | null> {
+  const pool = getPool();
+
+  const result = await pool.query<PIDDocumentRow>(
+    `DELETE FROM hazop.pid_documents
+     WHERE id = $1
+     RETURNING
+       id,
+       project_id,
+       filename,
+       storage_path,
+       mime_type,
+       file_size,
+       status,
+       error_message,
+       width,
+       height,
+       uploaded_by_id,
+       uploaded_at,
+       processed_at,
+       created_at,
+       updated_at`,
+    [documentId]
+  );
+
+  if (!result.rows[0]) {
+    return null;
+  }
+
+  return rowToDocument(result.rows[0]);
+}

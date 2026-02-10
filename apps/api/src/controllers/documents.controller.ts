@@ -5,6 +5,7 @@
  * - GET /projects/:id/documents - List P&ID documents for a project
  * - POST /projects/:id/documents - Upload a P&ID document
  * - GET /documents/:id - Get a single document by ID
+ * - DELETE /documents/:id - Delete a document
  */
 
 import type { Request, Response } from 'express';
@@ -13,8 +14,8 @@ import {
   getUserProjectRole,
   findProjectById as findProjectByIdService,
 } from '../services/project.service.js';
-import { createPIDDocument, listProjectDocuments, findPIDDocumentById } from '../services/pid-document.service.js';
-import { uploadFile, generateStoragePath } from '../services/storage.service.js';
+import { createPIDDocument, listProjectDocuments, findPIDDocumentById, deletePIDDocument } from '../services/pid-document.service.js';
+import { uploadFile, generateStoragePath, deleteFile } from '../services/storage.service.js';
 import { getUploadedFileBuffer, getUploadMeta } from '../middleware/upload.middleware.js';
 import { PID_DOCUMENT_STATUSES } from '@hazop/types';
 import type { PIDDocumentStatus } from '@hazop/types';
@@ -498,6 +499,143 @@ export async function getDocumentById(req: Request, res: Response): Promise<void
     });
   } catch (error) {
     console.error('Get document by ID error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+/**
+ * DELETE /documents/:id
+ * Delete a P&ID document by ID.
+ * User must have appropriate role on the project that owns the document.
+ * Viewers cannot delete documents.
+ *
+ * Path parameters:
+ * - id: string (required) - Document UUID
+ *
+ * Returns:
+ * - 200: Document deleted successfully
+ * - 400: Invalid document ID format
+ * - 401: Not authenticated
+ * - 403: Not authorized to delete this document
+ * - 404: Document not found
+ * - 500: Internal server error
+ */
+export async function deleteDocumentById(req: Request, res: Response): Promise<void> {
+  try {
+    const { id: documentId } = req.params;
+
+    // Get authenticated user ID
+    const userId = (req.user as { id: string } | undefined)?.id;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required',
+        },
+      });
+      return;
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(documentId)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid document ID format',
+          errors: [
+            {
+              field: 'id',
+              message: 'Document ID must be a valid UUID',
+              code: 'INVALID_FORMAT',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    // Find the document
+    const document = await findPIDDocumentById(documentId);
+    if (!document) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Document not found',
+        },
+      });
+      return;
+    }
+
+    // Check if user has access to the project that owns this document
+    const hasAccess = await userHasProjectAccess(userId, document.projectId);
+    if (!hasAccess) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this document',
+        },
+      });
+      return;
+    }
+
+    // Get user's role - only owner, lead, and member can delete documents
+    // Viewers cannot delete
+    const userRole = await getUserProjectRole(userId, document.projectId);
+    if (!userRole || userRole === 'viewer') {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to delete documents in this project',
+        },
+      });
+      return;
+    }
+
+    // Delete the document from database
+    const deletedDocument = await deletePIDDocument(documentId);
+    if (!deletedDocument) {
+      // Document was deleted between findById and delete (race condition)
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Document not found',
+        },
+      });
+      return;
+    }
+
+    // Delete the file from storage
+    // Note: deleteFile does not throw if file doesn't exist
+    try {
+      await deleteFile(deletedDocument.storagePath);
+    } catch (storageError) {
+      // Log but don't fail the request - DB record is already deleted
+      console.error('Failed to delete file from storage:', storageError);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        message: 'Document deleted successfully',
+        documentId: deletedDocument.id,
+      },
+    });
+  } catch (error) {
+    console.error('Delete document by ID error:', error);
 
     res.status(500).json({
       success: false,
