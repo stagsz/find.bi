@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 4 - P&ID Document Management
-**Progress**: PID-07 complete
-**Last Completed**: PID-07 - Create DELETE /documents/:id endpoint (delete document)
-**Next Task**: PID-08 - Create GET /documents/:id/download endpoint (download original)
+**Progress**: PID-08 complete
+**Last Completed**: PID-08 - Create GET /documents/:id/download endpoint (download original)
+**Next Task**: PID-09 - Create basic P&ID metadata extraction (dimensions, file info)
 
 ---
 
@@ -160,7 +160,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] PID-05: Create GET /projects/:id/documents endpoint (list documents) (007f17e)
 - [x] PID-06: Create GET /documents/:id endpoint (document details) (eb9e7d9)
 - [x] PID-07: Create DELETE /documents/:id endpoint (delete document) (f8025b2)
-- [ ] PID-08: Create GET /documents/:id/download endpoint (download original)
+- [x] PID-08: Create GET /documents/:id/download endpoint (download original) (d2c5105)
 
 ### P&ID Processing Service
 - [ ] PID-09: Create basic P&ID metadata extraction (dimensions, file info)
@@ -486,3 +486,4 @@ _No blockers currently._
 | PID-05: Create GET /projects/:id/documents endpoint | 007f17e | 2026-02-10 |
 | PID-06: Create GET /documents/:id endpoint | eb9e7d9 | 2026-02-10 |
 | PID-07: Create DELETE /documents/:id endpoint | f8025b2 | 2026-02-10 |
+| PID-08: Create GET /documents/:id/download endpoint | d2c5105 | 2026-02-10 |
