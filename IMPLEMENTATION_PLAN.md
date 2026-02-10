@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 5 - Core HazOps Analysis Workflow
-**Progress**: Frontend analysis workspace in progress
-**Last Completed**: HAZOP-17 - Create new analysis session wizard (select P&ID, name, methodology) (2ea0778)
-**Next Task**: HAZOP-18 - Create analysis workspace layout (split-pane: P&ID viewer + analysis panel)
+**Progress**: Frontend analysis workspace layout complete
+**Last Completed**: HAZOP-18 - Create analysis workspace layout (split-pane: P&ID viewer + analysis panel) (f30b08c)
+**Next Task**: HAZOP-19 - Create node selection component (click node on P&ID to select)
 
 ---
 
@@ -207,7 +207,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 ### Frontend Analysis Workspace
 - [x] HAZOP-16: Create analysis session list page with status indicators (de417ea)
 - [x] HAZOP-17: Create new analysis session wizard (select P&ID, name, methodology) (2ea0778)
-- [ ] HAZOP-18: Create analysis workspace layout (split-pane: P&ID viewer + analysis panel)
+- [x] HAZOP-18: Create analysis workspace layout (split-pane: P&ID viewer + analysis panel) (f30b08c)
 - [ ] HAZOP-19: Create node selection component (click node on P&ID to select)
 - [ ] HAZOP-20: Create guide word selector (tab or dropdown navigation)
 - [ ] HAZOP-21: Create deviation input form with autocomplete
@@ -517,3 +517,4 @@ _No blockers currently._
 | HAZOP-15: Create POST /analyses/:id/complete endpoint | b4bca6f | 2026-02-10 |
 | HAZOP-16: Create analysis session list page with status indicators | de417ea | 2026-02-10 |
 | HAZOP-17: Create new analysis session wizard | 2ea0778 | 2026-02-11 |
+| HAZOP-18: Create analysis workspace layout (split-pane) | f30b08c | 2026-02-11 |
