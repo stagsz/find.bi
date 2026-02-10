@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 4 - P&ID Document Management
-**Progress**: PID-16 complete
-**Last Completed**: PID-16 - Create P&ID viewer component (zoom, pan functionality)
-**Next Task**: PID-17 - Create node overlay component (clickable markers on P&ID)
+**Progress**: PID-17 complete
+**Last Completed**: PID-17 - Create node overlay component (clickable markers on P&ID)
+**Next Task**: PID-18 - Create node creation form (node ID, description, equipment type)
 
 ---
 
@@ -173,7 +173,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] PID-14: Create P&ID upload component with drag-and-drop (d12702e)
 - [x] PID-15: Create document list view with thumbnails (edb28dc)
 - [x] PID-16: Create P&ID viewer component (zoom, pan functionality) (f0a1d95)
-- [ ] PID-17: Create node overlay component (clickable markers on P&ID)
+- [x] PID-17: Create node overlay component (clickable markers on P&ID) (ad9d78c)
 - [ ] PID-18: Create node creation form (node ID, description, equipment type)
 - [ ] PID-19: Create node editing modal
 
@@ -495,3 +495,4 @@ _No blockers currently._
 | PID-14: Create P&ID upload component with drag-and-drop | d12702e | 2026-02-10 |
 | PID-15: Create document list view with thumbnails | edb28dc | 2026-02-10 |
 | PID-16: Create P&ID viewer component (zoom, pan functionality) | f0a1d95 | 2026-02-10 |
+| PID-17: Create node overlay component (clickable markers on P&ID) | ad9d78c | 2026-02-10 |
