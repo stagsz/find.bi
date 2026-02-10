@@ -6,8 +6,8 @@
 
 **Phase**: 5 - Core HazOps Analysis Workflow
 **Progress**: Backend API endpoints in progress
-**Last Completed**: HAZOP-07 - Create POST /projects/:id/analyses endpoint
-**Next Task**: HAZOP-08 - Create GET /projects/:id/analyses endpoint (list analysis sessions)
+**Last Completed**: HAZOP-08 - Create GET /projects/:id/analyses endpoint (list analysis sessions)
+**Next Task**: HAZOP-09 - Create GET /analyses/:id endpoint (analysis session details)
 
 ---
 
@@ -195,7 +195,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 
 ### Backend API
 - [x] HAZOP-07: Create POST /projects/:id/analyses endpoint (create analysis session) (57222f7)
-- [ ] HAZOP-08: Create GET /projects/:id/analyses endpoint (list analysis sessions)
+- [x] HAZOP-08: Create GET /projects/:id/analyses endpoint (list analysis sessions) (ba3a8fe)
 - [ ] HAZOP-09: Create GET /analyses/:id endpoint (analysis session details)
 - [ ] HAZOP-10: Create PUT /analyses/:id endpoint (update analysis metadata)
 - [ ] HAZOP-11: Create POST /analyses/:id/entries endpoint (create analysis entry for node/guideword)
@@ -507,3 +507,4 @@ _No blockers currently._
 | HAZOP-05: Create prepared answer menus for safeguards | 31c61c8 | 2026-02-10 |
 | HAZOP-06: Create prepared answer menus for recommendations | 7cbe762 | 2026-02-10 |
 | HAZOP-07: Create POST /projects/:id/analyses endpoint | 57222f7 | 2026-02-10 |
+| HAZOP-08: Create GET /projects/:id/analyses endpoint | ba3a8fe | 2026-02-10 |
