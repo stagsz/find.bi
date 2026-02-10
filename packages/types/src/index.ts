@@ -180,3 +180,18 @@ export {
   PAGINATION_DEFAULTS,
   HEALTH_STATUSES,
 } from './api.js';
+
+// Prepared Answers types
+export type {
+  PreparedAnswerCategory,
+  PreparedAnswer,
+  PreparedAnswersResponse,
+  PreparedAnswersFilteredResponse,
+  PreparedAnswersQuery,
+  PreparedAnswerTemplate,
+} from './prepared-answers.js';
+
+export {
+  PREPARED_ANSWER_CATEGORIES,
+  PREPARED_ANSWER_CATEGORY_LABELS,
+} from './prepared-answers.js';
