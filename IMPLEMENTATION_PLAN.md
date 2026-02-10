@@ -6,8 +6,8 @@
 
 **Phase**: 5 - Core HazOps Analysis Workflow
 **Progress**: Backend API endpoints in progress
-**Last Completed**: HAZOP-13 - Create PUT /entries/:id endpoint (update analysis entry)
-**Next Task**: HAZOP-14 - Create DELETE /entries/:id endpoint (delete analysis entry)
+**Last Completed**: HAZOP-14 - Create DELETE /entries/:id endpoint (delete analysis entry)
+**Next Task**: HAZOP-15 - Create POST /analyses/:id/complete endpoint (finalize analysis)
 
 ---
 
@@ -201,7 +201,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] HAZOP-11: Create POST /analyses/:id/entries endpoint (create analysis entry for node/guideword) (88cdc58)
 - [x] HAZOP-12: Create GET /analyses/:id/entries endpoint (list all entries) (cc8d79d)
 - [x] HAZOP-13: Create PUT /entries/:id endpoint (update analysis entry) (77ed7d0)
-- [ ] HAZOP-14: Create DELETE /entries/:id endpoint (delete analysis entry)
+- [x] HAZOP-14: Create DELETE /entries/:id endpoint (delete analysis entry) (b8da84e)
 - [ ] HAZOP-15: Create POST /analyses/:id/complete endpoint (finalize analysis)
 
 ### Frontend Analysis Workspace
@@ -513,3 +513,4 @@ _No blockers currently._
 | HAZOP-11: Create POST /analyses/:id/entries endpoint | 88cdc58 | 2026-02-10 |
 | HAZOP-12: Create GET /analyses/:id/entries endpoint | cc8d79d | 2026-02-10 |
 | HAZOP-13: Create PUT /entries/:id endpoint | 77ed7d0 | 2026-02-10 |
+| HAZOP-14: Create DELETE /entries/:id endpoint | b8da84e | 2026-02-10 |
