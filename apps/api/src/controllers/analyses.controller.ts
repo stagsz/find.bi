@@ -7,6 +7,9 @@
  * - GET /analyses/:id - Get analysis session details
  * - PUT /analyses/:id - Update analysis session metadata
  * - POST /analyses/:id/entries - Create analysis entry for node/guideword
+ * - GET /analyses/:id/entries - List analysis entries
+ * - PUT /entries/:id - Update analysis entry
+ * - DELETE /entries/:id - Delete analysis entry
  */
 
 import type { Request, Response } from 'express';
@@ -23,8 +26,9 @@ import {
   findAnalysisEntryById,
   getEntryAnalysisId,
   updateAnalysisEntry as updateAnalysisEntryService,
+  deleteAnalysisEntry as deleteAnalysisEntryService,
 } from '../services/hazop-analysis.service.js';
-import { userHasProjectAccess, findProjectById } from '../services/project.service.js';
+import { userHasProjectAccess, findProjectById, getUserProjectRole } from '../services/project.service.js';
 import { ANALYSIS_STATUSES, GUIDE_WORDS, RISK_LEVELS } from '@hazop/types';
 import type { AnalysisStatus, GuideWord, RiskLevel } from '@hazop/types';
 
@@ -1843,6 +1847,147 @@ export async function updateEntry(req: Request, res: Response): Promise<void> {
     });
   } catch (error) {
     console.error('Update analysis entry error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+/**
+ * DELETE /entries/:id
+ * Delete an existing analysis entry.
+ *
+ * Only entries in draft analyses can be deleted.
+ * Viewers cannot delete entries.
+ */
+export async function deleteEntry(req: Request, res: Response): Promise<void> {
+  try {
+    const { id: entryId } = req.params;
+
+    // Get authenticated user ID
+    const userId = (req.user as { id: string } | undefined)?.id;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required',
+        },
+      });
+      return;
+    }
+
+    // Validate UUID format
+    if (!UUID_REGEX.test(entryId)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid entry ID format',
+          errors: [
+            {
+              field: 'id',
+              message: 'Entry ID must be a valid UUID',
+              code: 'INVALID_FORMAT',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    // Find the entry to check existence
+    const existingEntry = await findAnalysisEntryById(entryId);
+    if (!existingEntry) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Analysis entry not found',
+        },
+      });
+      return;
+    }
+
+    // Find the analysis to check status and project access
+    const existingAnalysis = await findAnalysisById(existingEntry.analysisId);
+    if (!existingAnalysis) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Analysis not found',
+        },
+      });
+      return;
+    }
+
+    // Check if user has access to the project that owns this analysis
+    const hasAccess = await userHasProjectAccess(userId, existingAnalysis.projectId);
+    if (!hasAccess) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this analysis',
+        },
+      });
+      return;
+    }
+
+    // Get user's role - viewers cannot delete entries
+    const userRole = await getUserProjectRole(userId, existingAnalysis.projectId);
+    if (!userRole || userRole === 'viewer') {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to delete entries in this project',
+        },
+      });
+      return;
+    }
+
+    // Only allow deletion of entries in draft analyses
+    if (existingAnalysis.status !== 'draft') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_STATUS',
+          message: 'Can only delete entries in draft analyses. Current status: ' + existingAnalysis.status,
+        },
+      });
+      return;
+    }
+
+    // Delete the entry
+    const deletedEntry = await deleteAnalysisEntryService(entryId);
+    if (!deletedEntry) {
+      // Entry was deleted between findById and delete (race condition)
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Analysis entry not found',
+        },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        message: 'Analysis entry deleted successfully',
+        entryId: deletedEntry.id,
+      },
+    });
+  } catch (error) {
+    console.error('Delete analysis entry error:', error);
 
     res.status(500).json({
       success: false,

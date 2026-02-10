@@ -1127,3 +1127,28 @@ export async function updateAnalysisEntry(
 
   return rowToAnalysisEntry(result.rows[0]);
 }
+
+/**
+ * Delete an analysis entry by ID.
+ *
+ * @param entryId - Entry UUID to delete
+ * @returns Deleted entry or null if not found
+ */
+export async function deleteAnalysisEntry(
+  entryId: string
+): Promise<AnalysisEntry | null> {
+  const pool = getPool();
+
+  const result = await pool.query<AnalysisEntryRow>(
+    `DELETE FROM hazop.analysis_entries
+     WHERE id = $1
+     RETURNING *`,
+    [entryId]
+  );
+
+  if (!result.rows[0]) {
+    return null;
+  }
+
+  return rowToAnalysisEntry(result.rows[0]);
+}
