@@ -73,7 +73,7 @@ while ($true) {
     Write-Host "Iteration $Iteration $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Green
     Write-Host "═══════════════════════════════════════════════════════════" -ForegroundColor Blue
 
-    $LOG_FILE = "ralph_log_$(Get-Date -Format 'yyyyMMdd').txt"
+    $LOG_FILE = "ralph_log_$(Get-Date -Format 'yyyyMMdd').md"
     $timestamp = Get-Date -Format 'HH:mm:ss'
 
     "Starting Claude at $timestamp..." | Tee-Object -FilePath $LOG_FILE -Append

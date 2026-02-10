@@ -55,8 +55,8 @@ export function parseDuration(duration: string): number {
  * Load JWT configuration from environment variables.
  */
 export function loadJwtConfig(): JwtConfig {
-  const privateKey = process.env.JWT_PRIVATE_KEY || '';
-  const publicKey = process.env.JWT_PUBLIC_KEY || '';
+  let privateKey = process.env.JWT_PRIVATE_KEY || '';
+  let publicKey = process.env.JWT_PUBLIC_KEY || '';
 
   if (!privateKey || !publicKey) {
     throw new Error(
@@ -64,6 +64,10 @@ export function loadJwtConfig(): JwtConfig {
         'Generate keys with: openssl genrsa -out private.pem 2048 && openssl rsa -in private.pem -pubout -out public.pem'
     );
   }
+
+  // Convert \n escape sequences to actual newlines
+  privateKey = privateKey.replace(/\\n/g, '\n');
+  publicKey = publicKey.replace(/\\n/g, '\n');
 
   return {
     privateKey,

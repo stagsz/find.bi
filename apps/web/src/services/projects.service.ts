@@ -2,6 +2,7 @@ import type {
   ProjectWithCreator,
   ProjectStatus,
   ProjectMemberRole,
+  ProjectMemberWithUser,
   ApiResult,
   PaginationMeta,
 } from '@hazop/types';
@@ -35,6 +36,20 @@ export interface CreateProjectResponse {
  */
 export interface GetProjectResponse {
   project: ProjectListItem;
+}
+
+/**
+ * Response type for listing project members.
+ */
+export interface ListMembersResponse {
+  members: ProjectMemberWithUser[];
+}
+
+/**
+ * Response type for adding a project member.
+ */
+export interface AddMemberResponse {
+  member: ProjectMemberWithUser;
 }
 
 /**
@@ -185,5 +200,42 @@ export const projectsService = {
    */
   async archiveProject(projectId: string): Promise<ApiResult<{ message: string }>> {
     return api.delete<{ message: string }>(`/projects/${projectId}`);
+  },
+
+  /**
+   * List project members.
+   *
+   * @param projectId - The ID of the project
+   * @returns Promise resolving to the API result with members list
+   */
+  async listMembers(projectId: string): Promise<ApiResult<ListMembersResponse>> {
+    return api.get<ListMembersResponse>(`/projects/${projectId}/members`);
+  },
+
+  /**
+   * Add a member to a project.
+   *
+   * @param projectId - The ID of the project
+   * @param userId - The ID of the user to add
+   * @param role - The role for the new member
+   * @returns Promise resolving to the API result with created member
+   */
+  async addMember(
+    projectId: string,
+    userId: string,
+    role: ProjectMemberRole
+  ): Promise<ApiResult<AddMemberResponse>> {
+    return api.post<AddMemberResponse>(`/projects/${projectId}/members`, { userId, role });
+  },
+
+  /**
+   * Remove a member from a project.
+   *
+   * @param projectId - The ID of the project
+   * @param userId - The ID of the user to remove
+   * @returns Promise resolving to the API result
+   */
+  async removeMember(projectId: string, userId: string): Promise<ApiResult<{ message: string }>> {
+    return api.delete<{ message: string }>(`/projects/${projectId}/members/${userId}`);
   },
 };

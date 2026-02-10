@@ -22,6 +22,7 @@ import {
   addProjectMember as addProjectMemberService,
   removeProjectMember as removeProjectMemberService,
   getProjectCreatorId,
+  listProjectMembers as listProjectMembersService,
 } from '../services/project.service.js';
 import type { ProjectStatus, ProjectMemberRole } from '@hazop/types';
 import { PROJECT_STATUSES, PROJECT_MEMBER_ROLES } from '@hazop/types';
@@ -1243,6 +1244,106 @@ export async function removeMember(req: Request, res: Response): Promise<void> {
     });
   } catch (error) {
     console.error('Remove member error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+/**
+ * GET /projects/:id/members
+ * List all members of a project including the creator.
+ * Only project members can view the member list.
+ *
+ * Path parameters:
+ * - id: string (required) - Project UUID
+ *
+ * Returns:
+ * - 200: Array of project members with user info
+ * - 400: Invalid UUID format
+ * - 401: Not authenticated
+ * - 403: Not authorized to view members
+ * - 404: Project not found
+ * - 500: Internal server error
+ */
+export async function listMembers(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    // Get authenticated user ID
+    const userId = (req.user as { id: string } | undefined)?.id;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required',
+        },
+      });
+      return;
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid project ID format',
+          errors: [
+            {
+              field: 'id',
+              message: 'Project ID must be a valid UUID',
+              code: 'INVALID_FORMAT',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    // Check if user has access to the project
+    const hasAccess = await userHasProjectAccess(userId, id);
+    if (!hasAccess) {
+      // Check if project exists to return appropriate error
+      const project = await findProjectByIdService(id);
+      if (!project) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Project not found',
+          },
+        });
+        return;
+      }
+
+      // Project exists but user doesn't have access
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this project',
+        },
+      });
+      return;
+    }
+
+    // List project members
+    const members = await listProjectMembersService(id);
+
+    res.status(200).json({
+      success: true,
+      data: { members },
+    });
+  } catch (error) {
+    console.error('List members error:', error);
 
     res.status(500).json({
       success: false,
