@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 4 - P&ID Document Management
-**Progress**: PID-05 complete
-**Last Completed**: PID-05 - Create GET /projects/:id/documents endpoint (list documents)
-**Next Task**: PID-06 - Create GET /documents/:id endpoint (document details)
+**Progress**: PID-06 complete
+**Last Completed**: PID-06 - Create GET /documents/:id endpoint (document details)
+**Next Task**: PID-07 - Create DELETE /documents/:id endpoint (delete document)
 
 ---
 
@@ -158,7 +158,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 ### Backend API
 - [x] PID-04: Create POST /projects/:id/documents endpoint (upload P&ID) (d93a7ef)
 - [x] PID-05: Create GET /projects/:id/documents endpoint (list documents) (007f17e)
-- [ ] PID-06: Create GET /documents/:id endpoint (document details)
+- [x] PID-06: Create GET /documents/:id endpoint (document details) (eb9e7d9)
 - [ ] PID-07: Create DELETE /documents/:id endpoint (delete document)
 - [ ] PID-08: Create GET /documents/:id/download endpoint (download original)
 
@@ -484,3 +484,4 @@ _No blockers currently._
 | PID-03: Create file retrieval service with signed URLs | a800aa7 | 2026-02-10 |
 | PID-04: Create POST /projects/:id/documents endpoint | d93a7ef | 2026-02-10 |
 | PID-05: Create GET /projects/:id/documents endpoint | 007f17e | 2026-02-10 |
+| PID-06: Create GET /documents/:id endpoint | eb9e7d9 | 2026-02-10 |
