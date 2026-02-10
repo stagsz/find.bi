@@ -13,7 +13,7 @@ import { Router } from 'express';
 import { authenticate, requireAuth } from '../middleware/auth.middleware.js';
 import { listProjects, createProject, getProjectById, updateProject, deleteProject, addMember, removeMember, listMembers } from '../controllers/projects.controller.js';
 import { listDocuments, uploadDocument } from '../controllers/documents.controller.js';
-import { createAnalysis } from '../controllers/analyses.controller.js';
+import { createAnalysis, listAnalyses } from '../controllers/analyses.controller.js';
 import { uploadPID, handleMulterError, validatePIDUpload } from '../middleware/upload.middleware.js';
 
 const router = Router();
@@ -177,6 +177,27 @@ router.post(
   validatePIDUpload,
   uploadDocument
 );
+
+/**
+ * GET /projects/:id/analyses
+ * List HazOps analysis sessions for a project.
+ *
+ * Path parameters:
+ * - id: string (required) - Project UUID
+ *
+ * Query parameters:
+ * - page: number (1-based, default 1)
+ * - limit: number (default 20, max 100)
+ * - sortBy: 'created_at' | 'updated_at' | 'name' | 'status' (default 'created_at')
+ * - sortOrder: 'asc' | 'desc' (default 'desc')
+ * - search: string (searches name and description)
+ * - status: AnalysisStatus (filter by analysis status)
+ * - leadAnalystId: string (filter by lead analyst UUID)
+ * - documentId: string (filter by document UUID)
+ *
+ * Returns paginated list of analyses with details.
+ */
+router.get('/:id/analyses', authenticate, requireAuth, listAnalyses);
 
 /**
  * POST /projects/:id/analyses
