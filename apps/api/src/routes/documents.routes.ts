@@ -5,13 +5,14 @@
  * - GET /documents/:id - Get a document by ID
  * - GET /documents/:id/download - Get a signed download URL for a document
  * - DELETE /documents/:id - Delete a document
+ * - POST /documents/:id/nodes - Create a new analysis node on a document
  *
  * All routes require authentication.
  */
 
 import { Router } from 'express';
 import { authenticate, requireAuth } from '../middleware/auth.middleware.js';
-import { getDocumentById, deleteDocumentById, downloadDocument } from '../controllers/documents.controller.js';
+import { getDocumentById, deleteDocumentById, downloadDocument, createNode } from '../controllers/documents.controller.js';
 
 const router = Router();
 
@@ -54,5 +55,24 @@ router.get('/:id/download', authenticate, requireAuth, downloadDocument);
  * Viewers cannot delete documents.
  */
 router.delete('/:id', authenticate, requireAuth, deleteDocumentById);
+
+/**
+ * POST /documents/:id/nodes
+ * Create a new analysis node on a P&ID document.
+ *
+ * Path parameters:
+ * - id: string (required) - Document UUID
+ *
+ * Body:
+ * - nodeId: string (required) - User-defined node identifier (e.g., "P-101")
+ * - description: string (required) - Description of the node/equipment
+ * - equipmentType: EquipmentType (required) - Type of equipment
+ * - x: number (required) - X coordinate as percentage (0-100)
+ * - y: number (required) - Y coordinate as percentage (0-100)
+ *
+ * Only accessible by project members with owner, lead, or member role.
+ * Viewers cannot create nodes.
+ */
+router.post('/:id/nodes', authenticate, requireAuth, createNode);
 
 export default router;

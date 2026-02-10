@@ -15,11 +15,11 @@ import {
   getUserProjectRole,
   findProjectById as findProjectByIdService,
 } from '../services/project.service.js';
-import { createPIDDocument, listProjectDocuments, findPIDDocumentById, deletePIDDocument } from '../services/pid-document.service.js';
+import { createPIDDocument, listProjectDocuments, findPIDDocumentById, deletePIDDocument, createAnalysisNode, nodeIdExistsForDocument } from '../services/pid-document.service.js';
 import { uploadFile, generateStoragePath, deleteFile, getSignedDownloadUrl } from '../services/storage.service.js';
 import { getUploadedFileBuffer, getUploadMeta } from '../middleware/upload.middleware.js';
-import { PID_DOCUMENT_STATUSES } from '@hazop/types';
-import type { PIDDocumentStatus } from '@hazop/types';
+import { PID_DOCUMENT_STATUSES, EQUIPMENT_TYPES } from '@hazop/types';
+import type { PIDDocumentStatus, EquipmentType } from '@hazop/types';
 
 /**
  * Validation error for a specific field.
@@ -773,6 +773,285 @@ export async function downloadDocument(req: Request, res: Response): Promise<voi
     });
   } catch (error) {
     console.error('Download document error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+/**
+ * Request body for creating an analysis node.
+ */
+interface CreateNodeBody {
+  nodeId?: string;
+  description?: string;
+  equipmentType?: string;
+  x?: number;
+  y?: number;
+}
+
+/**
+ * POST /documents/:id/nodes
+ * Create a new analysis node on a P&ID document.
+ * User must have appropriate role on the project that owns the document.
+ * Viewers cannot create nodes.
+ *
+ * Path parameters:
+ * - id: string (required) - Document UUID
+ *
+ * Body:
+ * - nodeId: string (required) - User-defined node identifier (e.g., "P-101")
+ * - description: string (required) - Description of the node/equipment
+ * - equipmentType: EquipmentType (required) - Type of equipment
+ * - x: number (required) - X coordinate as percentage (0-100)
+ * - y: number (required) - Y coordinate as percentage (0-100)
+ *
+ * Returns:
+ * - 201: Created node with creator info
+ * - 400: Validation error (missing fields, invalid format, duplicate nodeId)
+ * - 401: Not authenticated
+ * - 403: Not authorized to add nodes to this document
+ * - 404: Document not found
+ * - 409: Node ID already exists in this document
+ * - 500: Internal server error
+ */
+export async function createNode(req: Request, res: Response): Promise<void> {
+  try {
+    const { id: documentId } = req.params;
+    const body = req.body as CreateNodeBody;
+
+    // Get authenticated user ID
+    const userId = (req.user as { id: string } | undefined)?.id;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required',
+        },
+      });
+      return;
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(documentId)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid document ID format',
+          errors: [
+            {
+              field: 'id',
+              message: 'Document ID must be a valid UUID',
+              code: 'INVALID_FORMAT',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    // Validate request body
+    const errors: FieldError[] = [];
+
+    // Validate nodeId
+    if (!body.nodeId || typeof body.nodeId !== 'string' || body.nodeId.trim().length === 0) {
+      errors.push({
+        field: 'nodeId',
+        message: 'Node ID is required',
+        code: 'REQUIRED',
+      });
+    } else if (body.nodeId.length > 50) {
+      errors.push({
+        field: 'nodeId',
+        message: 'Node ID must be 50 characters or less',
+        code: 'MAX_LENGTH',
+      });
+    }
+
+    // Validate description
+    if (!body.description || typeof body.description !== 'string' || body.description.trim().length === 0) {
+      errors.push({
+        field: 'description',
+        message: 'Description is required',
+        code: 'REQUIRED',
+      });
+    } else if (body.description.length > 500) {
+      errors.push({
+        field: 'description',
+        message: 'Description must be 500 characters or less',
+        code: 'MAX_LENGTH',
+      });
+    }
+
+    // Validate equipmentType
+    if (!body.equipmentType || typeof body.equipmentType !== 'string') {
+      errors.push({
+        field: 'equipmentType',
+        message: 'Equipment type is required',
+        code: 'REQUIRED',
+      });
+    } else if (!EQUIPMENT_TYPES.includes(body.equipmentType as EquipmentType)) {
+      errors.push({
+        field: 'equipmentType',
+        message: `Equipment type must be one of: ${EQUIPMENT_TYPES.join(', ')}`,
+        code: 'INVALID_VALUE',
+      });
+    }
+
+    // Validate x coordinate
+    if (body.x === undefined || body.x === null) {
+      errors.push({
+        field: 'x',
+        message: 'X coordinate is required',
+        code: 'REQUIRED',
+      });
+    } else if (typeof body.x !== 'number' || isNaN(body.x)) {
+      errors.push({
+        field: 'x',
+        message: 'X coordinate must be a number',
+        code: 'INVALID_TYPE',
+      });
+    } else if (body.x < 0 || body.x > 100) {
+      errors.push({
+        field: 'x',
+        message: 'X coordinate must be between 0 and 100',
+        code: 'OUT_OF_RANGE',
+      });
+    }
+
+    // Validate y coordinate
+    if (body.y === undefined || body.y === null) {
+      errors.push({
+        field: 'y',
+        message: 'Y coordinate is required',
+        code: 'REQUIRED',
+      });
+    } else if (typeof body.y !== 'number' || isNaN(body.y)) {
+      errors.push({
+        field: 'y',
+        message: 'Y coordinate must be a number',
+        code: 'INVALID_TYPE',
+      });
+    } else if (body.y < 0 || body.y > 100) {
+      errors.push({
+        field: 'y',
+        message: 'Y coordinate must be between 0 and 100',
+        code: 'OUT_OF_RANGE',
+      });
+    }
+
+    if (errors.length > 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid request data',
+          errors,
+        },
+      });
+      return;
+    }
+
+    // Find the document
+    const document = await findPIDDocumentById(documentId);
+    if (!document) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Document not found',
+        },
+      });
+      return;
+    }
+
+    // Check if user has access to the project that owns this document
+    const hasAccess = await userHasProjectAccess(userId, document.projectId);
+    if (!hasAccess) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this document',
+        },
+      });
+      return;
+    }
+
+    // Get user's role - only owner, lead, and member can create nodes
+    // Viewers cannot create nodes
+    const userRole = await getUserProjectRole(userId, document.projectId);
+    if (!userRole || userRole === 'viewer') {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to add nodes to this document',
+        },
+      });
+      return;
+    }
+
+    // Check if nodeId already exists for this document
+    const nodeIdExists = await nodeIdExistsForDocument(documentId, body.nodeId!.trim());
+    if (nodeIdExists) {
+      res.status(409).json({
+        success: false,
+        error: {
+          code: 'CONFLICT',
+          message: `Node ID "${body.nodeId}" already exists in this document`,
+          errors: [
+            {
+              field: 'nodeId',
+              message: 'This node ID is already in use for this document',
+              code: 'DUPLICATE',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    // Create the node
+    const node = await createAnalysisNode({
+      documentId,
+      nodeId: body.nodeId!.trim(),
+      description: body.description!.trim(),
+      equipmentType: body.equipmentType as EquipmentType,
+      x: body.x!,
+      y: body.y!,
+      createdById: userId,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: { node },
+    });
+  } catch (error) {
+    console.error('Create node error:', error);
+
+    // Handle duplicate constraint violation (belt and suspenders)
+    if (error instanceof Error && 'code' in error) {
+      const dbError = error as { code: string };
+      if (dbError.code === '23505') {
+        res.status(409).json({
+          success: false,
+          error: {
+            code: 'CONFLICT',
+            message: 'A node with this ID already exists in this document',
+          },
+        });
+        return;
+      }
+    }
 
     res.status(500).json({
       success: false,

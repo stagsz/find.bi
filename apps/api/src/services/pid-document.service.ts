@@ -2,10 +2,11 @@
  * P&ID Document service for database operations.
  *
  * Handles document CRUD operations, status updates, and queries.
+ * Also handles analysis node operations for nodes attached to documents.
  */
 
 import { getPool } from '../config/database.config.js';
-import type { PIDDocumentStatus } from '@hazop/types';
+import type { PIDDocumentStatus, EquipmentType } from '@hazop/types';
 
 /**
  * P&ID document row from the database.
@@ -478,4 +479,167 @@ export async function deletePIDDocument(
   }
 
   return rowToDocument(result.rows[0]);
+}
+
+// ============================================================================
+// ANALYSIS NODE OPERATIONS
+// ============================================================================
+
+/**
+ * Analysis node row from the database.
+ * Uses snake_case column names matching PostgreSQL schema.
+ */
+export interface AnalysisNodeRow {
+  id: string;
+  document_id: string;
+  node_id: string;
+  description: string;
+  equipment_type: EquipmentType;
+  x_coordinate: string; // DECIMAL comes as string from pg
+  y_coordinate: string; // DECIMAL comes as string from pg
+  created_by_id: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+/**
+ * Analysis node row with creator info joined from users table.
+ */
+export interface AnalysisNodeRowWithCreator extends AnalysisNodeRow {
+  created_by_name: string;
+  created_by_email: string;
+}
+
+/**
+ * Analysis node object (API response format).
+ */
+export interface AnalysisNode {
+  id: string;
+  documentId: string;
+  nodeId: string;
+  description: string;
+  equipmentType: EquipmentType;
+  x: number;
+  y: number;
+  createdById: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Analysis node with creator information (for display purposes).
+ */
+export interface AnalysisNodeWithCreator extends AnalysisNode {
+  createdByName: string;
+  createdByEmail: string;
+}
+
+/**
+ * Convert a database row to an AnalysisNode object.
+ * Maps snake_case columns to camelCase properties.
+ */
+function rowToNode(row: AnalysisNodeRow): AnalysisNode {
+  return {
+    id: row.id,
+    documentId: row.document_id,
+    nodeId: row.node_id,
+    description: row.description,
+    equipmentType: row.equipment_type,
+    x: parseFloat(row.x_coordinate),
+    y: parseFloat(row.y_coordinate),
+    createdById: row.created_by_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/**
+ * Convert a database row with creator info to AnalysisNodeWithCreator object.
+ */
+function rowToNodeWithCreator(row: AnalysisNodeRowWithCreator): AnalysisNodeWithCreator {
+  return {
+    ...rowToNode(row),
+    createdByName: row.created_by_name,
+    createdByEmail: row.created_by_email,
+  };
+}
+
+/**
+ * Payload for creating a new analysis node record.
+ */
+export interface CreateAnalysisNodeData {
+  documentId: string;
+  nodeId: string;
+  description: string;
+  equipmentType: EquipmentType;
+  x: number;
+  y: number;
+  createdById: string;
+}
+
+/**
+ * Create a new analysis node record in the database.
+ *
+ * @param data - Node creation data
+ * @returns The created node with creator information
+ * @throws Error with code '23505' if nodeId is duplicate within document
+ */
+export async function createAnalysisNode(
+  data: CreateAnalysisNodeData
+): Promise<AnalysisNodeWithCreator> {
+  const pool = getPool();
+
+  const result = await pool.query<AnalysisNodeRowWithCreator>(
+    `INSERT INTO hazop.analysis_nodes
+       (document_id, node_id, description, equipment_type, x_coordinate, y_coordinate, created_by_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING
+       id,
+       document_id,
+       node_id,
+       description,
+       equipment_type,
+       x_coordinate,
+       y_coordinate,
+       created_by_id,
+       created_at,
+       updated_at,
+       (SELECT name FROM hazop.users WHERE id = $7) AS created_by_name,
+       (SELECT email FROM hazop.users WHERE id = $7) AS created_by_email`,
+    [
+      data.documentId,
+      data.nodeId,
+      data.description,
+      data.equipmentType,
+      data.x,
+      data.y,
+      data.createdById,
+    ]
+  );
+
+  return rowToNodeWithCreator(result.rows[0]);
+}
+
+/**
+ * Check if a node ID already exists for a document.
+ *
+ * @param documentId - The document ID
+ * @param nodeId - The node ID to check
+ * @returns True if the nodeId already exists for this document
+ */
+export async function nodeIdExistsForDocument(
+  documentId: string,
+  nodeId: string
+): Promise<boolean> {
+  const pool = getPool();
+
+  const result = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS(
+       SELECT 1 FROM hazop.analysis_nodes
+       WHERE document_id = $1 AND node_id = $2
+     ) AS exists`,
+    [documentId, nodeId]
+  );
+
+  return result.rows[0]?.exists ?? false;
 }
