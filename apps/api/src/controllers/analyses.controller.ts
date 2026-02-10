@@ -20,6 +20,9 @@ import {
   createAnalysisEntry as createAnalysisEntryService,
   nodeExistsInDocument,
   listAnalysisEntries,
+  findAnalysisEntryById,
+  getEntryAnalysisId,
+  updateAnalysisEntry as updateAnalysisEntryService,
 } from '../services/hazop-analysis.service.js';
 import { userHasProjectAccess, findProjectById } from '../services/project.service.js';
 import { ANALYSIS_STATUSES, GUIDE_WORDS, RISK_LEVELS } from '@hazop/types';
@@ -60,6 +63,19 @@ interface CreateAnalysisEntryBody {
   nodeId?: unknown;
   guideWord?: unknown;
   parameter?: unknown;
+  deviation?: unknown;
+  causes?: unknown;
+  consequences?: unknown;
+  safeguards?: unknown;
+  recommendations?: unknown;
+  notes?: unknown;
+}
+
+/**
+ * Request body for updating an analysis entry.
+ * Note: nodeId, guideWord, and parameter cannot be updated as they form the unique constraint.
+ */
+interface UpdateAnalysisEntryBody {
   deviation?: unknown;
   causes?: unknown;
   consequences?: unknown;
@@ -389,6 +405,100 @@ function validateCreateAnalysisEntryRequest(body: CreateAnalysisEntryBody): Fiel
   }
 
   // Validate notes (optional, but if provided must be string)
+  if (body.notes !== undefined && body.notes !== null) {
+    if (typeof body.notes !== 'string') {
+      errors.push({
+        field: 'notes',
+        message: 'Notes must be a string',
+        code: 'INVALID_TYPE',
+      });
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * Validate update analysis entry request body.
+ * Returns an array of field errors if validation fails.
+ * All fields are optional - only validates fields that are provided.
+ * Note: nodeId, guideWord, and parameter cannot be updated.
+ */
+function validateUpdateAnalysisEntryRequest(body: UpdateAnalysisEntryBody): FieldError[] {
+  const errors: FieldError[] = [];
+
+  // Validate deviation (optional, but if provided: non-empty string)
+  if (body.deviation !== undefined) {
+    if (body.deviation === null) {
+      errors.push({
+        field: 'deviation',
+        message: 'Deviation cannot be null',
+        code: 'INVALID_VALUE',
+      });
+    } else if (typeof body.deviation !== 'string') {
+      errors.push({
+        field: 'deviation',
+        message: 'Deviation must be a string',
+        code: 'INVALID_TYPE',
+      });
+    } else if (body.deviation.trim().length === 0) {
+      errors.push({
+        field: 'deviation',
+        message: 'Deviation cannot be empty',
+        code: 'EMPTY',
+      });
+    }
+  }
+
+  // Validate causes (optional, but if provided must be array of strings)
+  if (body.causes !== undefined && body.causes !== null) {
+    const causesError = validateStringArray(body.causes, 'causes');
+    if (causesError) {
+      errors.push({
+        field: 'causes',
+        message: causesError,
+        code: 'INVALID_TYPE',
+      });
+    }
+  }
+
+  // Validate consequences (optional, but if provided must be array of strings)
+  if (body.consequences !== undefined && body.consequences !== null) {
+    const consequencesError = validateStringArray(body.consequences, 'consequences');
+    if (consequencesError) {
+      errors.push({
+        field: 'consequences',
+        message: consequencesError,
+        code: 'INVALID_TYPE',
+      });
+    }
+  }
+
+  // Validate safeguards (optional, but if provided must be array of strings)
+  if (body.safeguards !== undefined && body.safeguards !== null) {
+    const safeguardsError = validateStringArray(body.safeguards, 'safeguards');
+    if (safeguardsError) {
+      errors.push({
+        field: 'safeguards',
+        message: safeguardsError,
+        code: 'INVALID_TYPE',
+      });
+    }
+  }
+
+  // Validate recommendations (optional, but if provided must be array of strings)
+  if (body.recommendations !== undefined && body.recommendations !== null) {
+    const recommendationsError = validateStringArray(body.recommendations, 'recommendations');
+    if (recommendationsError) {
+      errors.push({
+        field: 'recommendations',
+        message: recommendationsError,
+        code: 'INVALID_TYPE',
+      });
+    }
+  }
+
+  // Validate notes (optional, can be null to clear, but if provided must be string)
   if (body.notes !== undefined && body.notes !== null) {
     if (typeof body.notes !== 'string') {
       errors.push({
@@ -1537,6 +1647,202 @@ export async function listEntries(req: Request, res: Response): Promise<void> {
     });
   } catch (error) {
     console.error('List analysis entries error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+// ============================================================================
+// Update Analysis Entry
+// ============================================================================
+
+/**
+ * PUT /entries/:id
+ * Update an existing analysis entry.
+ * User must have access to the project that owns the analysis.
+ * Only draft analyses can have their entries updated.
+ * Note: nodeId, guideWord, and parameter cannot be updated as they form the unique constraint.
+ *
+ * Path parameters:
+ * - id: string (required) - Entry UUID
+ *
+ * Request body (all fields optional):
+ * - deviation: string - Description of the deviation
+ * - causes: string[] - Possible causes
+ * - consequences: string[] - Potential consequences
+ * - safeguards: string[] - Existing safeguards
+ * - recommendations: string[] - Recommended actions
+ * - notes: string | null - Additional notes (null to clear)
+ *
+ * Returns:
+ * - 200: Updated entry
+ * - 400: Validation error or analysis not in draft status
+ * - 401: Not authenticated
+ * - 403: Not authorized to access this analysis
+ * - 404: Entry or analysis not found
+ * - 500: Internal server error
+ */
+export async function updateEntry(req: Request, res: Response): Promise<void> {
+  try {
+    const { id: entryId } = req.params;
+    const body = req.body as UpdateAnalysisEntryBody;
+
+    // Get authenticated user ID
+    const userId = (req.user as { id: string } | undefined)?.id;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required',
+        },
+      });
+      return;
+    }
+
+    // Validate UUID format
+    if (!UUID_REGEX.test(entryId)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid entry ID format',
+          errors: [
+            {
+              field: 'id',
+              message: 'Entry ID must be a valid UUID',
+              code: 'INVALID_FORMAT',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    // Validate request body
+    const validationErrors = validateUpdateAnalysisEntryRequest(body);
+    if (validationErrors.length > 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          errors: validationErrors,
+        },
+      });
+      return;
+    }
+
+    // Find the entry to check existence
+    const existingEntry = await findAnalysisEntryById(entryId);
+    if (!existingEntry) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Analysis entry not found',
+        },
+      });
+      return;
+    }
+
+    // Find the analysis to check status and project access
+    const existingAnalysis = await findAnalysisById(existingEntry.analysisId);
+    if (!existingAnalysis) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Analysis not found',
+        },
+      });
+      return;
+    }
+
+    // Check if user has access to the project that owns this analysis
+    const hasAccess = await userHasProjectAccess(userId, existingAnalysis.projectId);
+    if (!hasAccess) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this analysis',
+        },
+      });
+      return;
+    }
+
+    // Only allow updates to entries in draft analyses
+    if (existingAnalysis.status !== 'draft') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_STATUS',
+          message: 'Can only update entries in draft analyses. Current status: ' + existingAnalysis.status,
+        },
+      });
+      return;
+    }
+
+    // Build update data from validated fields
+    const updateData: {
+      deviation?: string;
+      causes?: string[];
+      consequences?: string[];
+      safeguards?: string[];
+      recommendations?: string[];
+      notes?: string | null;
+    } = {};
+
+    if (body.deviation !== undefined && typeof body.deviation === 'string') {
+      updateData.deviation = body.deviation.trim();
+    }
+
+    if (body.causes !== undefined) {
+      updateData.causes = Array.isArray(body.causes) ? body.causes as string[] : [];
+    }
+
+    if (body.consequences !== undefined) {
+      updateData.consequences = Array.isArray(body.consequences) ? body.consequences as string[] : [];
+    }
+
+    if (body.safeguards !== undefined) {
+      updateData.safeguards = Array.isArray(body.safeguards) ? body.safeguards as string[] : [];
+    }
+
+    if (body.recommendations !== undefined) {
+      updateData.recommendations = Array.isArray(body.recommendations) ? body.recommendations as string[] : [];
+    }
+
+    if (body.notes !== undefined) {
+      updateData.notes = typeof body.notes === 'string' ? body.notes : null;
+    }
+
+    // Update the entry
+    const updatedEntry = await updateAnalysisEntryService(entryId, updateData);
+    if (!updatedEntry) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Analysis entry not found',
+        },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { entry: updatedEntry },
+    });
+  } catch (error) {
+    console.error('Update analysis entry error:', error);
 
     res.status(500).json({
       success: false,

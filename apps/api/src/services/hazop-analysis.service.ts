@@ -329,6 +329,20 @@ export interface CreateAnalysisEntryData {
   notes?: string;
 }
 
+/**
+ * Payload for updating an analysis entry.
+ * All fields are optional - only provided fields are updated.
+ * Note: nodeId, guideWord, and parameter cannot be updated as they form the unique constraint.
+ */
+export interface UpdateAnalysisEntryData {
+  deviation?: string;
+  causes?: string[];
+  consequences?: string[];
+  safeguards?: string[];
+  recommendations?: string[];
+  notes?: string | null;
+}
+
 // ============================================================================
 // Service Functions
 // ============================================================================
@@ -1033,4 +1047,83 @@ export async function listAnalysisEntries(
     entries: entriesResult.rows.map(rowToAnalysisEntry),
     total,
   };
+}
+
+/**
+ * Update an analysis entry by ID.
+ * Only updates the fields provided in the data object.
+ * Note: nodeId, guideWord, and parameter cannot be updated as they form the unique constraint.
+ *
+ * @param entryId - The ID of the entry to update
+ * @param data - Update data (all fields optional)
+ * @returns The updated analysis entry, or null if not found
+ */
+export async function updateAnalysisEntry(
+  entryId: string,
+  data: UpdateAnalysisEntryData
+): Promise<AnalysisEntry | null> {
+  const pool = getPool();
+
+  // Build dynamic SET clause based on provided fields
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  if (data.deviation !== undefined) {
+    setClauses.push(`deviation = $${paramIndex}`);
+    values.push(data.deviation);
+    paramIndex++;
+  }
+
+  if (data.causes !== undefined) {
+    setClauses.push(`causes = $${paramIndex}`);
+    values.push(JSON.stringify(data.causes));
+    paramIndex++;
+  }
+
+  if (data.consequences !== undefined) {
+    setClauses.push(`consequences = $${paramIndex}`);
+    values.push(JSON.stringify(data.consequences));
+    paramIndex++;
+  }
+
+  if (data.safeguards !== undefined) {
+    setClauses.push(`safeguards = $${paramIndex}`);
+    values.push(JSON.stringify(data.safeguards));
+    paramIndex++;
+  }
+
+  if (data.recommendations !== undefined) {
+    setClauses.push(`recommendations = $${paramIndex}`);
+    values.push(JSON.stringify(data.recommendations));
+    paramIndex++;
+  }
+
+  if (data.notes !== undefined) {
+    setClauses.push(`notes = $${paramIndex}`);
+    values.push(data.notes);
+    paramIndex++;
+  }
+
+  // If no fields to update, just return the existing entry
+  if (setClauses.length === 0) {
+    return findAnalysisEntryById(entryId);
+  }
+
+  // Add entry ID as the last parameter
+  values.push(entryId);
+
+  const result = await pool.query<AnalysisEntryRow>(
+    `UPDATE hazop.analysis_entries
+     SET ${setClauses.join(', ')}
+     WHERE id = $${paramIndex}
+     RETURNING *`,
+    values
+  );
+
+  if (!result.rows[0]) {
+    return null;
+  }
+
+  return rowToAnalysisEntry(result.rows[0]);
 }
