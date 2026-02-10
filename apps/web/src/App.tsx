@@ -10,6 +10,7 @@ import {
   AdminPage,
   ProjectsPage,
   ProjectDetailPage,
+  AnalysisWorkspacePage,
 } from './pages';
 import { ProtectedRoute, PublicRoute } from './components/auth';
 
@@ -112,6 +113,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ProjectDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/analyses/:analysisId"
+          element={
+            <ProtectedRoute>
+              <AnalysisWorkspacePage />
             </ProtectedRoute>
           }
         />
