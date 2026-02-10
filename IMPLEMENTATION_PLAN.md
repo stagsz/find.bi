@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 4 - P&ID Document Management
-**Progress**: PID-18 complete
-**Last Completed**: PID-18 - Create node creation form (node ID, description, equipment type)
-**Next Task**: PID-19 - Create node editing modal
+**Progress**: PID-19 complete
+**Last Completed**: PID-19 - Create node editing modal
+**Next Task**: PID-20 - Add API tests for document upload/retrieval
 
 ---
 
@@ -175,7 +175,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] PID-16: Create P&ID viewer component (zoom, pan functionality) (f0a1d95)
 - [x] PID-17: Create node overlay component (clickable markers on P&ID) (ad9d78c)
 - [x] PID-18: Create node creation form (node ID, description, equipment type) (4bab101)
-- [ ] PID-19: Create node editing modal
+- [x] PID-19: Create node editing modal (b3f9a29)
 
 ### P&ID Testing
 - [ ] PID-20: Add API tests for document upload/retrieval
@@ -497,3 +497,4 @@ _No blockers currently._
 | PID-16: Create P&ID viewer component (zoom, pan functionality) | f0a1d95 | 2026-02-10 |
 | PID-17: Create node overlay component (clickable markers on P&ID) | ad9d78c | 2026-02-10 |
 | PID-18: Create node creation form (node ID, description, equipment type) | 4bab101 | 2026-02-10 |
+| PID-19: Create node editing modal | b3f9a29 | 2026-02-10 |
