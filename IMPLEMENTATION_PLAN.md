@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 5 - Core HazOps Analysis Workflow
-**Progress**: Guide word definitions complete, starting prepared answer menus
-**Last Completed**: HAZOP-02 - Implement guide word definitions
-**Next Task**: HAZOP-03 - Create prepared answer menus for causes
+**Progress**: Prepared causes menus complete, continuing prepared answer menus
+**Last Completed**: HAZOP-03 - Create prepared answer menus for causes
+**Next Task**: HAZOP-04 - Create prepared answer menus for consequences
 
 ---
 
@@ -188,7 +188,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 ### Analysis Engine Service
 - [x] HAZOP-01: Create HazOps analysis session service (0ff9a18)
 - [x] HAZOP-02: Implement guide word definitions (No, More, Less, Reverse, Early, Late, Other than) (edc343c)
-- [ ] HAZOP-03: Create prepared answer menus for causes (configurable templates)
+- [x] HAZOP-03: Create prepared answer menus for causes (configurable templates) (963a496)
 - [ ] HAZOP-04: Create prepared answer menus for consequences
 - [ ] HAZOP-05: Create prepared answer menus for safeguards
 - [ ] HAZOP-06: Create prepared answer menus for recommendations
@@ -502,3 +502,4 @@ _No blockers currently._
 | PID-21: Add E2E tests for P&ID upload workflow | beac65c | 2026-02-10 |
 | HAZOP-01: Create HazOps analysis session service | 0ff9a18 | 2026-02-10 |
 | HAZOP-02: Implement guide word definitions | edc343c | 2026-02-10 |
+| HAZOP-03: Create prepared answer menus for causes | 963a496 | 2026-02-10 |
