@@ -6,7 +6,7 @@ import { authService } from '../services/auth.service';
 import { projectsService, type ProjectListItem } from '../services/projects.service';
 import { TeamMemberPanel } from '../components/projects/TeamMemberPanel';
 import { ProjectSettingsPanel } from '../components/projects/ProjectSettingsPanel';
-import { PIDUpload } from '../components/documents';
+import { PIDUpload, DocumentList } from '../components/documents';
 import type { ProjectStatus, ProjectMemberRole, ApiError, PIDDocumentWithUploader } from '@hazop/types';
 
 /**
@@ -76,64 +76,58 @@ interface DocumentsTabProps {
 
 /**
  * Documents tab component for the project detail page.
- * Shows the P&ID upload component and placeholder for document list.
+ * Shows the P&ID upload component and document list.
  */
 function DocumentsTab({ project, currentUser, onDocumentUpload }: DocumentsTabProps) {
+  // Track document list refresh key
+  const [refreshKey, setRefreshKey] = useState(0);
+
   // Determine user's role in project
   const userRole = project.memberRole || (project.createdById === currentUser?.id ? 'owner' : null);
 
-  // Only viewers cannot upload
-  const canUpload =
+  // Only viewers cannot upload/delete
+  const canModify =
     userRole === 'owner' || userRole === 'lead' || userRole === 'member';
 
   /**
    * Handle document upload completion.
    */
-  const handleUploadComplete = (document: PIDDocumentWithUploader) => {
+  const handleUploadComplete = (_document: PIDDocumentWithUploader) => {
     // Refresh project data (which could include document count)
     onDocumentUpload?.();
-    // TODO: In PID-15, this will also refresh the document list
+    // Refresh the document list
+    setRefreshKey((prev) => prev + 1);
+  };
+
+  /**
+   * Handle document deletion.
+   */
+  const handleDocumentDelete = () => {
+    // Refresh project data
+    onDocumentUpload?.();
   };
 
   return (
     <div>
       {/* Upload section */}
-      <div className="mb-6">
+      <div className="mb-8">
         <h2 className="text-sm font-semibold text-slate-900 mb-3 uppercase tracking-wide">
           Upload P&ID Document
         </h2>
         <PIDUpload
           projectId={project.id}
           onUploadComplete={handleUploadComplete}
-          disabled={!canUpload}
+          disabled={!canModify}
         />
       </div>
 
-      {/* Documents list placeholder - will be implemented in PID-15 */}
-      <div>
-        <h2 className="text-sm font-semibold text-slate-900 mb-3 uppercase tracking-wide">
-          Documents
-        </h2>
-        <div className="text-center py-8 border border-dashed border-slate-300 rounded">
-          <div className="mx-auto h-10 w-10 text-slate-400">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-              />
-            </svg>
-          </div>
-          <p className="mt-2 text-sm text-slate-500">No documents yet</p>
-          <p className="text-xs text-slate-400">Upload a P&ID document to get started</p>
-        </div>
-      </div>
+      {/* Documents list */}
+      <DocumentList
+        projectId={project.id}
+        canDelete={canModify}
+        onDocumentDelete={handleDocumentDelete}
+        refreshKey={refreshKey}
+      />
     </div>
   );
 }
