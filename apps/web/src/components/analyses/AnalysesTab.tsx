@@ -9,6 +9,7 @@ import {
 } from '../../services/analyses.service';
 import type { AnalysisStatus, ApiError } from '@hazop/types';
 import { ANALYSIS_STATUS_LABELS } from '@hazop/types';
+import { NewAnalysisModal } from './NewAnalysisModal';
 
 /**
  * Analysis status badge colors.
@@ -83,6 +84,9 @@ export function AnalysesTab({ projectId }: AnalysesTabProps) {
   // Sort state
   const [sortValue, setSortValue] = useState('created_at:desc');
 
+  // Modal state
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
   /**
    * Debounce search query.
    */
@@ -155,33 +159,77 @@ export function AnalysesTab({ projectId }: AnalysesTabProps) {
     setPage(1);
   };
 
+  /**
+   * Handle opening the create analysis modal.
+   */
+  const handleOpenCreateModal = () => {
+    setIsCreateModalOpen(true);
+  };
+
+  /**
+   * Handle closing the create analysis modal.
+   */
+  const handleCloseCreateModal = () => {
+    setIsCreateModalOpen(false);
+  };
+
+  /**
+   * Handle successful analysis creation.
+   */
+  const handleAnalysisCreated = () => {
+    fetchAnalyses();
+  };
+
   // Empty state when no analyses exist
   if (!isLoadingAnalyses && analyses.length === 0 && !debouncedSearch && !statusFilter) {
     return (
-      <div className="text-center py-12">
-        <div className="mx-auto h-12 w-12 text-slate-400">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"
-            />
-          </svg>
+      <>
+        <div className="text-center py-12">
+          <div className="mx-auto h-12 w-12 text-slate-400">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"
+              />
+            </svg>
+          </div>
+          <h3 className="mt-4 text-sm font-semibold text-slate-900">No analyses yet</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Create a new HazOps analysis to begin your hazard study.
+          </p>
+          <div className="mt-6">
+            <Button
+              onClick={handleOpenCreateModal}
+              styles={{
+                root: {
+                  borderRadius: '4px',
+                  backgroundColor: '#1e40af',
+                  '&:hover': {
+                    backgroundColor: '#1e3a8a',
+                  },
+                },
+              }}
+            >
+              Create Analysis
+            </Button>
+          </div>
         </div>
-        <h3 className="mt-4 text-sm font-semibold text-slate-900">No analyses yet</h3>
-        <p className="mt-1 text-sm text-slate-500">
-          Create a new HazOps analysis to begin your hazard study.
-        </p>
-        <p className="mt-3 text-xs text-slate-400">
-          Select a P&ID document from the Documents tab and create an analysis session.
-        </p>
-      </div>
+
+        {/* Create Analysis Modal */}
+        <NewAnalysisModal
+          opened={isCreateModalOpen}
+          onClose={handleCloseCreateModal}
+          projectId={projectId}
+          onAnalysisCreated={handleAnalysisCreated}
+        />
+      </>
     );
   }
 
@@ -260,6 +308,23 @@ export function AnalysesTab({ projectId }: AnalysesTabProps) {
           >
             Reset
           </Button>
+
+          <div className="ml-auto">
+            <Button
+              onClick={handleOpenCreateModal}
+              styles={{
+                root: {
+                  borderRadius: '4px',
+                  backgroundColor: '#1e40af',
+                  '&:hover': {
+                    backgroundColor: '#1e3a8a',
+                  },
+                },
+              }}
+            >
+              Create Analysis
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -395,6 +460,14 @@ export function AnalysesTab({ projectId }: AnalysesTabProps) {
           />
         </div>
       )}
+
+      {/* Create Analysis Modal */}
+      <NewAnalysisModal
+        opened={isCreateModalOpen}
+        onClose={handleCloseCreateModal}
+        projectId={projectId}
+        onAnalysisCreated={handleAnalysisCreated}
+      />
     </div>
   );
 }
