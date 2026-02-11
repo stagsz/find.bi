@@ -4,6 +4,7 @@ import type {
   AnalysisEntry,
   AnalysisStatus,
   GuideWord,
+  RiskLevel,
   ApiResult,
   PaginationMeta,
   CreateHazopsAnalysisPayload,
@@ -64,6 +65,14 @@ export interface UpdateAnalysisEntryResponse {
 }
 
 /**
+ * Response type for listing analysis entries.
+ */
+export interface ListAnalysisEntriesResponse {
+  data: { entries: AnalysisEntry[] };
+  meta: PaginationMeta;
+}
+
+/**
  * Payload for creating an analysis entry.
  */
 export interface CreateAnalysisEntryPayload {
@@ -116,9 +125,35 @@ export interface ListAnalysesPagination {
 }
 
 /**
- * Build query string from filter, sort, and pagination options.
+ * Filter options for listing analysis entries.
  */
-function buildQueryString(
+export interface ListEntriesFilters {
+  nodeId?: string;
+  guideWord?: GuideWord;
+  riskLevel?: RiskLevel;
+  search?: string;
+}
+
+/**
+ * Sort options for listing analysis entries.
+ */
+export interface ListEntriesSortOptions {
+  sortBy?: 'created_at' | 'updated_at' | 'parameter' | 'guide_word' | 'risk_score';
+  sortOrder?: 'asc' | 'desc';
+}
+
+/**
+ * Pagination options for listing analysis entries.
+ */
+export interface ListEntriesPagination {
+  page?: number;
+  limit?: number;
+}
+
+/**
+ * Build query string from analysis filter, sort, and pagination options.
+ */
+function buildAnalysesQueryString(
   filters: ListAnalysesFilters,
   sort: ListAnalysesSortOptions,
   pagination: ListAnalysesPagination
@@ -142,6 +177,45 @@ function buildQueryString(
   }
   if (filters.status) {
     params.set('status', filters.status);
+  }
+
+  const queryString = params.toString();
+  return queryString ? `?${queryString}` : '';
+}
+
+/**
+ * Build query string from entry filter, sort, and pagination options.
+ */
+function buildEntriesQueryString(
+  filters: ListEntriesFilters,
+  sort: ListEntriesSortOptions,
+  pagination: ListEntriesPagination
+): string {
+  const params = new URLSearchParams();
+
+  if (pagination.page !== undefined) {
+    params.set('page', String(pagination.page));
+  }
+  if (pagination.limit !== undefined) {
+    params.set('limit', String(pagination.limit));
+  }
+  if (sort.sortBy) {
+    params.set('sortBy', sort.sortBy);
+  }
+  if (sort.sortOrder) {
+    params.set('sortOrder', sort.sortOrder);
+  }
+  if (filters.nodeId) {
+    params.set('nodeId', filters.nodeId);
+  }
+  if (filters.guideWord) {
+    params.set('guideWord', filters.guideWord);
+  }
+  if (filters.riskLevel) {
+    params.set('riskLevel', filters.riskLevel);
+  }
+  if (filters.search) {
+    params.set('search', filters.search);
   }
 
   const queryString = params.toString();
@@ -174,7 +248,7 @@ export const analysesService = {
     sort: ListAnalysesSortOptions = {},
     pagination: ListAnalysesPagination = {}
   ): Promise<ApiResult<ListAnalysesResponse>> {
-    const queryString = buildQueryString(filters, sort, pagination);
+    const queryString = buildAnalysesQueryString(filters, sort, pagination);
     const result = await api.get<ListAnalysesResponse>(`/projects/${projectId}/analyses${queryString}`);
 
     // The API returns { success, data: Analysis[], meta } but we need { data: Analysis[], meta }
@@ -265,5 +339,36 @@ export const analysesService = {
     data: UpdateAnalysisEntryPayload
   ): Promise<ApiResult<UpdateAnalysisEntryResponse>> {
     return api.put<UpdateAnalysisEntryResponse>(`/entries/${entryId}`, data);
+  },
+
+  /**
+   * List analysis entries for an analysis with optional filtering, sorting, and pagination.
+   *
+   * @param analysisId - The ID of the analysis
+   * @param filters - Filter options (nodeId, guideWord, riskLevel, search)
+   * @param sort - Sort options (sortBy, sortOrder)
+   * @param pagination - Pagination options (page, limit)
+   * @returns Promise resolving to the API result with entries list and metadata
+   */
+  async listAnalysisEntries(
+    analysisId: string,
+    filters: ListEntriesFilters = {},
+    sort: ListEntriesSortOptions = {},
+    pagination: ListEntriesPagination = {}
+  ): Promise<ApiResult<ListAnalysisEntriesResponse>> {
+    const queryString = buildEntriesQueryString(filters, sort, pagination);
+    const result = await api.get<{ entries: AnalysisEntry[] }>(`/analyses/${analysisId}/entries${queryString}`);
+
+    if (result.success && result.data) {
+      return {
+        success: true,
+        data: {
+          data: { entries: result.data.entries || (result.data as unknown as AnalysisEntry[]) },
+          meta: result.meta!,
+        },
+      };
+    }
+
+    return result as ApiResult<ListAnalysisEntriesResponse>;
   },
 };

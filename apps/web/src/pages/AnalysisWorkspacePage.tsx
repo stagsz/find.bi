@@ -8,7 +8,7 @@ import { documentsService } from '../services/documents.service';
 import { nodesService } from '../services/nodes.service';
 import { PIDViewer } from '../components/documents/PIDViewer';
 import { NodeOverlay } from '../components/documents/NodeOverlay';
-import { GuideWordSelector, DeviationInputForm, CausesInput, ConsequencesInput, SafeguardsInput, RecommendationsInput, AnalysisProgressTracker } from '../components/analyses';
+import { GuideWordSelector, DeviationInputForm, CausesInput, ConsequencesInput, SafeguardsInput, RecommendationsInput, AnalysisProgressTracker, AnalysisEntrySummaryTable } from '../components/analyses';
 import type {
   ApiError,
   HazopsAnalysisWithDetailsAndProgress,
@@ -93,6 +93,12 @@ export function AnalysisWorkspacePage() {
   const [viewerZoom, setViewerZoom] = useState(1);
   const [viewerPosition, setViewerPosition] = useState({ x: 0, y: 0 });
   const [naturalDimensions, setNaturalDimensions] = useState({ width: 0, height: 0 });
+
+  // Right pane view mode: 'entry' for entry form, 'summary' for entry summary table
+  const [rightPaneView, setRightPaneView] = useState<'entry' | 'summary'>('entry');
+
+  // Trigger for refreshing the summary table when entries are created/updated
+  const [summaryRefreshTrigger, setSummaryRefreshTrigger] = useState(0);
 
   /**
    * Fetch analysis, document, and nodes data.
@@ -230,6 +236,8 @@ export function AnalysisWorkspacePage() {
     setEntryConsequences(entry.consequences || []);
     setEntrySafeguards(entry.safeguards || []);
     setEntryRecommendations(entry.recommendations || []);
+    // Trigger summary table refresh
+    setSummaryRefreshTrigger((prev) => prev + 1);
   }, []);
 
   /**
@@ -549,15 +557,67 @@ export function AnalysisWorkspacePage() {
 
         {/* Right pane: Analysis Panel */}
         <div className="flex-1 flex flex-col min-w-[300px] bg-white">
-          {/* Analysis Panel Header */}
+          {/* Analysis Panel Header with View Toggle */}
           <div className="flex-shrink-0 px-4 py-3 border-b border-slate-200 bg-slate-50">
-            <h2 className="text-sm font-semibold text-slate-900">Analysis Entry</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900">
+                {rightPaneView === 'entry' ? 'Analysis Entry' : 'Analysis Summary'}
+              </h2>
+              <div className="flex items-center gap-1 bg-slate-200 rounded p-0.5">
+                <button
+                  onClick={() => setRightPaneView('entry')}
+                  className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                    rightPaneView === 'entry'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Entry
+                </button>
+                <button
+                  onClick={() => setRightPaneView('summary')}
+                  className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                    rightPaneView === 'summary'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Summary
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Analysis Panel Content */}
           <div className="flex-1 overflow-auto p-4">
-            {/* Node Selection Status */}
-            {!selectedNode ? (
+            {/* Summary Table View */}
+            {rightPaneView === 'summary' && analysisId && (
+              <AnalysisEntrySummaryTable
+                analysisId={analysisId}
+                nodeMap={new Map(nodes.map((n) => [n.id, { nodeId: n.nodeId, description: n.description || '' }]))}
+                refreshTrigger={summaryRefreshTrigger}
+                onEntryClick={(entry) => {
+                  // When an entry is clicked, switch to entry view and select the node
+                  const node = nodes.find((n) => n.id === entry.nodeId);
+                  if (node) {
+                    setSelectedNodeId(node.id);
+                    setSelectedGuideWord(entry.guideWord);
+                    setCurrentEntry(entry);
+                    setEntryCauses(entry.causes || []);
+                    setEntryConsequences(entry.consequences || []);
+                    setEntrySafeguards(entry.safeguards || []);
+                    setEntryRecommendations(entry.recommendations || []);
+                    setRightPaneView('entry');
+                  }
+                }}
+              />
+            )}
+
+            {/* Entry Form View */}
+            {rightPaneView === 'entry' && (
+              <>
+                {/* Node Selection Status */}
+                {!selectedNode ? (
               <div className="text-center py-12">
                 <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center">
                   <svg
@@ -711,6 +771,8 @@ export function AnalysisWorkspacePage() {
                   </div>
                 )}
               </div>
+            )}
+              </>
             )}
           </div>
         </div>
