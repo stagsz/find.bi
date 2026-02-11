@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 7 - LOPA & Compliance
-**Progress**: Phase 7 in progress - 9/23 tasks complete
-**Last Completed**: COMP-05 - Add EPA RMP compliance checks (7a55e24)
-**Next Task**: COMP-06 - Add SEVESO III directive compliance checks
+**Progress**: Phase 7 in progress - 10/23 tasks complete
+**Last Completed**: COMP-06 - Add SEVESO III directive compliance checks (9b6d7d1)
+**Next Task**: COMP-07 - Create compliance validation engine (cross-reference findings)
 
 ---
 
@@ -267,7 +267,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] COMP-03: Add PED (Pressure Equipment Directive) compliance checks (3272479)
 - [x] COMP-04: Add OSHA PSM compliance checks (5bd6749)
 - [x] COMP-05: Add EPA RMP compliance checks (7a55e24)
-- [ ] COMP-06: Add SEVESO III directive compliance checks
+- [x] COMP-06: Add SEVESO III directive compliance checks (9b6d7d1)
 - [ ] COMP-07: Create compliance validation engine (cross-reference findings)
 
 ### Backend API
@@ -555,3 +555,4 @@ _No blockers currently._
 | COMP-03: Add PED compliance checks | 3272479 | 2026-02-11 |
 | COMP-04: Add OSHA PSM compliance checks | 5bd6749 | 2026-02-11 |
 | COMP-05: Add EPA RMP compliance checks | 7a55e24 | 2026-02-11 |
+| COMP-06: Add SEVESO III directive compliance checks | 9b6d7d1 | 2026-02-11 |
