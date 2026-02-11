@@ -4,3 +4,4 @@ export { GuideWordSelector } from './GuideWordSelector';
 export { DeviationInputForm } from './DeviationInputForm';
 export { CausesInput } from './CausesInput';
 export { ConsequencesInput } from './ConsequencesInput';
+export { SafeguardsInput } from './SafeguardsInput';

@@ -8,7 +8,7 @@ import { documentsService } from '../services/documents.service';
 import { nodesService } from '../services/nodes.service';
 import { PIDViewer } from '../components/documents/PIDViewer';
 import { NodeOverlay } from '../components/documents/NodeOverlay';
-import { GuideWordSelector, DeviationInputForm, CausesInput, ConsequencesInput } from '../components/analyses';
+import { GuideWordSelector, DeviationInputForm, CausesInput, ConsequencesInput, SafeguardsInput } from '../components/analyses';
 import type {
   ApiError,
   HazopsAnalysisWithDetails,
@@ -78,10 +78,11 @@ export function AnalysisWorkspacePage() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedGuideWord, setSelectedGuideWord] = useState<GuideWord | null>(null);
 
-  // Current entry state (for editing causes and consequences after entry creation)
+  // Current entry state (for editing causes, consequences, and safeguards after entry creation)
   const [currentEntry, setCurrentEntry] = useState<AnalysisEntry | null>(null);
   const [entryCauses, setEntryCauses] = useState<string[]>([]);
   const [entryConsequences, setEntryConsequences] = useState<string[]>([]);
+  const [entrySafeguards, setEntrySafeguards] = useState<string[]>([]);
 
   // Split-pane state
   const [leftPaneWidth, setLeftPaneWidth] = useState<number | null>(null);
@@ -213,17 +214,19 @@ export function AnalysisWorkspacePage() {
     setCurrentEntry(null);
     setEntryCauses([]);
     setEntryConsequences([]);
+    setEntrySafeguards([]);
   }, []);
 
   /**
    * Handle successful creation of an analysis entry.
-   * After an entry is created, show the CausesInput and ConsequencesInput for editing.
+   * After an entry is created, show the CausesInput, ConsequencesInput, and SafeguardsInput for editing.
    */
   const handleEntryCreated = useCallback((entry: AnalysisEntry) => {
-    // Set the current entry so we can show CausesInput and ConsequencesInput
+    // Set the current entry so we can show CausesInput, ConsequencesInput, and SafeguardsInput
     setCurrentEntry(entry);
     setEntryCauses(entry.causes || []);
     setEntryConsequences(entry.consequences || []);
+    setEntrySafeguards(entry.safeguards || []);
   }, []);
 
   /**
@@ -285,8 +288,35 @@ export function AnalysisWorkspacePage() {
     setCurrentEntry(null);
     setEntryCauses([]);
     setEntryConsequences([]);
+    setEntrySafeguards([]);
     setSelectedGuideWord(null);
   }, []);
+
+  /**
+   * Handle changes to entry safeguards.
+   * Updates the entry on the server when safeguards change.
+   */
+  const handleSafeguardsChange = useCallback(
+    async (safeguards: string[]) => {
+      if (!currentEntry) return;
+
+      // Optimistically update local state
+      setEntrySafeguards(safeguards);
+
+      // Update entry on the server
+      const result = await analysesService.updateAnalysisEntry(currentEntry.id, { safeguards });
+
+      if (result.success && result.data) {
+        // Update current entry with server response
+        setCurrentEntry(result.data.entry);
+      } else {
+        // Revert on error - restore previous safeguards
+        setEntrySafeguards(currentEntry.safeguards || []);
+        console.error('Failed to update safeguards:', result.error);
+      }
+    },
+    [currentEntry]
+  );
 
   /**
    * Get the selected node object.
@@ -610,6 +640,18 @@ export function AnalysisWorkspacePage() {
                         guideWord={selectedGuideWord}
                         value={entryConsequences}
                         onChange={handleConsequencesChange}
+                        disabled={analysis.status !== 'draft'}
+                      />
+                    )}
+
+                    {/* Safeguards Input - shown after consequences are selected */}
+                    {entryConsequences.length > 0 && (
+                      <SafeguardsInput
+                        nodeIdentifier={selectedNode.nodeId}
+                        equipmentType={selectedNode.equipmentType}
+                        guideWord={selectedGuideWord}
+                        value={entrySafeguards}
+                        onChange={handleSafeguardsChange}
                         disabled={analysis.status !== 'draft'}
                       />
                     )}
