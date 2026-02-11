@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 7 - LOPA & Compliance
-**Progress**: Phase 7 in progress - 11/23 tasks complete
-**Last Completed**: COMP-07 - Create compliance validation engine (6dd6041)
-**Next Task**: COMP-08 - Create POST /entries/:id/lopa endpoint
+**Progress**: Phase 7 in progress - 12/23 tasks complete
+**Last Completed**: COMP-08 - Create POST /entries/:id/lopa endpoint (e75c4d1)
+**Next Task**: COMP-09 - Create GET /entries/:id/lopa endpoint
 
 ---
 
@@ -271,7 +271,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] COMP-07: Create compliance validation engine (cross-reference findings) (6dd6041)
 
 ### Backend API
-- [ ] COMP-08: Create POST /entries/:id/lopa endpoint (create LOPA analysis)
+- [x] COMP-08: Create POST /entries/:id/lopa endpoint (create LOPA analysis) (e75c4d1)
 - [ ] COMP-09: Create GET /entries/:id/lopa endpoint (get LOPA results)
 - [ ] COMP-10: Create GET /projects/:id/compliance endpoint (compliance status)
 - [ ] COMP-11: Create GET /analyses/:id/compliance endpoint (analysis compliance report)
@@ -557,3 +557,4 @@ _No blockers currently._
 | COMP-05: Add EPA RMP compliance checks | 7a55e24 | 2026-02-11 |
 | COMP-06: Add SEVESO III directive compliance checks | 9b6d7d1 | 2026-02-11 |
 | COMP-07: Create compliance validation engine (cross-reference findings) | 6dd6041 | 2026-02-11 |
+| COMP-08: Create POST /entries/:id/lopa endpoint (create LOPA analysis) | e75c4d1 | 2026-02-11 |
