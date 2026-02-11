@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 5 - Core HazOps Analysis Workflow
-**Progress**: Analysis progress tracker complete
-**Last Completed**: HAZOP-26 - Create analysis progress tracker (nodes completed/total) (70a110a)
-**Next Task**: HAZOP-27 - Create analysis entry summary table
+**Progress**: Analysis entry summary table complete
+**Last Completed**: HAZOP-27 - Create analysis entry summary table (0237edc)
+**Next Task**: HAZOP-28 - Add unit tests for guide word validation logic
 
 ---
 
@@ -216,7 +216,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] HAZOP-24: Create safeguards input with prepared answer menu (multi-select) (d3dbe46)
 - [x] HAZOP-25: Create recommendations input with prepared answer menu (multi-select) (74dff69)
 - [x] HAZOP-26: Create analysis progress tracker (nodes completed/total) (70a110a)
-- [ ] HAZOP-27: Create analysis entry summary table
+- [x] HAZOP-27: Create analysis entry summary table (0237edc)
 
 ### HazOps Testing
 - [ ] HAZOP-28: Add unit tests for guide word validation logic
@@ -526,3 +526,4 @@ _No blockers currently._
 | HAZOP-24: Create safeguards input with prepared answer menu (multi-select) | d3dbe46 | 2026-02-11 |
 | HAZOP-25: Create recommendations input with prepared answer menu (multi-select) | 74dff69 | 2026-02-11 |
 | HAZOP-26: Create analysis progress tracker (nodes completed/total) | 70a110a | 2026-02-11 |
+| HAZOP-27: Create analysis entry summary table | 0237edc | 2026-02-11 |
