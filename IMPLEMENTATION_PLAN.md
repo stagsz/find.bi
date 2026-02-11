@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 8 - Real-time Collaboration
-**Progress**: Phase 8 in progress - 3/16 tasks complete
-**Last Completed**: COLLAB-03 - Implement real-time analysis entry updates broadcast (572822a)
-**Next Task**: COLLAB-04 - Implement cursor position sharing
+**Progress**: Phase 8 in progress - 4/16 tasks complete
+**Last Completed**: COLLAB-04 - Implement cursor position sharing (5a01b5a - included in COLLAB-02)
+**Next Task**: COLLAB-05 - Create conflict detection for concurrent edits
 
 ---
 
@@ -296,7 +296,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] COLLAB-01: Set up Socket.io server with authentication (d8af048)
 - [x] COLLAB-02: Create collaboration room management (create, join, leave) (5a01b5a)
 - [x] COLLAB-03: Implement real-time analysis entry updates broadcast (572822a)
-- [ ] COLLAB-04: Implement cursor position sharing
+- [x] COLLAB-04: Implement cursor position sharing (5a01b5a - included in COLLAB-02)
 - [ ] COLLAB-05: Create conflict detection for concurrent edits
 
 ### Backend API
@@ -572,3 +572,4 @@ _No blockers currently._
 | COLLAB-01: Set up Socket.io server with authentication | d8af048 | 2026-02-11 |
 | COLLAB-02: Create collaboration room management (create, join, leave) | 5a01b5a | 2026-02-11 |
 | COLLAB-03: Implement real-time analysis entry updates broadcast | 572822a | 2026-02-11 |
+| COLLAB-04: Implement cursor position sharing (included in COLLAB-02) | 5a01b5a | 2026-02-11 |
