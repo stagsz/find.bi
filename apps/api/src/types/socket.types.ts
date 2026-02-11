@@ -110,6 +110,9 @@ export interface EntryUpdatePayload {
 
   /** User who made the change */
   userId: string;
+
+  /** New version number after the update */
+  version: number;
 }
 
 /**
@@ -152,6 +155,108 @@ export interface RiskUpdatePayload {
 
   /** User who made the change */
   userId: string;
+}
+
+// ============================================================================
+// Conflict Detection Payloads
+// ============================================================================
+
+/**
+ * Entry data snapshot for conflict comparison.
+ */
+export interface ConflictEntrySnapshot {
+  /** Entry ID */
+  id: string;
+
+  /** Current version number */
+  version: number;
+
+  /** Deviation description */
+  deviation: string;
+
+  /** Causes array */
+  causes: string[];
+
+  /** Consequences array */
+  consequences: string[];
+
+  /** Safeguards array */
+  safeguards: string[];
+
+  /** Recommendations array */
+  recommendations: string[];
+
+  /** Notes */
+  notes: string | null;
+
+  /** Severity (1-5) */
+  severity: number | null;
+
+  /** Likelihood (1-5) */
+  likelihood: number | null;
+
+  /** Detectability (1-5) */
+  detectability: number | null;
+
+  /** Calculated risk score */
+  riskScore: number | null;
+
+  /** Risk level classification */
+  riskLevel: string | null;
+
+  /** Last update timestamp (ISO 8601) */
+  updatedAt: string;
+}
+
+/**
+ * Conflict detected payload.
+ * Sent when a user's update conflicts with another user's changes.
+ */
+export interface ConflictDetectedPayload {
+  /** Entry ID that has a conflict */
+  entryId: string;
+
+  /** Version the user expected */
+  expectedVersion: number;
+
+  /** Actual current version in the database */
+  currentVersion: number;
+
+  /** Current state of the entry on the server */
+  serverData: ConflictEntrySnapshot;
+
+  /** Changes the user was trying to make */
+  clientChanges: Record<string, unknown>;
+
+  /** User ID who made the conflicting update */
+  conflictingUserId: string;
+
+  /** Email of the user who made the conflicting update */
+  conflictingUserEmail?: string;
+
+  /** Timestamp when the conflict was detected (ISO 8601) */
+  conflictedAt: string;
+}
+
+/**
+ * Conflict resolved payload.
+ * Sent when a conflict is resolved (either by accepting server or client version).
+ */
+export interface ConflictResolvedPayload {
+  /** Entry ID that had the conflict resolved */
+  entryId: string;
+
+  /** Resolution strategy used */
+  resolution: 'accept_server' | 'accept_client' | 'merge';
+
+  /** The final entry data after resolution */
+  finalData: ConflictEntrySnapshot;
+
+  /** User who resolved the conflict */
+  resolvedByUserId: string;
+
+  /** Timestamp when resolved (ISO 8601) */
+  resolvedAt: string;
 }
 
 // ============================================================================
@@ -230,6 +335,12 @@ export interface ServerToClientEvents {
 
   /** Risk ranking was updated */
   'risk:updated': (payload: RiskUpdatePayload) => void;
+
+  /** Conflict detected for concurrent edit */
+  'entry:conflict': (payload: ConflictDetectedPayload) => void;
+
+  /** Conflict resolved */
+  'entry:conflict-resolved': (payload: ConflictResolvedPayload) => void;
 
   /** Error notification */
   error: (error: SocketError) => void;

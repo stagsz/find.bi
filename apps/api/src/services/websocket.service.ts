@@ -394,12 +394,14 @@ export class WebSocketService {
    * @param entryId - The entry ID that was updated
    * @param changes - The changes made
    * @param userId - The user who made the change
+   * @param version - The new version number after the update
    */
   broadcastEntryUpdate(
     analysisId: string,
     entryId: string,
     changes: Record<string, unknown>,
-    userId: string
+    userId: string,
+    version: number
   ): void {
     if (!this.io) return;
 
@@ -408,6 +410,7 @@ export class WebSocketService {
       entryId,
       changes,
       userId,
+      version,
     });
   }
 
@@ -477,6 +480,84 @@ export class WebSocketService {
       risk,
       userId,
     });
+  }
+
+  /**
+   * Broadcast a conflict detection to a specific user in an analysis room.
+   * This notifies the user who attempted the update that their changes conflict.
+   *
+   * @param analysisId - The analysis ID
+   * @param conflictPayload - The conflict detection payload
+   */
+  broadcastConflictDetected(
+    analysisId: string,
+    conflictPayload: {
+      entryId: string;
+      expectedVersion: number;
+      currentVersion: number;
+      serverData: {
+        id: string;
+        version: number;
+        deviation: string;
+        causes: string[];
+        consequences: string[];
+        safeguards: string[];
+        recommendations: string[];
+        notes: string | null;
+        severity: number | null;
+        likelihood: number | null;
+        detectability: number | null;
+        riskScore: number | null;
+        riskLevel: string | null;
+        updatedAt: string;
+      };
+      clientChanges: Record<string, unknown>;
+      conflictingUserId: string;
+      conflictingUserEmail?: string;
+      conflictedAt: string;
+    }
+  ): void {
+    if (!this.io) return;
+
+    const roomName = `analysis:${analysisId}`;
+    this.io.to(roomName).emit('entry:conflict', conflictPayload);
+  }
+
+  /**
+   * Broadcast a conflict resolution to all users in an analysis room.
+   *
+   * @param analysisId - The analysis ID
+   * @param resolutionPayload - The conflict resolution payload
+   */
+  broadcastConflictResolved(
+    analysisId: string,
+    resolutionPayload: {
+      entryId: string;
+      resolution: 'accept_server' | 'accept_client' | 'merge';
+      finalData: {
+        id: string;
+        version: number;
+        deviation: string;
+        causes: string[];
+        consequences: string[];
+        safeguards: string[];
+        recommendations: string[];
+        notes: string | null;
+        severity: number | null;
+        likelihood: number | null;
+        detectability: number | null;
+        riskScore: number | null;
+        riskLevel: string | null;
+        updatedAt: string;
+      };
+      resolvedByUserId: string;
+      resolvedAt: string;
+    }
+  ): void {
+    if (!this.io) return;
+
+    const roomName = `analysis:${analysisId}`;
+    this.io.to(roomName).emit('entry:conflict-resolved', resolutionPayload);
   }
 
   /**

@@ -27,6 +27,7 @@ import {
   listAnalysisEntries,
   findAnalysisEntryById,
   updateAnalysisEntry as updateAnalysisEntryService,
+  updateAnalysisEntryWithVersionCheck,
   deleteAnalysisEntry as deleteAnalysisEntryService,
   updateEntryRisk as updateEntryRiskService,
   clearEntryRisk as clearEntryRiskService,
@@ -99,6 +100,8 @@ interface UpdateAnalysisEntryBody {
   safeguards?: unknown;
   recommendations?: unknown;
   notes?: unknown;
+  /** Version for optimistic locking (optional - if not provided, update proceeds without version check) */
+  version?: unknown;
 }
 
 /**
@@ -1888,6 +1891,9 @@ export async function listEntries(req: Request, res: Response): Promise<void> {
  * Only draft analyses can have their entries updated.
  * Note: nodeId, guideWord, and parameter cannot be updated as they form the unique constraint.
  *
+ * Supports optimistic locking: if a version is provided, the update will only succeed
+ * if the current version matches. This prevents overwriting concurrent changes.
+ *
  * Path parameters:
  * - id: string (required) - Entry UUID
  *
@@ -1898,13 +1904,15 @@ export async function listEntries(req: Request, res: Response): Promise<void> {
  * - safeguards: string[] - Existing safeguards
  * - recommendations: string[] - Recommended actions
  * - notes: string | null - Additional notes (null to clear)
+ * - version: number - Expected version for optimistic locking (optional)
  *
  * Returns:
- * - 200: Updated entry
+ * - 200: Updated entry (includes version)
  * - 400: Validation error or analysis not in draft status
  * - 401: Not authenticated
  * - 403: Not authorized to access this analysis
  * - 404: Entry or analysis not found
+ * - 409: Conflict - entry was modified by another user (includes conflict details)
  * - 500: Internal server error
  */
 export async function updateEntry(req: Request, res: Response): Promise<void> {
@@ -2048,8 +2056,80 @@ export async function updateEntry(req: Request, res: Response): Promise<void> {
       updateData.notes = typeof body.notes === 'string' ? body.notes : null;
     }
 
-    // Update the entry
-    const updatedEntry = await updateAnalysisEntryService(entryId, updateData);
+    // Check if version is provided for optimistic locking
+    const hasVersion = body.version !== undefined && typeof body.version === 'number';
+    const expectedVersion = hasVersion ? (body.version as number) : null;
+
+    let updatedEntry;
+
+    if (expectedVersion !== null) {
+      // Use optimistic locking with version check
+      const result = await updateAnalysisEntryWithVersionCheck(entryId, expectedVersion, updateData);
+
+      if (!result.success) {
+        if (result.conflict) {
+          // Conflict detected - return 409 Conflict
+          const wsService = getWebSocketService();
+
+          // Broadcast conflict to all users in the room
+          wsService.broadcastConflictDetected(existingEntry.analysisId, {
+            entryId,
+            expectedVersion: result.conflict.expectedVersion,
+            currentVersion: result.conflict.currentVersion,
+            serverData: {
+              id: result.conflict.currentEntry.id,
+              version: result.conflict.currentEntry.version,
+              deviation: result.conflict.currentEntry.deviation,
+              causes: result.conflict.currentEntry.causes,
+              consequences: result.conflict.currentEntry.consequences,
+              safeguards: result.conflict.currentEntry.safeguards,
+              recommendations: result.conflict.currentEntry.recommendations,
+              notes: result.conflict.currentEntry.notes,
+              severity: result.conflict.currentEntry.riskRanking?.severity ?? null,
+              likelihood: result.conflict.currentEntry.riskRanking?.likelihood ?? null,
+              detectability: result.conflict.currentEntry.riskRanking?.detectability ?? null,
+              riskScore: result.conflict.currentEntry.riskRanking?.riskScore ?? null,
+              riskLevel: result.conflict.currentEntry.riskRanking?.riskLevel ?? null,
+              updatedAt: result.conflict.currentEntry.updatedAt.toISOString(),
+            },
+            clientChanges: updateData as Record<string, unknown>,
+            conflictingUserId: result.conflict.currentEntry.createdById,
+            conflictedAt: new Date().toISOString(),
+          });
+
+          res.status(409).json({
+            success: false,
+            error: {
+              code: 'CONFLICT',
+              message: 'Entry was modified by another user',
+            },
+            conflict: {
+              expectedVersion: result.conflict.expectedVersion,
+              currentVersion: result.conflict.currentVersion,
+              currentEntry: result.conflict.currentEntry,
+              clientChanges: updateData,
+            },
+          });
+          return;
+        }
+
+        // Entry not found
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Analysis entry not found',
+          },
+        });
+        return;
+      }
+
+      updatedEntry = result.entry;
+    } else {
+      // No version provided - use traditional update (backwards compatible)
+      updatedEntry = await updateAnalysisEntryService(entryId, updateData);
+    }
+
     if (!updatedEntry) {
       res.status(404).json({
         success: false,
@@ -2067,7 +2147,8 @@ export async function updateEntry(req: Request, res: Response): Promise<void> {
       existingEntry.analysisId,
       entryId,
       updateData as Record<string, unknown>,
-      userId
+      userId,
+      updatedEntry.version
     );
 
     res.status(200).json({

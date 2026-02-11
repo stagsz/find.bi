@@ -90,6 +90,8 @@ export interface AnalysisEntryRow {
   created_by_id: string;
   created_at: Date;
   updated_at: Date;
+  /** Version number for optimistic locking */
+  version: number;
 }
 
 // ============================================================================
@@ -170,6 +172,8 @@ export interface AnalysisEntry {
   createdById: string;
   createdAt: Date;
   updatedAt: Date;
+  /** Version number for optimistic locking */
+  version: number;
 }
 
 // ============================================================================
@@ -284,6 +288,7 @@ function rowToAnalysisEntry(row: AnalysisEntryRow): AnalysisEntry {
     createdById: row.created_by_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    version: row.version,
   };
 }
 
@@ -1162,6 +1167,9 @@ export async function updateAnalysisEntry(
     return findAnalysisEntryById(entryId);
   }
 
+  // Always increment version on update
+  setClauses.push(`version = version + 1`);
+
   // Add entry ID as the last parameter
   values.push(entryId);
 
@@ -1178,6 +1186,146 @@ export async function updateAnalysisEntry(
   }
 
   return rowToAnalysisEntry(result.rows[0]);
+}
+
+/**
+ * Result of an optimistic update with version checking.
+ */
+export interface OptimisticUpdateResult {
+  /** Whether the update was successful */
+  success: boolean;
+
+  /** The updated entry (if successful) */
+  entry?: AnalysisEntry;
+
+  /** Conflict information (if not successful) */
+  conflict?: {
+    expectedVersion: number;
+    currentVersion: number;
+    currentEntry: AnalysisEntry;
+  };
+}
+
+/**
+ * Update an analysis entry with optimistic locking.
+ * The update only succeeds if the provided version matches the current version.
+ *
+ * @param entryId - The ID of the entry to update
+ * @param expectedVersion - The version the client expects
+ * @param data - Update data (all fields optional)
+ * @returns Result indicating success or conflict
+ */
+export async function updateAnalysisEntryWithVersionCheck(
+  entryId: string,
+  expectedVersion: number,
+  data: UpdateAnalysisEntryData
+): Promise<OptimisticUpdateResult> {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Lock the row and check version
+    const checkResult = await client.query<AnalysisEntryRow>(
+      `SELECT * FROM hazop.analysis_entries WHERE id = $1 FOR UPDATE`,
+      [entryId]
+    );
+
+    if (!checkResult.rows[0]) {
+      await client.query('ROLLBACK');
+      return { success: false };
+    }
+
+    const currentEntry = rowToAnalysisEntry(checkResult.rows[0]);
+
+    // Check version match
+    if (currentEntry.version !== expectedVersion) {
+      await client.query('ROLLBACK');
+      return {
+        success: false,
+        conflict: {
+          expectedVersion,
+          currentVersion: currentEntry.version,
+          currentEntry,
+        },
+      };
+    }
+
+    // Build dynamic SET clause based on provided fields
+    const setClauses: string[] = [];
+    const values: unknown[] = [];
+    let paramIndex = 1;
+
+    if (data.deviation !== undefined) {
+      setClauses.push(`deviation = $${paramIndex}`);
+      values.push(data.deviation);
+      paramIndex++;
+    }
+
+    if (data.causes !== undefined) {
+      setClauses.push(`causes = $${paramIndex}`);
+      values.push(JSON.stringify(data.causes));
+      paramIndex++;
+    }
+
+    if (data.consequences !== undefined) {
+      setClauses.push(`consequences = $${paramIndex}`);
+      values.push(JSON.stringify(data.consequences));
+      paramIndex++;
+    }
+
+    if (data.safeguards !== undefined) {
+      setClauses.push(`safeguards = $${paramIndex}`);
+      values.push(JSON.stringify(data.safeguards));
+      paramIndex++;
+    }
+
+    if (data.recommendations !== undefined) {
+      setClauses.push(`recommendations = $${paramIndex}`);
+      values.push(JSON.stringify(data.recommendations));
+      paramIndex++;
+    }
+
+    if (data.notes !== undefined) {
+      setClauses.push(`notes = $${paramIndex}`);
+      values.push(data.notes);
+      paramIndex++;
+    }
+
+    // If no fields to update, just return the existing entry
+    if (setClauses.length === 0) {
+      await client.query('COMMIT');
+      return { success: true, entry: currentEntry };
+    }
+
+    // Always increment version on update
+    setClauses.push(`version = version + 1`);
+
+    // Add entry ID as the last parameter
+    values.push(entryId);
+
+    const result = await client.query<AnalysisEntryRow>(
+      `UPDATE hazop.analysis_entries
+       SET ${setClauses.join(', ')}
+       WHERE id = $${paramIndex}
+       RETURNING *`,
+      values
+    );
+
+    await client.query('COMMIT');
+
+    if (!result.rows[0]) {
+      return { success: false };
+    }
+
+    return { success: true, entry: rowToAnalysisEntry(result.rows[0]) };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**
