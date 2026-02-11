@@ -8,7 +8,7 @@ import { documentsService } from '../services/documents.service';
 import { nodesService } from '../services/nodes.service';
 import { PIDViewer } from '../components/documents/PIDViewer';
 import { NodeOverlay } from '../components/documents/NodeOverlay';
-import { GuideWordSelector, DeviationInputForm, CausesInput, ConsequencesInput, SafeguardsInput } from '../components/analyses';
+import { GuideWordSelector, DeviationInputForm, CausesInput, ConsequencesInput, SafeguardsInput, RecommendationsInput } from '../components/analyses';
 import type {
   ApiError,
   HazopsAnalysisWithDetails,
@@ -78,11 +78,12 @@ export function AnalysisWorkspacePage() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedGuideWord, setSelectedGuideWord] = useState<GuideWord | null>(null);
 
-  // Current entry state (for editing causes, consequences, and safeguards after entry creation)
+  // Current entry state (for editing causes, consequences, safeguards, and recommendations after entry creation)
   const [currentEntry, setCurrentEntry] = useState<AnalysisEntry | null>(null);
   const [entryCauses, setEntryCauses] = useState<string[]>([]);
   const [entryConsequences, setEntryConsequences] = useState<string[]>([]);
   const [entrySafeguards, setEntrySafeguards] = useState<string[]>([]);
+  const [entryRecommendations, setEntryRecommendations] = useState<string[]>([]);
 
   // Split-pane state
   const [leftPaneWidth, setLeftPaneWidth] = useState<number | null>(null);
@@ -215,18 +216,20 @@ export function AnalysisWorkspacePage() {
     setEntryCauses([]);
     setEntryConsequences([]);
     setEntrySafeguards([]);
+    setEntryRecommendations([]);
   }, []);
 
   /**
    * Handle successful creation of an analysis entry.
-   * After an entry is created, show the CausesInput, ConsequencesInput, and SafeguardsInput for editing.
+   * After an entry is created, show the CausesInput, ConsequencesInput, SafeguardsInput, and RecommendationsInput for editing.
    */
   const handleEntryCreated = useCallback((entry: AnalysisEntry) => {
-    // Set the current entry so we can show CausesInput, ConsequencesInput, and SafeguardsInput
+    // Set the current entry so we can show CausesInput, ConsequencesInput, SafeguardsInput, and RecommendationsInput
     setCurrentEntry(entry);
     setEntryCauses(entry.causes || []);
     setEntryConsequences(entry.consequences || []);
     setEntrySafeguards(entry.safeguards || []);
+    setEntryRecommendations(entry.recommendations || []);
   }, []);
 
   /**
@@ -289,6 +292,7 @@ export function AnalysisWorkspacePage() {
     setEntryCauses([]);
     setEntryConsequences([]);
     setEntrySafeguards([]);
+    setEntryRecommendations([]);
     setSelectedGuideWord(null);
   }, []);
 
@@ -313,6 +317,32 @@ export function AnalysisWorkspacePage() {
         // Revert on error - restore previous safeguards
         setEntrySafeguards(currentEntry.safeguards || []);
         console.error('Failed to update safeguards:', result.error);
+      }
+    },
+    [currentEntry]
+  );
+
+  /**
+   * Handle changes to entry recommendations.
+   * Updates the entry on the server when recommendations change.
+   */
+  const handleRecommendationsChange = useCallback(
+    async (recommendations: string[]) => {
+      if (!currentEntry) return;
+
+      // Optimistically update local state
+      setEntryRecommendations(recommendations);
+
+      // Update entry on the server
+      const result = await analysesService.updateAnalysisEntry(currentEntry.id, { recommendations });
+
+      if (result.success && result.data) {
+        // Update current entry with server response
+        setCurrentEntry(result.data.entry);
+      } else {
+        // Revert on error - restore previous recommendations
+        setEntryRecommendations(currentEntry.recommendations || []);
+        console.error('Failed to update recommendations:', result.error);
       }
     },
     [currentEntry]
@@ -652,6 +682,18 @@ export function AnalysisWorkspacePage() {
                         guideWord={selectedGuideWord}
                         value={entrySafeguards}
                         onChange={handleSafeguardsChange}
+                        disabled={analysis.status !== 'draft'}
+                      />
+                    )}
+
+                    {/* Recommendations Input - shown after safeguards are selected */}
+                    {entrySafeguards.length > 0 && (
+                      <RecommendationsInput
+                        nodeIdentifier={selectedNode.nodeId}
+                        equipmentType={selectedNode.equipmentType}
+                        guideWord={selectedGuideWord}
+                        value={entryRecommendations}
+                        onChange={handleRecommendationsChange}
                         disabled={analysis.status !== 'draft'}
                       />
                     )}
