@@ -5,6 +5,7 @@ import type {
   ProjectMemberWithUser,
   ApiResult,
   PaginationMeta,
+  ProjectRiskDashboard,
 } from '@hazop/types';
 import { api } from './api.client';
 
@@ -237,5 +238,17 @@ export const projectsService = {
    */
   async removeMember(projectId: string, userId: string): Promise<ApiResult<{ message: string }>> {
     return api.delete<{ message: string }>(`/projects/${projectId}/members/${userId}`);
+  },
+
+  /**
+   * Get risk dashboard for a project.
+   *
+   * Returns comprehensive risk metrics and breakdowns across all analyses.
+   *
+   * @param projectId - The ID of the project
+   * @returns Promise resolving to the API result with risk dashboard
+   */
+  async getRiskDashboard(projectId: string): Promise<ApiResult<{ dashboard: ProjectRiskDashboard }>> {
+    return api.get<{ dashboard: ProjectRiskDashboard }>(`/projects/${projectId}/risk-dashboard`);
   },
 };

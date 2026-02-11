@@ -718,3 +718,215 @@ export const RISK_MATRIX_MAPPING: Record<SeverityLevel, Record<LikelihoodLevel, 
   4: { 1: 'low', 2: 'medium', 3: 'medium', 4: 'high', 5: 'high' },
   5: { 1: 'medium', 2: 'high', 3: 'high', 4: 'high', 5: 'high' },
 };
+
+// ============================================================================
+// Risk Dashboard Types (RISK-13)
+// ============================================================================
+
+/**
+ * Risk distribution percentages.
+ */
+export interface RiskDistribution {
+  /** Percentage of low risk entries */
+  low: number;
+  /** Percentage of medium risk entries */
+  medium: number;
+  /** Percentage of high risk entries */
+  high: number;
+}
+
+/**
+ * Score percentiles for risk score distribution analysis.
+ */
+export interface ScorePercentiles {
+  /** 25th percentile (first quartile) */
+  p25: number;
+  /** 50th percentile (median) */
+  p50: number;
+  /** 75th percentile (third quartile) */
+  p75: number;
+  /** 90th percentile */
+  p90: number;
+  /** 95th percentile */
+  p95: number;
+}
+
+/**
+ * Risk threshold configuration.
+ */
+export interface RiskThresholdConfig {
+  /** Low risk threshold range */
+  low: { min: number; max: number };
+  /** Medium risk threshold range */
+  medium: { min: number; max: number };
+  /** High risk threshold range */
+  high: { min: number; max: number };
+}
+
+/**
+ * Risk summary for a single node.
+ */
+export interface NodeRiskSummary {
+  /** Node ID */
+  nodeId: string;
+  /** Node identifier (user-assigned) */
+  nodeIdentifier: string;
+  /** Node description */
+  nodeDescription: string | null;
+  /** Equipment type */
+  equipmentType: string;
+  /** Total entries for this node */
+  entryCount: number;
+  /** Entries with risk assessment */
+  assessedCount: number;
+  /** Count of high risk entries */
+  highRiskCount: number;
+  /** Count of medium risk entries */
+  mediumRiskCount: number;
+  /** Count of low risk entries */
+  lowRiskCount: number;
+  /** Average risk score (null if no assessed entries) */
+  averageRiskScore: number | null;
+  /** Maximum risk score (null if no assessed entries) */
+  maxRiskScore: number | null;
+  /** Overall risk level for the node (based on max score) */
+  overallRiskLevel: RiskLevel | null;
+}
+
+/**
+ * Risk summary for a guide word.
+ */
+export interface GuideWordRiskSummary {
+  /** Guide word */
+  guideWord: GuideWord;
+  /** Total entries for this guide word */
+  entryCount: number;
+  /** Entries with risk assessment */
+  assessedCount: number;
+  /** Count of high risk entries */
+  highRiskCount: number;
+  /** Count of medium risk entries */
+  mediumRiskCount: number;
+  /** Count of low risk entries */
+  lowRiskCount: number;
+  /** Average risk score (null if no assessed entries) */
+  averageRiskScore: number | null;
+  /** Maximum risk score (null if no assessed entries) */
+  maxRiskScore: number | null;
+}
+
+/**
+ * High risk entry information.
+ */
+export interface HighRiskEntry {
+  /** Entry ID */
+  entryId: string;
+  /** Node ID */
+  nodeId: string;
+  /** Node identifier */
+  nodeIdentifier: string;
+  /** Guide word */
+  guideWord: GuideWord;
+  /** Parameter */
+  parameter: string;
+  /** Risk ranking */
+  riskRanking: RiskRanking;
+}
+
+/**
+ * High risk entry with analysis name for project-level view.
+ */
+export interface ProjectHighRiskEntry extends HighRiskEntry {
+  /** Analysis session ID */
+  analysisId: string;
+  /** Analysis session name */
+  analysisName: string;
+}
+
+/**
+ * Summary of risk for a single analysis session.
+ */
+export interface AnalysisRiskSummary {
+  /** Analysis session ID */
+  analysisId: string;
+  /** Analysis session name */
+  analysisName: string;
+  /** Analysis status */
+  status: AnalysisStatus;
+  /** Lead analyst ID */
+  leadAnalystId: string;
+  /** Lead analyst name */
+  leadAnalystName: string;
+  /** Total entries in the analysis */
+  entryCount: number;
+  /** Entries with risk assessment */
+  assessedCount: number;
+  /** Count of high risk entries */
+  highRiskCount: number;
+  /** Count of medium risk entries */
+  mediumRiskCount: number;
+  /** Count of low risk entries */
+  lowRiskCount: number;
+  /** Maximum risk score in this analysis (null if no assessed entries) */
+  maxRiskScore: number | null;
+  /** Overall risk level for this analysis (based on max score) */
+  overallRiskLevel: RiskLevel | null;
+  /** When the analysis was created */
+  createdAt: Date;
+  /** When the analysis was last updated */
+  updatedAt: Date;
+}
+
+/**
+ * Comprehensive risk dashboard for a project.
+ * Aggregates risk data across all analyses in the project.
+ */
+export interface ProjectRiskDashboard {
+  /** Project ID */
+  projectId: string;
+  /** Project name */
+  projectName: string;
+  /** Aggregated statistics across all analyses */
+  statistics: {
+    /** Total number of analyses in the project */
+    totalAnalyses: number;
+    /** Number of analyses currently in draft status */
+    draftAnalyses: number;
+    /** Number of analyses in review */
+    inReviewAnalyses: number;
+    /** Number of approved analyses */
+    approvedAnalyses: number;
+    /** Total entries across all analyses */
+    totalEntries: number;
+    /** Entries with risk assessment */
+    assessedEntries: number;
+    /** Entries without risk assessment */
+    unassessedEntries: number;
+    /** Count of high risk entries across project */
+    highRiskCount: number;
+    /** Count of medium risk entries across project */
+    mediumRiskCount: number;
+    /** Count of low risk entries across project */
+    lowRiskCount: number;
+    /** Average risk score across project (null if no assessed entries) */
+    averageRiskScore: number | null;
+    /** Maximum risk score in project (null if no assessed entries) */
+    maxRiskScore: number | null;
+    /** Minimum risk score in project (null if no assessed entries) */
+    minRiskScore: number | null;
+  };
+  /** Risk level distribution as percentages (null if no assessed entries) */
+  distribution: RiskDistribution | null;
+  /** Score percentiles across all analyses (null if no assessed entries) */
+  percentiles: ScorePercentiles | null;
+  /** Per-analysis summaries ordered by max risk score descending */
+  analysisSummaries: AnalysisRiskSummary[];
+  /** Risk aggregated by node across all analyses */
+  byNode: NodeRiskSummary[];
+  /** Risk aggregated by guide word across all analyses */
+  byGuideWord: GuideWordRiskSummary[];
+  /** Top 20 highest risk entries across all analyses */
+  highestRiskEntries: ProjectHighRiskEntry[];
+  /** Threshold configuration used for classification */
+  thresholds: RiskThresholdConfig;
+}

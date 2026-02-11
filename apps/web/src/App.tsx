@@ -11,6 +11,7 @@ import {
   ProjectsPage,
   ProjectDetailPage,
   AnalysisWorkspacePage,
+  RiskDashboardPage,
 } from './pages';
 import { ProtectedRoute, PublicRoute } from './components/auth';
 
@@ -121,6 +122,14 @@ function App() {
           element={
             <ProtectedRoute>
               <AnalysisWorkspacePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/risk-dashboard"
+          element={
+            <ProtectedRoute>
+              <RiskDashboardPage />
             </ProtectedRoute>
           }
         />

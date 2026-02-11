@@ -92,6 +92,16 @@ export type {
   RiskMatrixCell,
   RiskMatrixRow,
   RiskMatrix,
+  // Risk Dashboard types (RISK-13)
+  RiskDistribution,
+  ScorePercentiles,
+  RiskThresholdConfig,
+  NodeRiskSummary,
+  GuideWordRiskSummary,
+  HighRiskEntry,
+  ProjectHighRiskEntry,
+  AnalysisRiskSummary,
+  ProjectRiskDashboard,
 } from './hazop-analysis.js';
 
 export {

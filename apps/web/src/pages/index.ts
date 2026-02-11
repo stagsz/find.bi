@@ -13,3 +13,4 @@ export { AdminPage } from './AdminPage';
 export { ProjectsPage } from './ProjectsPage';
 export { ProjectDetailPage } from './ProjectDetailPage';
 export { AnalysisWorkspacePage } from './AnalysisWorkspacePage';
+export { RiskDashboardPage } from './RiskDashboardPage';
