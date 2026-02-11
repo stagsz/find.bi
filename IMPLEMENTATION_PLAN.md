@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 7 - LOPA & Compliance
-**Progress**: Phase 7 in progress - 17/23 tasks complete
-**Last Completed**: COMP-13 - Create LOPA results display (11c15a6)
-**Next Task**: COMP-14 - Create compliance validation screen with checklist view
+**Progress**: Phase 7 in progress - 18/23 tasks complete
+**Last Completed**: COMP-14 - Create compliance validation screen with checklist view (776be22)
+**Next Task**: COMP-15 - Create compliance status badges for analyses
 
 ---
 
@@ -279,7 +279,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 ### Frontend Compliance UI
 - [x] COMP-12: Create LOPA input form (initiating event, IPLs, target frequency) (c406ade)
 - [x] COMP-13: Create LOPA results display (gap analysis, recommendations) (11c15a6)
-- [ ] COMP-14: Create compliance validation screen with checklist view
+- [x] COMP-14: Create compliance validation screen with checklist view (776be22)
 - [ ] COMP-15: Create compliance status badges for analyses
 - [ ] COMP-16: Create compliance dashboard with standard-by-standard breakdown
 
@@ -563,3 +563,4 @@ _No blockers currently._
 | COMP-11: Create GET /analyses/:id/compliance endpoint (analysis compliance report) | 22b3966 | 2026-02-11 |
 | COMP-12: Create LOPA input form (initiating event, IPLs, target frequency) | c406ade | 2026-02-11 |
 | COMP-13: Create LOPA results display (gap analysis, recommendations) | 11c15a6 | 2026-02-11 |
+| COMP-14: Create compliance validation screen with checklist view | 776be22 | 2026-02-11 |
