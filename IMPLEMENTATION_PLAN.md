@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 7 - LOPA & Compliance
-**Progress**: Phase 7 in progress - 19/23 tasks complete
-**Last Completed**: COMP-15 - Create compliance status badges for analyses (50ebe44)
-**Next Task**: COMP-16 - Create compliance dashboard with standard-by-standard breakdown
+**Progress**: Phase 7 in progress - 20/23 tasks complete
+**Last Completed**: COMP-16 - Create compliance dashboard with standard-by-standard breakdown (2d1a3ad)
+**Next Task**: COMP-17 - Add unit tests for LOPA calculations
 
 ---
 
@@ -281,7 +281,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] COMP-13: Create LOPA results display (gap analysis, recommendations) (11c15a6)
 - [x] COMP-14: Create compliance validation screen with checklist view (776be22)
 - [x] COMP-15: Create compliance status badges for analyses (50ebe44)
-- [ ] COMP-16: Create compliance dashboard with standard-by-standard breakdown
+- [x] COMP-16: Create compliance dashboard with standard-by-standard breakdown (2d1a3ad)
 
 ### Compliance Testing
 - [ ] COMP-17: Add unit tests for LOPA calculations
@@ -565,3 +565,4 @@ _No blockers currently._
 | COMP-13: Create LOPA results display (gap analysis, recommendations) | 11c15a6 | 2026-02-11 |
 | COMP-14: Create compliance validation screen with checklist view | 776be22 | 2026-02-11 |
 | COMP-15: Create compliance status badges for analyses | 50ebe44 | 2026-02-11 |
+| COMP-16: Create compliance dashboard with standard-by-standard breakdown | 2d1a3ad | 2026-02-11 |
