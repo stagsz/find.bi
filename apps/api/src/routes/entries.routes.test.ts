@@ -141,6 +141,16 @@ jest.unstable_mockModule('../services/risk-calculation.service.js', () => ({
     if (detectability < 1 || detectability > 5) return { valid: false, error: `Invalid detectability level: ${detectability}. Must be 1-5.` };
     return { valid: true };
   }),
+  calculateRiskStatistics: jest.fn(() => ({
+    count: 10,
+    min: 1,
+    max: 125,
+    mean: 50,
+    median: 45,
+    standardDeviation: 20,
+    percentiles: { p25: 20, p50: 45, p75: 70, p90: 100, p95: 115 },
+  })),
+  getRiskDistribution: jest.fn(() => ({ low: 40, medium: 35, high: 25 })),
 }));
 
 // Mock the auth middleware to allow testing without actual JWT

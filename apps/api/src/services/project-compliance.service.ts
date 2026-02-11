@@ -16,6 +16,9 @@ import type {
   RiskRanking,
   GuideWord,
   RiskLevel,
+  SeverityLevel,
+  LikelihoodLevel,
+  DetectabilityLevel,
 } from '@hazop/types';
 import { REGULATORY_STANDARD_IDS } from '@hazop/types';
 import {
@@ -41,11 +44,13 @@ interface AnalysisEntryRow {
   consequences: string[];
   safeguards: string[];
   recommendations: string[];
+  notes: string | null;
   severity: number | null;
   likelihood: number | null;
   detectability: number | null;
   risk_score: number | null;
   risk_level: RiskLevel | null;
+  created_by_id: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -117,9 +122,9 @@ function rowToAnalysisEntry(row: AnalysisEntryRow): AnalysisEntry {
     row.risk_level !== null
   ) {
     riskRanking = {
-      severity: row.severity,
-      likelihood: row.likelihood,
-      detectability: row.detectability,
+      severity: row.severity as SeverityLevel,
+      likelihood: row.likelihood as LikelihoodLevel,
+      detectability: row.detectability as DetectabilityLevel,
       riskScore: row.risk_score,
       riskLevel: row.risk_level,
     };
@@ -137,6 +142,8 @@ function rowToAnalysisEntry(row: AnalysisEntryRow): AnalysisEntry {
     safeguards: row.safeguards || [],
     recommendations: row.recommendations || [],
     riskRanking,
+    notes: row.notes,
+    createdById: row.created_by_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
