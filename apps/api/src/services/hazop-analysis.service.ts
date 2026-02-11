@@ -1200,3 +1200,86 @@ export async function deleteAnalysisEntry(
 
   return rowToAnalysisEntry(result.rows[0]);
 }
+
+// ============================================================================
+// Risk Ranking Update Data Type
+// ============================================================================
+
+/**
+ * Data for updating risk ranking on an analysis entry.
+ * Risk fields must be either all provided or all null (to clear risk assessment).
+ */
+export interface UpdateEntryRiskData {
+  severity: 1 | 2 | 3 | 4 | 5;
+  likelihood: 1 | 2 | 3 | 4 | 5;
+  detectability: 1 | 2 | 3 | 4 | 5;
+  riskScore: number;
+  riskLevel: RiskLevel;
+}
+
+/**
+ * Update the risk ranking for an analysis entry.
+ *
+ * @param entryId - Entry UUID to update
+ * @param data - Risk ranking data (severity, likelihood, detectability, riskScore, riskLevel)
+ * @returns Updated entry or null if not found
+ */
+export async function updateEntryRisk(
+  entryId: string,
+  data: UpdateEntryRiskData
+): Promise<AnalysisEntry | null> {
+  const pool = getPool();
+
+  const result = await pool.query<AnalysisEntryRow>(
+    `UPDATE hazop.analysis_entries
+     SET severity = $1,
+         likelihood = $2,
+         detectability = $3,
+         risk_score = $4,
+         risk_level = $5
+     WHERE id = $6
+     RETURNING *`,
+    [
+      data.severity,
+      data.likelihood,
+      data.detectability,
+      data.riskScore,
+      data.riskLevel,
+      entryId,
+    ]
+  );
+
+  if (!result.rows[0]) {
+    return null;
+  }
+
+  return rowToAnalysisEntry(result.rows[0]);
+}
+
+/**
+ * Clear the risk ranking for an analysis entry (set all risk fields to NULL).
+ *
+ * @param entryId - Entry UUID to update
+ * @returns Updated entry or null if not found
+ */
+export async function clearEntryRisk(entryId: string): Promise<AnalysisEntry | null> {
+  const pool = getPool();
+
+  const result = await pool.query<AnalysisEntryRow>(
+    `UPDATE hazop.analysis_entries
+     SET severity = NULL,
+         likelihood = NULL,
+         detectability = NULL,
+         risk_score = NULL,
+         risk_level = NULL
+     WHERE id = $1
+     RETURNING *`,
+    [entryId]
+  );
+
+  if (!result.rows[0]) {
+    return null;
+  }
+
+  return rowToAnalysisEntry(result.rows[0]);
+}

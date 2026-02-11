@@ -6,6 +6,7 @@
  *
  * Endpoints tested:
  * - PUT /entries/:id - Update an existing analysis entry
+ * - PUT /entries/:id/risk - Update risk ranking for an analysis entry
  * - DELETE /entries/:id - Delete an existing analysis entry
  */
 
@@ -42,6 +43,14 @@ interface HazopAnalysisWithDetails {
   createdByEmail: string;
 }
 
+interface RiskRanking {
+  severity: 1 | 2 | 3 | 4 | 5;
+  likelihood: 1 | 2 | 3 | 4 | 5;
+  detectability: 1 | 2 | 3 | 4 | 5;
+  riskScore: number;
+  riskLevel: RiskLevel;
+}
+
 interface AnalysisEntry {
   id: string;
   analysisId: string;
@@ -54,11 +63,7 @@ interface AnalysisEntry {
   safeguards: string[];
   recommendations: string[];
   notes: string | null;
-  severity: number | null;
-  likelihood: number | null;
-  detectability: number | null;
-  riskScore: number | null;
-  riskLevel: RiskLevel | null;
+  riskRanking: RiskRanking | null;
   createdById: string;
   createdAt: Date;
   updatedAt: Date;
@@ -69,6 +74,8 @@ let mockFindAnalysisById: jest.Mock<() => Promise<HazopAnalysisWithDetails | nul
 let mockFindAnalysisEntryById: jest.Mock<() => Promise<AnalysisEntry | null>>;
 let mockUpdateAnalysisEntry: jest.Mock<() => Promise<AnalysisEntry | null>>;
 let mockDeleteAnalysisEntry: jest.Mock<() => Promise<AnalysisEntry | null>>;
+let mockUpdateEntryRisk: jest.Mock<() => Promise<AnalysisEntry | null>>;
+let mockClearEntryRisk: jest.Mock<() => Promise<AnalysisEntry | null>>;
 
 // Project service mocks
 let mockUserHasProjectAccess: jest.Mock<() => Promise<boolean>>;
@@ -84,12 +91,16 @@ jest.unstable_mockModule('../services/hazop-analysis.service.js', () => {
   mockFindAnalysisEntryById = jest.fn<() => Promise<AnalysisEntry | null>>();
   mockUpdateAnalysisEntry = jest.fn<() => Promise<AnalysisEntry | null>>();
   mockDeleteAnalysisEntry = jest.fn<() => Promise<AnalysisEntry | null>>();
+  mockUpdateEntryRisk = jest.fn<() => Promise<AnalysisEntry | null>>();
+  mockClearEntryRisk = jest.fn<() => Promise<AnalysisEntry | null>>();
 
   return {
     findAnalysisById: mockFindAnalysisById,
     findAnalysisEntryById: mockFindAnalysisEntryById,
     updateAnalysisEntry: mockUpdateAnalysisEntry,
     deleteAnalysisEntry: mockDeleteAnalysisEntry,
+    updateEntryRisk: mockUpdateEntryRisk,
+    clearEntryRisk: mockClearEntryRisk,
     // Stubs for functions not directly used by entries routes
     getEntryAnalysisId: jest.fn(),
     createAnalysis: jest.fn(),
@@ -114,6 +125,23 @@ jest.unstable_mockModule('../services/project.service.js', () => {
     findProjectById: jest.fn(),
   };
 });
+
+// Mock the risk calculation service
+jest.unstable_mockModule('../services/risk-calculation.service.js', () => ({
+  calculateRiskRanking: jest.fn((severity: number, likelihood: number, detectability: number) => ({
+    severity,
+    likelihood,
+    detectability,
+    riskScore: severity * likelihood * detectability,
+    riskLevel: severity * likelihood * detectability <= 20 ? 'low' : severity * likelihood * detectability <= 60 ? 'medium' : 'high',
+  })),
+  validateRiskFactors: jest.fn((severity: number, likelihood: number, detectability: number) => {
+    if (severity < 1 || severity > 5) return { valid: false, error: `Invalid severity level: ${severity}. Must be 1-5.` };
+    if (likelihood < 1 || likelihood > 5) return { valid: false, error: `Invalid likelihood level: ${likelihood}. Must be 1-5.` };
+    if (detectability < 1 || detectability > 5) return { valid: false, error: `Invalid detectability level: ${detectability}. Must be 1-5.` };
+    return { valid: true };
+  }),
+}));
 
 // Mock the auth middleware to allow testing without actual JWT
 jest.unstable_mockModule('../middleware/auth.middleware.js', () => ({
@@ -186,11 +214,13 @@ function createMockEntry(overrides?: Partial<AnalysisEntry>): AnalysisEntry {
     safeguards: ['High flow alarm', 'Relief valve'],
     recommendations: ['Install redundant control'],
     notes: 'Test notes',
-    severity: 3,
-    likelihood: 2,
-    detectability: 2,
-    riskScore: 12,
-    riskLevel: 'medium' as RiskLevel,
+    riskRanking: {
+      severity: 3 as 1 | 2 | 3 | 4 | 5,
+      likelihood: 2 as 1 | 2 | 3 | 4 | 5,
+      detectability: 2 as 1 | 2 | 3 | 4 | 5,
+      riskScore: 12,
+      riskLevel: 'low' as RiskLevel,
+    },
     createdById: '880e8400-e29b-41d4-a716-446655440003',
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
@@ -735,6 +765,361 @@ describe('Entries Routes API Tests', () => {
         mockDeleteAnalysisEntry.mockResolvedValue(null);
 
         const response = await request(app).delete(`/entries/${validEntryId}`);
+
+        expect(response.status).toBe(404);
+        expect(response.body.error.code).toBe('NOT_FOUND');
+      });
+    });
+  });
+
+  describe('PUT /entries/:id/risk', () => {
+    const validEntryId = '990e8400-e29b-41d4-a716-446655440004';
+    const validRiskData = {
+      severity: 4,
+      likelihood: 3,
+      detectability: 2,
+    };
+
+    describe('successful risk update', () => {
+      it('should update risk ranking and return with status 200', async () => {
+        const existingEntry = createMockEntry({ id: validEntryId });
+        const existingAnalysis = createMockAnalysis({ status: 'draft' });
+        const updatedEntry = createMockEntry({
+          id: validEntryId,
+          riskRanking: {
+            severity: 4 as 1 | 2 | 3 | 4 | 5,
+            likelihood: 3 as 1 | 2 | 3 | 4 | 5,
+            detectability: 2 as 1 | 2 | 3 | 4 | 5,
+            riskScore: 24,
+            riskLevel: 'medium' as RiskLevel,
+          },
+        });
+
+        mockFindAnalysisEntryById.mockResolvedValue(existingEntry);
+        mockFindAnalysisById.mockResolvedValue(existingAnalysis);
+        mockUserHasProjectAccess.mockResolvedValue(true);
+        mockUpdateEntryRisk.mockResolvedValue(updatedEntry);
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send(validRiskData);
+
+        expect(response.status).toBe(200);
+        expect(response.body.success).toBe(true);
+        expect(response.body.data.entry).toBeDefined();
+        expect(response.body.data.entry.riskRanking.severity).toBe(4);
+        expect(response.body.data.entry.riskRanking.likelihood).toBe(3);
+        expect(response.body.data.entry.riskRanking.detectability).toBe(2);
+        expect(response.body.data.entry.riskRanking.riskScore).toBe(24);
+      });
+
+      it('should calculate risk score and level automatically', async () => {
+        const existingEntry = createMockEntry();
+        const existingAnalysis = createMockAnalysis({ status: 'draft' });
+        const updatedEntry = createMockEntry({
+          riskRanking: {
+            severity: 5 as 1 | 2 | 3 | 4 | 5,
+            likelihood: 5 as 1 | 2 | 3 | 4 | 5,
+            detectability: 5 as 1 | 2 | 3 | 4 | 5,
+            riskScore: 125,
+            riskLevel: 'high' as RiskLevel,
+          },
+        });
+
+        mockFindAnalysisEntryById.mockResolvedValue(existingEntry);
+        mockFindAnalysisById.mockResolvedValue(existingAnalysis);
+        mockUserHasProjectAccess.mockResolvedValue(true);
+        mockUpdateEntryRisk.mockResolvedValue(updatedEntry);
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send({ severity: 5, likelihood: 5, detectability: 5 });
+
+        expect(response.status).toBe(200);
+        expect(mockUpdateEntryRisk).toHaveBeenCalledWith(validEntryId, expect.objectContaining({
+          severity: 5,
+          likelihood: 5,
+          detectability: 5,
+          riskScore: 125,
+          riskLevel: 'high',
+        }));
+      });
+
+      it('should allow clearing risk assessment with clear=true', async () => {
+        const existingEntry = createMockEntry();
+        const existingAnalysis = createMockAnalysis({ status: 'draft' });
+        const clearedEntry = createMockEntry({ riskRanking: null });
+
+        mockFindAnalysisEntryById.mockResolvedValue(existingEntry);
+        mockFindAnalysisById.mockResolvedValue(existingAnalysis);
+        mockUserHasProjectAccess.mockResolvedValue(true);
+        mockClearEntryRisk.mockResolvedValue(clearedEntry);
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send({ clear: true });
+
+        expect(response.status).toBe(200);
+        expect(response.body.data.entry.riskRanking).toBeNull();
+        expect(mockClearEntryRisk).toHaveBeenCalledWith(validEntryId);
+      });
+    });
+
+    describe('validation errors', () => {
+      it('should return 400 for invalid UUID format', async () => {
+        const response = await request(app)
+          .put('/entries/invalid-uuid/risk')
+          .send(validRiskData);
+
+        expect(response.status).toBe(400);
+        expect(response.body.error.code).toBe('VALIDATION_ERROR');
+        expect(response.body.error.message).toBe('Invalid entry ID format');
+      });
+
+      it('should return 400 when severity is missing', async () => {
+        const existingEntry = createMockEntry();
+        const existingAnalysis = createMockAnalysis({ status: 'draft' });
+
+        mockFindAnalysisEntryById.mockResolvedValue(existingEntry);
+        mockFindAnalysisById.mockResolvedValue(existingAnalysis);
+        mockUserHasProjectAccess.mockResolvedValue(true);
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send({ likelihood: 3, detectability: 2 });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error.code).toBe('VALIDATION_ERROR');
+        expect(response.body.error.errors).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ field: 'severity', code: 'REQUIRED' }),
+          ])
+        );
+      });
+
+      it('should return 400 when likelihood is missing', async () => {
+        const existingEntry = createMockEntry();
+        const existingAnalysis = createMockAnalysis({ status: 'draft' });
+
+        mockFindAnalysisEntryById.mockResolvedValue(existingEntry);
+        mockFindAnalysisById.mockResolvedValue(existingAnalysis);
+        mockUserHasProjectAccess.mockResolvedValue(true);
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send({ severity: 4, detectability: 2 });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error.errors).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ field: 'likelihood', code: 'REQUIRED' }),
+          ])
+        );
+      });
+
+      it('should return 400 when detectability is missing', async () => {
+        const existingEntry = createMockEntry();
+        const existingAnalysis = createMockAnalysis({ status: 'draft' });
+
+        mockFindAnalysisEntryById.mockResolvedValue(existingEntry);
+        mockFindAnalysisById.mockResolvedValue(existingAnalysis);
+        mockUserHasProjectAccess.mockResolvedValue(true);
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send({ severity: 4, likelihood: 3 });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error.errors).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ field: 'detectability', code: 'REQUIRED' }),
+          ])
+        );
+      });
+
+      it('should return 400 when severity is out of range', async () => {
+        const existingEntry = createMockEntry();
+        const existingAnalysis = createMockAnalysis({ status: 'draft' });
+
+        mockFindAnalysisEntryById.mockResolvedValue(existingEntry);
+        mockFindAnalysisById.mockResolvedValue(existingAnalysis);
+        mockUserHasProjectAccess.mockResolvedValue(true);
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send({ severity: 6, likelihood: 3, detectability: 2 });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error.errors).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ field: 'severity', code: 'OUT_OF_RANGE' }),
+          ])
+        );
+      });
+
+      it('should return 400 when likelihood is out of range', async () => {
+        const existingEntry = createMockEntry();
+        const existingAnalysis = createMockAnalysis({ status: 'draft' });
+
+        mockFindAnalysisEntryById.mockResolvedValue(existingEntry);
+        mockFindAnalysisById.mockResolvedValue(existingAnalysis);
+        mockUserHasProjectAccess.mockResolvedValue(true);
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send({ severity: 4, likelihood: 0, detectability: 2 });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error.errors).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ field: 'likelihood', code: 'OUT_OF_RANGE' }),
+          ])
+        );
+      });
+
+      it('should return 400 when detectability is not an integer', async () => {
+        const existingEntry = createMockEntry();
+        const existingAnalysis = createMockAnalysis({ status: 'draft' });
+
+        mockFindAnalysisEntryById.mockResolvedValue(existingEntry);
+        mockFindAnalysisById.mockResolvedValue(existingAnalysis);
+        mockUserHasProjectAccess.mockResolvedValue(true);
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send({ severity: 4, likelihood: 3, detectability: 'high' });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error.errors).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ field: 'detectability', code: 'INVALID_TYPE' }),
+          ])
+        );
+      });
+    });
+
+    describe('status constraints', () => {
+      it('should return 400 when analysis is not in draft status', async () => {
+        const existingEntry = createMockEntry();
+        const existingAnalysis = createMockAnalysis({ status: 'in_review' });
+
+        mockFindAnalysisEntryById.mockResolvedValue(existingEntry);
+        mockFindAnalysisById.mockResolvedValue(existingAnalysis);
+        mockUserHasProjectAccess.mockResolvedValue(true);
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send(validRiskData);
+
+        expect(response.status).toBe(400);
+        expect(response.body.error.code).toBe('INVALID_STATUS');
+        expect(response.body.error.message).toContain('draft analyses');
+      });
+
+      it('should return 400 when analysis is approved', async () => {
+        const existingEntry = createMockEntry();
+        const existingAnalysis = createMockAnalysis({ status: 'approved' });
+
+        mockFindAnalysisEntryById.mockResolvedValue(existingEntry);
+        mockFindAnalysisById.mockResolvedValue(existingAnalysis);
+        mockUserHasProjectAccess.mockResolvedValue(true);
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send(validRiskData);
+
+        expect(response.status).toBe(400);
+        expect(response.body.error.code).toBe('INVALID_STATUS');
+      });
+    });
+
+    describe('authorization', () => {
+      it('should return 404 when entry not found', async () => {
+        mockFindAnalysisEntryById.mockResolvedValue(null);
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send(validRiskData);
+
+        expect(response.status).toBe(404);
+        expect(response.body.error.code).toBe('NOT_FOUND');
+        expect(response.body.error.message).toBe('Analysis entry not found');
+      });
+
+      it('should return 404 when analysis not found', async () => {
+        const existingEntry = createMockEntry();
+
+        mockFindAnalysisEntryById.mockResolvedValue(existingEntry);
+        mockFindAnalysisById.mockResolvedValue(null);
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send(validRiskData);
+
+        expect(response.status).toBe(404);
+        expect(response.body.error.code).toBe('NOT_FOUND');
+        expect(response.body.error.message).toBe('Analysis not found');
+      });
+
+      it('should return 403 when user has no project access', async () => {
+        const existingEntry = createMockEntry();
+        const existingAnalysis = createMockAnalysis({ status: 'draft' });
+
+        mockFindAnalysisEntryById.mockResolvedValue(existingEntry);
+        mockFindAnalysisById.mockResolvedValue(existingAnalysis);
+        mockUserHasProjectAccess.mockResolvedValue(false);
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send(validRiskData);
+
+        expect(response.status).toBe(403);
+        expect(response.body.error.code).toBe('FORBIDDEN');
+      });
+    });
+
+    describe('authentication', () => {
+      it('should return 401 when not authenticated', async () => {
+        mockCurrentUser = null;
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send(validRiskData);
+
+        expect(response.status).toBe(401);
+      });
+    });
+
+    describe('error handling', () => {
+      it('should return 500 on unexpected errors', async () => {
+        const existingEntry = createMockEntry();
+        const existingAnalysis = createMockAnalysis({ status: 'draft' });
+
+        mockFindAnalysisEntryById.mockResolvedValue(existingEntry);
+        mockFindAnalysisById.mockResolvedValue(existingAnalysis);
+        mockUserHasProjectAccess.mockResolvedValue(true);
+        mockUpdateEntryRisk.mockRejectedValue(new Error('Unexpected error'));
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send(validRiskData);
+
+        expect(response.status).toBe(500);
+        expect(response.body.error.code).toBe('INTERNAL_ERROR');
+      });
+
+      it('should return 404 if entry deleted between find and update (race condition)', async () => {
+        const existingEntry = createMockEntry();
+        const existingAnalysis = createMockAnalysis({ status: 'draft' });
+
+        mockFindAnalysisEntryById.mockResolvedValue(existingEntry);
+        mockFindAnalysisById.mockResolvedValue(existingAnalysis);
+        mockUserHasProjectAccess.mockResolvedValue(true);
+        mockUpdateEntryRisk.mockResolvedValue(null);
+
+        const response = await request(app)
+          .put(`/entries/${validEntryId}/risk`)
+          .send(validRiskData);
 
         expect(response.status).toBe(404);
         expect(response.body.error.code).toBe('NOT_FOUND');

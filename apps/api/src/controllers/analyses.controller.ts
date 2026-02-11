@@ -28,7 +28,13 @@ import {
   findAnalysisEntryById,
   updateAnalysisEntry as updateAnalysisEntryService,
   deleteAnalysisEntry as deleteAnalysisEntryService,
+  updateEntryRisk as updateEntryRiskService,
+  clearEntryRisk as clearEntryRiskService,
 } from '../services/hazop-analysis.service.js';
+import {
+  calculateRiskRanking,
+  validateRiskFactors,
+} from '../services/risk-calculation.service.js';
 import {
   userHasProjectAccess,
   findProjectById,
@@ -91,6 +97,17 @@ interface UpdateAnalysisEntryBody {
   safeguards?: unknown;
   recommendations?: unknown;
   notes?: unknown;
+}
+
+/**
+ * Request body for updating the risk ranking of an analysis entry.
+ * All three factors are required. Setting clear=true will remove the risk assessment.
+ */
+interface UpdateEntryRiskBody {
+  severity?: unknown;
+  likelihood?: unknown;
+  detectability?: unknown;
+  clear?: unknown;
 }
 
 /**
@@ -2186,6 +2203,266 @@ export async function deleteEntry(req: Request, res: Response): Promise<void> {
     });
   } catch (error) {
     console.error('Delete analysis entry error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+/**
+ * PUT /entries/:id/risk
+ * Update the risk ranking for an analysis entry.
+ *
+ * Risk assessment uses severity × likelihood × detectability methodology:
+ * - Severity (1-5): Impact of consequence
+ * - Likelihood (1-5): Probability of occurrence
+ * - Detectability (1-5): Ability to detect before impact
+ * - Risk Score is calculated automatically (1-125)
+ * - Risk Level is determined automatically (low, medium, high)
+ *
+ * To clear the risk assessment, set clear=true in the request body.
+ *
+ * Only entries in draft analyses can have their risk updated.
+ */
+export async function updateEntryRisk(req: Request, res: Response): Promise<void> {
+  try {
+    const { id: entryId } = req.params;
+    const body = req.body as UpdateEntryRiskBody;
+
+    // Get authenticated user ID
+    const userId = (req.user as { id: string } | undefined)?.id;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required',
+        },
+      });
+      return;
+    }
+
+    // Validate UUID format
+    if (!UUID_REGEX.test(entryId)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid entry ID format',
+          errors: [
+            {
+              field: 'id',
+              message: 'Entry ID must be a valid UUID',
+              code: 'INVALID_FORMAT',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    // Find the entry to check existence
+    const existingEntry = await findAnalysisEntryById(entryId);
+    if (!existingEntry) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Analysis entry not found',
+        },
+      });
+      return;
+    }
+
+    // Find the analysis to check status and project access
+    const existingAnalysis = await findAnalysisById(existingEntry.analysisId);
+    if (!existingAnalysis) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Analysis not found',
+        },
+      });
+      return;
+    }
+
+    // Check if user has access to the project that owns this analysis
+    const hasAccess = await userHasProjectAccess(userId, existingAnalysis.projectId);
+    if (!hasAccess) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this analysis',
+        },
+      });
+      return;
+    }
+
+    // Only allow updates to entries in draft analyses
+    if (existingAnalysis.status !== 'draft') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_STATUS',
+          message:
+            'Can only update risk in draft analyses. Current status: ' + existingAnalysis.status,
+        },
+      });
+      return;
+    }
+
+    // Handle clear request - remove risk assessment
+    if (body.clear === true) {
+      const clearedEntry = await clearEntryRiskService(entryId);
+      if (!clearedEntry) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Analysis entry not found',
+          },
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: { entry: clearedEntry },
+      });
+      return;
+    }
+
+    // Validate required fields for risk assessment
+    const errors: FieldError[] = [];
+
+    // Validate severity (required, must be 1-5)
+    if (body.severity === undefined || body.severity === null) {
+      errors.push({
+        field: 'severity',
+        message: 'Severity is required',
+        code: 'REQUIRED',
+      });
+    } else if (typeof body.severity !== 'number' || !Number.isInteger(body.severity)) {
+      errors.push({
+        field: 'severity',
+        message: 'Severity must be an integer',
+        code: 'INVALID_TYPE',
+      });
+    } else if (body.severity < 1 || body.severity > 5) {
+      errors.push({
+        field: 'severity',
+        message: 'Severity must be between 1 and 5',
+        code: 'OUT_OF_RANGE',
+      });
+    }
+
+    // Validate likelihood (required, must be 1-5)
+    if (body.likelihood === undefined || body.likelihood === null) {
+      errors.push({
+        field: 'likelihood',
+        message: 'Likelihood is required',
+        code: 'REQUIRED',
+      });
+    } else if (typeof body.likelihood !== 'number' || !Number.isInteger(body.likelihood)) {
+      errors.push({
+        field: 'likelihood',
+        message: 'Likelihood must be an integer',
+        code: 'INVALID_TYPE',
+      });
+    } else if (body.likelihood < 1 || body.likelihood > 5) {
+      errors.push({
+        field: 'likelihood',
+        message: 'Likelihood must be between 1 and 5',
+        code: 'OUT_OF_RANGE',
+      });
+    }
+
+    // Validate detectability (required, must be 1-5)
+    if (body.detectability === undefined || body.detectability === null) {
+      errors.push({
+        field: 'detectability',
+        message: 'Detectability is required',
+        code: 'REQUIRED',
+      });
+    } else if (typeof body.detectability !== 'number' || !Number.isInteger(body.detectability)) {
+      errors.push({
+        field: 'detectability',
+        message: 'Detectability must be an integer',
+        code: 'INVALID_TYPE',
+      });
+    } else if (body.detectability < 1 || body.detectability > 5) {
+      errors.push({
+        field: 'detectability',
+        message: 'Detectability must be between 1 and 5',
+        code: 'OUT_OF_RANGE',
+      });
+    }
+
+    if (errors.length > 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          errors,
+        },
+      });
+      return;
+    }
+
+    // Validate risk factors using the risk calculation service
+    const severity = body.severity as 1 | 2 | 3 | 4 | 5;
+    const likelihood = body.likelihood as 1 | 2 | 3 | 4 | 5;
+    const detectability = body.detectability as 1 | 2 | 3 | 4 | 5;
+
+    const validation = validateRiskFactors(severity, likelihood, detectability);
+    if (!validation.valid) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: validation.error || 'Invalid risk factors',
+        },
+      });
+      return;
+    }
+
+    // Calculate the risk ranking
+    const riskRanking = calculateRiskRanking(severity, likelihood, detectability);
+
+    // Update the entry with the risk data
+    const updatedEntry = await updateEntryRiskService(entryId, {
+      severity: riskRanking.severity,
+      likelihood: riskRanking.likelihood,
+      detectability: riskRanking.detectability,
+      riskScore: riskRanking.riskScore,
+      riskLevel: riskRanking.riskLevel,
+    });
+
+    if (!updatedEntry) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Analysis entry not found',
+        },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { entry: updatedEntry },
+    });
+  } catch (error) {
+    console.error('Update entry risk error:', error);
 
     res.status(500).json({
       success: false,
