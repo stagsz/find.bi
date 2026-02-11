@@ -853,3 +853,536 @@ function calculatePercentiles(sortedScores: number[]): ScorePercentiles | null {
     p95: getPercentile(95),
   };
 }
+
+// ============================================================================
+// Project-Level Risk Dashboard Types (RISK-07)
+// ============================================================================
+
+/**
+ * Summary of an individual analysis within a project for the dashboard.
+ */
+export interface AnalysisRiskSummary {
+  /** Analysis session ID */
+  analysisId: string;
+  /** Analysis session name */
+  analysisName: string;
+  /** Analysis status */
+  status: string;
+  /** Lead analyst ID */
+  leadAnalystId: string;
+  /** Lead analyst name */
+  leadAnalystName: string;
+  /** Total entries in this analysis */
+  entryCount: number;
+  /** Assessed entries in this analysis */
+  assessedEntries: number;
+  /** Count of high risk entries */
+  highRiskCount: number;
+  /** Count of medium risk entries */
+  mediumRiskCount: number;
+  /** Count of low risk entries */
+  lowRiskCount: number;
+  /** Maximum risk score in this analysis (null if no assessed entries) */
+  maxRiskScore: number | null;
+  /** Overall risk level for this analysis (based on max score) */
+  overallRiskLevel: RiskLevel | null;
+  /** When the analysis was created */
+  createdAt: Date;
+  /** When the analysis was last updated */
+  updatedAt: Date;
+}
+
+/**
+ * Comprehensive risk dashboard for a project.
+ * Aggregates risk data across all analyses in the project.
+ */
+export interface ProjectRiskDashboard {
+  /** Project ID */
+  projectId: string;
+  /** Project name */
+  projectName: string;
+  /** Aggregated statistics across all analyses */
+  statistics: {
+    /** Total number of analyses in the project */
+    totalAnalyses: number;
+    /** Number of analyses currently in draft status */
+    draftAnalyses: number;
+    /** Number of analyses in review */
+    inReviewAnalyses: number;
+    /** Number of approved analyses */
+    approvedAnalyses: number;
+    /** Total entries across all analyses */
+    totalEntries: number;
+    /** Entries with risk assessment */
+    assessedEntries: number;
+    /** Entries without risk assessment */
+    unassessedEntries: number;
+    /** Count of high risk entries across project */
+    highRiskCount: number;
+    /** Count of medium risk entries across project */
+    mediumRiskCount: number;
+    /** Count of low risk entries across project */
+    lowRiskCount: number;
+    /** Average risk score across project (null if no assessed entries) */
+    averageRiskScore: number | null;
+    /** Maximum risk score in project (null if no assessed entries) */
+    maxRiskScore: number | null;
+    /** Minimum risk score in project (null if no assessed entries) */
+    minRiskScore: number | null;
+  };
+  /** Risk level distribution as percentages (null if no assessed entries) */
+  distribution: RiskDistribution | null;
+  /** Score percentiles across all analyses (null if no assessed entries) */
+  percentiles: ScorePercentiles | null;
+  /** Per-analysis summaries ordered by max risk score descending */
+  analysisSummaries: AnalysisRiskSummary[];
+  /** Risk aggregated by node across all analyses */
+  byNode: NodeRiskSummary[];
+  /** Risk aggregated by guide word across all analyses */
+  byGuideWord: GuideWordRiskSummary[];
+  /** Top 20 highest risk entries across all analyses */
+  highestRiskEntries: ProjectHighRiskEntry[];
+  /** Threshold configuration used for classification */
+  thresholds: RiskThresholdConfig;
+}
+
+/**
+ * High risk entry with analysis name for project-level view.
+ */
+export interface ProjectHighRiskEntry extends HighRiskEntry {
+  /** Analysis session ID (inherited from HighRiskEntry as analysisId is on the entry) */
+  analysisId: string;
+  /** Analysis session name */
+  analysisName: string;
+}
+
+// ============================================================================
+// Project-Level Risk Dashboard Function (RISK-07)
+// ============================================================================
+
+/**
+ * Database row types for project risk dashboard queries.
+ */
+interface ProjectAnalysisRow {
+  id: string;
+  name: string;
+  status: string;
+  lead_analyst_id: string;
+  lead_analyst_name: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+interface ProjectRiskStatsRow {
+  total_entries: string;
+  assessed_entries: string;
+  high_risk_count: string;
+  medium_risk_count: string;
+  low_risk_count: string;
+  avg_risk_score: string | null;
+  max_risk_score: string | null;
+  min_risk_score: string | null;
+}
+
+interface AnalysisRiskStatsRow {
+  analysis_id: string;
+  entry_count: string;
+  assessed_count: string;
+  high_risk_count: string;
+  medium_risk_count: string;
+  low_risk_count: string;
+  max_risk_score: string | null;
+}
+
+interface ProjectNodeRiskRow {
+  node_id: string;
+  node_identifier: string;
+  node_description: string | null;
+  equipment_type: string;
+  entry_count: string;
+  assessed_count: string;
+  high_risk_count: string;
+  medium_risk_count: string;
+  low_risk_count: string;
+  avg_risk_score: string | null;
+  max_risk_score: string | null;
+}
+
+interface ProjectGuideWordRiskRow {
+  guide_word: GuideWord;
+  entry_count: string;
+  assessed_count: string;
+  high_risk_count: string;
+  medium_risk_count: string;
+  low_risk_count: string;
+  avg_risk_score: string | null;
+  max_risk_score: string | null;
+}
+
+interface ProjectHighRiskEntryRow {
+  id: string;
+  analysis_id: string;
+  analysis_name: string;
+  node_id: string;
+  node_identifier: string;
+  guide_word: GuideWord;
+  parameter: string;
+  severity: number;
+  likelihood: number;
+  detectability: number;
+  risk_score: number;
+  risk_level: RiskLevel;
+}
+
+/**
+ * Get comprehensive risk dashboard for a project.
+ *
+ * Aggregates all risk data across all analyses in the project, including:
+ * - Overall statistics (counts, averages, min/max)
+ * - Risk level distribution
+ * - Score percentiles
+ * - Per-analysis summaries
+ * - Breakdown by node
+ * - Breakdown by guide word
+ * - List of highest risk entries
+ *
+ * @param projectId - The project ID
+ * @param thresholdConfig - Optional custom threshold configuration (defaults to standard)
+ * @returns Comprehensive project risk dashboard, or null if project not found
+ */
+export async function getProjectRiskDashboard(
+  projectId: string,
+  thresholdConfig?: RiskThresholdConfig
+): Promise<ProjectRiskDashboard | null> {
+  const pool = getPool();
+  const thresholds = thresholdConfig ?? getDefaultRiskThresholds();
+
+  // Check if project exists and get its name
+  const projectResult = await pool.query<{ name: string }>(
+    `SELECT name FROM hazop.projects WHERE id = $1`,
+    [projectId]
+  );
+
+  if (projectResult.rows.length === 0) {
+    return null;
+  }
+
+  const projectName = projectResult.rows[0].name;
+
+  // Execute all queries in parallel for efficiency
+  const [
+    analysesResult,
+    overallStatsResult,
+    analysisStatsResult,
+    allScoresResult,
+    byNodeResult,
+    byGuideWordResult,
+    highestRiskResult,
+  ] = await Promise.all([
+    // Get all analyses for the project with lead analyst name
+    pool.query<ProjectAnalysisRow>(
+      `SELECT
+         ha.id,
+         ha.name,
+         ha.status,
+         ha.lead_analyst_id,
+         u.name AS lead_analyst_name,
+         ha.created_at,
+         ha.updated_at
+       FROM hazop.hazop_analyses ha
+       JOIN hazop.users u ON ha.lead_analyst_id = u.id
+       WHERE ha.project_id = $1
+       ORDER BY ha.created_at DESC`,
+      [projectId]
+    ),
+
+    // Overall risk statistics across all analyses
+    pool.query<ProjectRiskStatsRow>(
+      `SELECT
+         COUNT(*) AS total_entries,
+         COUNT(ae.risk_score) AS assessed_entries,
+         COUNT(*) FILTER (WHERE ae.risk_level = 'high') AS high_risk_count,
+         COUNT(*) FILTER (WHERE ae.risk_level = 'medium') AS medium_risk_count,
+         COUNT(*) FILTER (WHERE ae.risk_level = 'low') AS low_risk_count,
+         AVG(ae.risk_score) AS avg_risk_score,
+         MAX(ae.risk_score) AS max_risk_score,
+         MIN(ae.risk_score) AS min_risk_score
+       FROM hazop.analysis_entries ae
+       JOIN hazop.hazop_analyses ha ON ae.analysis_id = ha.id
+       WHERE ha.project_id = $1`,
+      [projectId]
+    ),
+
+    // Per-analysis statistics
+    pool.query<AnalysisRiskStatsRow>(
+      `SELECT
+         ha.id AS analysis_id,
+         COUNT(ae.id) AS entry_count,
+         COUNT(ae.risk_score) AS assessed_count,
+         COUNT(*) FILTER (WHERE ae.risk_level = 'high') AS high_risk_count,
+         COUNT(*) FILTER (WHERE ae.risk_level = 'medium') AS medium_risk_count,
+         COUNT(*) FILTER (WHERE ae.risk_level = 'low') AS low_risk_count,
+         MAX(ae.risk_score) AS max_risk_score
+       FROM hazop.hazop_analyses ha
+       LEFT JOIN hazop.analysis_entries ae ON ae.analysis_id = ha.id
+       WHERE ha.project_id = $1
+       GROUP BY ha.id`,
+      [projectId]
+    ),
+
+    // All risk scores for percentile calculation
+    pool.query<{ risk_score: number }>(
+      `SELECT ae.risk_score
+       FROM hazop.analysis_entries ae
+       JOIN hazop.hazop_analyses ha ON ae.analysis_id = ha.id
+       WHERE ha.project_id = $1 AND ae.risk_score IS NOT NULL
+       ORDER BY ae.risk_score`,
+      [projectId]
+    ),
+
+    // By node across all analyses
+    pool.query<ProjectNodeRiskRow>(
+      `SELECT
+         an.id AS node_id,
+         an.node_identifier,
+         an.description AS node_description,
+         an.equipment_type,
+         COUNT(ae.id) AS entry_count,
+         COUNT(ae.risk_score) AS assessed_count,
+         COUNT(*) FILTER (WHERE ae.risk_level = 'high') AS high_risk_count,
+         COUNT(*) FILTER (WHERE ae.risk_level = 'medium') AS medium_risk_count,
+         COUNT(*) FILTER (WHERE ae.risk_level = 'low') AS low_risk_count,
+         AVG(ae.risk_score) AS avg_risk_score,
+         MAX(ae.risk_score) AS max_risk_score
+       FROM hazop.analysis_nodes an
+       JOIN hazop.pid_documents pd ON an.document_id = pd.id
+       LEFT JOIN hazop.analysis_entries ae ON ae.node_id = an.id
+       WHERE pd.project_id = $1
+       GROUP BY an.id, an.node_identifier, an.description, an.equipment_type
+       HAVING COUNT(ae.id) > 0
+       ORDER BY MAX(ae.risk_score) DESC NULLS LAST, an.node_identifier`,
+      [projectId]
+    ),
+
+    // By guide word across all analyses
+    pool.query<ProjectGuideWordRiskRow>(
+      `SELECT
+         ae.guide_word,
+         COUNT(*) AS entry_count,
+         COUNT(ae.risk_score) AS assessed_count,
+         COUNT(*) FILTER (WHERE ae.risk_level = 'high') AS high_risk_count,
+         COUNT(*) FILTER (WHERE ae.risk_level = 'medium') AS medium_risk_count,
+         COUNT(*) FILTER (WHERE ae.risk_level = 'low') AS low_risk_count,
+         AVG(ae.risk_score) AS avg_risk_score,
+         MAX(ae.risk_score) AS max_risk_score
+       FROM hazop.analysis_entries ae
+       JOIN hazop.hazop_analyses ha ON ae.analysis_id = ha.id
+       WHERE ha.project_id = $1
+       GROUP BY ae.guide_word
+       ORDER BY MAX(ae.risk_score) DESC NULLS LAST`,
+      [projectId]
+    ),
+
+    // Highest risk entries across project (top 20)
+    pool.query<ProjectHighRiskEntryRow>(
+      `SELECT
+         ae.id,
+         ae.analysis_id,
+         ha.name AS analysis_name,
+         ae.node_id,
+         an.node_identifier,
+         ae.guide_word,
+         ae.parameter,
+         ae.severity,
+         ae.likelihood,
+         ae.detectability,
+         ae.risk_score,
+         ae.risk_level
+       FROM hazop.analysis_entries ae
+       JOIN hazop.hazop_analyses ha ON ae.analysis_id = ha.id
+       JOIN hazop.analysis_nodes an ON ae.node_id = an.id
+       WHERE ha.project_id = $1 AND ae.risk_score IS NOT NULL
+       ORDER BY ae.risk_score DESC
+       LIMIT 20`,
+      [projectId]
+    ),
+  ]);
+
+  // Build analysis stats lookup map
+  const analysisStatsMap = new Map<string, AnalysisRiskStatsRow>();
+  for (const row of analysisStatsResult.rows) {
+    analysisStatsMap.set(row.analysis_id, row);
+  }
+
+  // Count analyses by status
+  let draftCount = 0;
+  let inReviewCount = 0;
+  let approvedCount = 0;
+  for (const analysis of analysesResult.rows) {
+    switch (analysis.status) {
+      case 'draft':
+        draftCount++;
+        break;
+      case 'in_review':
+        inReviewCount++;
+        break;
+      case 'approved':
+        approvedCount++;
+        break;
+    }
+  }
+
+  // Parse overall statistics
+  const statsRow = overallStatsResult.rows[0];
+  const totalEntries = parseInt(statsRow?.total_entries || '0', 10);
+  const assessedEntries = parseInt(statsRow?.assessed_entries || '0', 10);
+  const unassessedEntries = totalEntries - assessedEntries;
+  const highRiskCount = parseInt(statsRow?.high_risk_count || '0', 10);
+  const mediumRiskCount = parseInt(statsRow?.medium_risk_count || '0', 10);
+  const lowRiskCount = parseInt(statsRow?.low_risk_count || '0', 10);
+  const averageRiskScore = statsRow?.avg_risk_score !== null
+    ? parseFloat(statsRow.avg_risk_score)
+    : null;
+  const maxRiskScore = statsRow?.max_risk_score !== null
+    ? parseInt(statsRow.max_risk_score, 10)
+    : null;
+  const minRiskScore = statsRow?.min_risk_score !== null
+    ? parseInt(statsRow.min_risk_score, 10)
+    : null;
+
+  // Calculate distribution
+  let distribution: RiskDistribution | null = null;
+  if (assessedEntries > 0) {
+    distribution = {
+      low: (lowRiskCount / assessedEntries) * 100,
+      medium: (mediumRiskCount / assessedEntries) * 100,
+      high: (highRiskCount / assessedEntries) * 100,
+    };
+  }
+
+  // Calculate percentiles
+  const scores = allScoresResult.rows.map((r) => r.risk_score);
+  const percentiles = calculatePercentiles(scores);
+
+  // Build analysis summaries with risk stats
+  const analysisSummaries: AnalysisRiskSummary[] = analysesResult.rows.map((analysis) => {
+    const stats = analysisStatsMap.get(analysis.id);
+    const maxScore = stats?.max_risk_score !== null && stats?.max_risk_score !== undefined
+      ? parseInt(stats.max_risk_score, 10)
+      : null;
+
+    return {
+      analysisId: analysis.id,
+      analysisName: analysis.name,
+      status: analysis.status,
+      leadAnalystId: analysis.lead_analyst_id,
+      leadAnalystName: analysis.lead_analyst_name,
+      entryCount: parseInt(stats?.entry_count || '0', 10),
+      assessedEntries: parseInt(stats?.assessed_count || '0', 10),
+      highRiskCount: parseInt(stats?.high_risk_count || '0', 10),
+      mediumRiskCount: parseInt(stats?.medium_risk_count || '0', 10),
+      lowRiskCount: parseInt(stats?.low_risk_count || '0', 10),
+      maxRiskScore: maxScore,
+      overallRiskLevel: maxScore !== null
+        ? determineRiskLevelWithConfig(maxScore, thresholds)
+        : null,
+      createdAt: analysis.created_at,
+      updatedAt: analysis.updated_at,
+    };
+  });
+
+  // Sort analysis summaries by max risk score descending, nulls last
+  analysisSummaries.sort((a, b) => {
+    if (a.maxRiskScore === null && b.maxRiskScore === null) return 0;
+    if (a.maxRiskScore === null) return 1;
+    if (b.maxRiskScore === null) return -1;
+    return b.maxRiskScore - a.maxRiskScore;
+  });
+
+  // Map node summaries
+  const byNode: NodeRiskSummary[] = byNodeResult.rows.map((row) => {
+    const maxScore = row.max_risk_score !== null
+      ? parseInt(row.max_risk_score, 10)
+      : null;
+
+    return {
+      nodeId: row.node_id,
+      nodeIdentifier: row.node_identifier,
+      nodeDescription: row.node_description,
+      equipmentType: row.equipment_type,
+      entryCount: parseInt(row.entry_count, 10),
+      assessedCount: parseInt(row.assessed_count, 10),
+      highRiskCount: parseInt(row.high_risk_count, 10),
+      mediumRiskCount: parseInt(row.medium_risk_count, 10),
+      lowRiskCount: parseInt(row.low_risk_count, 10),
+      averageRiskScore: row.avg_risk_score !== null
+        ? parseFloat(row.avg_risk_score)
+        : null,
+      maxRiskScore: maxScore,
+      overallRiskLevel: maxScore !== null
+        ? determineRiskLevelWithConfig(maxScore, thresholds)
+        : null,
+    };
+  });
+
+  // Map guide word summaries
+  const byGuideWord: GuideWordRiskSummary[] = byGuideWordResult.rows.map((row) => ({
+    guideWord: row.guide_word,
+    entryCount: parseInt(row.entry_count, 10),
+    assessedCount: parseInt(row.assessed_count, 10),
+    highRiskCount: parseInt(row.high_risk_count, 10),
+    mediumRiskCount: parseInt(row.medium_risk_count, 10),
+    lowRiskCount: parseInt(row.low_risk_count, 10),
+    averageRiskScore: row.avg_risk_score !== null
+      ? parseFloat(row.avg_risk_score)
+      : null,
+    maxRiskScore: row.max_risk_score !== null
+      ? parseInt(row.max_risk_score, 10)
+      : null,
+  }));
+
+  // Map highest risk entries
+  const highestRiskEntries: ProjectHighRiskEntry[] = highestRiskResult.rows.map((row) => ({
+    entryId: row.id,
+    analysisId: row.analysis_id,
+    analysisName: row.analysis_name,
+    nodeId: row.node_id,
+    nodeIdentifier: row.node_identifier,
+    guideWord: row.guide_word,
+    parameter: row.parameter,
+    riskRanking: {
+      severity: row.severity as 1 | 2 | 3 | 4 | 5,
+      likelihood: row.likelihood as 1 | 2 | 3 | 4 | 5,
+      detectability: row.detectability as 1 | 2 | 3 | 4 | 5,
+      riskScore: row.risk_score,
+      riskLevel: row.risk_level,
+    },
+  }));
+
+  return {
+    projectId,
+    projectName,
+    statistics: {
+      totalAnalyses: analysesResult.rows.length,
+      draftAnalyses: draftCount,
+      inReviewAnalyses: inReviewCount,
+      approvedAnalyses: approvedCount,
+      totalEntries,
+      assessedEntries,
+      unassessedEntries,
+      highRiskCount,
+      mediumRiskCount,
+      lowRiskCount,
+      averageRiskScore,
+      maxRiskScore,
+      minRiskScore,
+    },
+    distribution,
+    percentiles,
+    analysisSummaries,
+    byNode,
+    byGuideWord,
+    highestRiskEntries,
+    thresholds,
+  };
+}

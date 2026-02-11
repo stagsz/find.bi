@@ -11,7 +11,7 @@
 
 import { Router } from 'express';
 import { authenticate, requireAuth } from '../middleware/auth.middleware.js';
-import { listProjects, createProject, getProjectById, updateProject, deleteProject, addMember, removeMember, listMembers } from '../controllers/projects.controller.js';
+import { listProjects, createProject, getProjectById, updateProject, deleteProject, addMember, removeMember, listMembers, getProjectRiskDashboardController } from '../controllers/projects.controller.js';
 import { listDocuments, uploadDocument } from '../controllers/documents.controller.js';
 import { createAnalysis, listAnalyses } from '../controllers/analyses.controller.js';
 import { uploadPID, handleMulterError, validatePIDUpload } from '../middleware/upload.middleware.js';
@@ -102,6 +102,25 @@ router.delete('/:id', authenticate, requireAuth, deleteProject);
  * Returns array of members with user info.
  */
 router.get('/:id/members', authenticate, requireAuth, listMembers);
+
+/**
+ * GET /projects/:id/risk-dashboard
+ * Get project-level risk metrics aggregated across all analyses.
+ *
+ * Path parameters:
+ * - id: string (required) - Project UUID
+ *
+ * Returns comprehensive risk dashboard including:
+ * - Overall statistics (total analyses, entries, risk counts)
+ * - Risk level distribution percentages
+ * - Score percentiles
+ * - Per-analysis summaries with risk levels
+ * - Breakdowns by node and guide word
+ * - Top 20 highest risk entries across the project
+ *
+ * Only accessible to project members.
+ */
+router.get('/:id/risk-dashboard', authenticate, requireAuth, getProjectRiskDashboardController);
 
 /**
  * POST /projects/:id/members
