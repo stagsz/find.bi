@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 8 - Real-time Collaboration
-**Progress**: Phase 8 in progress - 4/16 tasks complete
-**Last Completed**: COLLAB-04 - Implement cursor position sharing (5a01b5a - included in COLLAB-02)
-**Next Task**: COLLAB-05 - Create conflict detection for concurrent edits
+**Progress**: Phase 8 in progress - 5/16 tasks complete
+**Last Completed**: COLLAB-05 - Create conflict detection for concurrent edits (3d3ae3b)
+**Next Task**: COLLAB-06 - Create POST /analyses/:id/collaborate endpoint (start session)
 
 ---
 
@@ -297,7 +297,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] COLLAB-02: Create collaboration room management (create, join, leave) (5a01b5a)
 - [x] COLLAB-03: Implement real-time analysis entry updates broadcast (572822a)
 - [x] COLLAB-04: Implement cursor position sharing (5a01b5a - included in COLLAB-02)
-- [ ] COLLAB-05: Create conflict detection for concurrent edits
+- [x] COLLAB-05: Create conflict detection for concurrent edits (3d3ae3b)
 
 ### Backend API
 - [ ] COLLAB-06: Create POST /analyses/:id/collaborate endpoint (start session)
@@ -573,3 +573,4 @@ _No blockers currently._
 | COLLAB-02: Create collaboration room management (create, join, leave) | 5a01b5a | 2026-02-11 |
 | COLLAB-03: Implement real-time analysis entry updates broadcast | 572822a | 2026-02-11 |
 | COLLAB-04: Implement cursor position sharing (included in COLLAB-02) | 5a01b5a | 2026-02-11 |
+| COLLAB-05: Create conflict detection for concurrent edits | 3d3ae3b | 2026-02-11 |
