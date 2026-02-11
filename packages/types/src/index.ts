@@ -88,6 +88,10 @@ export type {
   CreateAnalysisEntryPayload,
   UpdateAnalysisEntryPayload,
   UpdateRiskRankingPayload,
+  // 5x5 Risk Matrix types
+  RiskMatrixCell,
+  RiskMatrixRow,
+  RiskMatrix,
 } from './hazop-analysis.js';
 
 export {
@@ -108,6 +112,9 @@ export {
   RISK_THRESHOLDS,
   ANALYSIS_STATUSES,
   ANALYSIS_STATUS_LABELS,
+  // 5x5 Risk Matrix constants
+  RISK_MATRIX_THRESHOLDS,
+  RISK_MATRIX_MAPPING,
 } from './hazop-analysis.js';
 
 // Report types

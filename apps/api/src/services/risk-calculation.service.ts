@@ -18,6 +18,9 @@ import {
   type DetectabilityLevel,
   type RiskLevel,
   type RiskRanking,
+  type RiskMatrixCell,
+  type RiskMatrixRow,
+  type RiskMatrix,
   SEVERITY_LEVELS,
   LIKELIHOOD_LEVELS,
   DETECTABILITY_LEVELS,
@@ -29,6 +32,8 @@ import {
   DETECTABILITY_LABELS,
   DETECTABILITY_DESCRIPTIONS,
   RISK_LEVEL_LABELS,
+  RISK_MATRIX_MAPPING,
+  RISK_MATRIX_THRESHOLDS,
 } from '@hazop/types';
 
 // ============================================================================
@@ -519,4 +524,248 @@ export function getRiskDistribution(
     medium: (stats.mediumRiskCount / stats.assessedEntries) * 100,
     high: (stats.highRiskCount / stats.assessedEntries) * 100,
   };
+}
+
+// ============================================================================
+// 5x5 Risk Matrix Functions
+// ============================================================================
+
+/**
+ * Get the risk level from the 5x5 risk matrix for a severity/likelihood combination.
+ *
+ * This provides a 2D risk classification based only on severity and likelihood,
+ * without considering detectability. Useful for quick visualization and
+ * initial risk assessment.
+ *
+ * @param severity - Severity level (1-5)
+ * @param likelihood - Likelihood level (1-5)
+ * @returns The risk level from the matrix
+ * @throws Error if severity or likelihood is invalid
+ */
+export function getRiskLevelFromMatrix(
+  severity: SeverityLevel,
+  likelihood: LikelihoodLevel
+): RiskLevel {
+  if (!isValidSeverityLevel(severity)) {
+    throw new Error(`Invalid severity level: ${severity}. Must be 1-5.`);
+  }
+  if (!isValidLikelihoodLevel(likelihood)) {
+    throw new Error(`Invalid likelihood level: ${likelihood}. Must be 1-5.`);
+  }
+
+  return RISK_MATRIX_MAPPING[severity][likelihood];
+}
+
+/**
+ * Calculate the base risk score (severity × likelihood) without detectability.
+ *
+ * This is the score used in the 5x5 risk matrix and ranges from 1-25.
+ *
+ * @param severity - Severity level (1-5)
+ * @param likelihood - Likelihood level (1-5)
+ * @returns The base risk score (1-25)
+ * @throws Error if severity or likelihood is invalid
+ */
+export function calculateBaseRiskScore(
+  severity: SeverityLevel,
+  likelihood: LikelihoodLevel
+): number {
+  if (!isValidSeverityLevel(severity)) {
+    throw new Error(`Invalid severity level: ${severity}. Must be 1-5.`);
+  }
+  if (!isValidLikelihoodLevel(likelihood)) {
+    throw new Error(`Invalid likelihood level: ${likelihood}. Must be 1-5.`);
+  }
+
+  return severity * likelihood;
+}
+
+/**
+ * Determine risk level from base score using matrix thresholds.
+ *
+ * Uses the 2D thresholds (1-25 range) rather than the full 3D thresholds (1-125 range).
+ * - Low: 1-4
+ * - Medium: 5-14
+ * - High: 15-25
+ *
+ * @param baseScore - The base risk score (1-25)
+ * @returns The risk level
+ * @throws Error if base score is outside valid range
+ */
+export function determineRiskLevelFromBaseScore(baseScore: number): RiskLevel {
+  if (!Number.isInteger(baseScore) || baseScore < 1 || baseScore > 25) {
+    throw new Error(`Invalid base risk score: ${baseScore}. Must be an integer between 1 and 25.`);
+  }
+
+  if (baseScore <= RISK_MATRIX_THRESHOLDS.low.max) {
+    return 'low';
+  }
+  if (baseScore <= RISK_MATRIX_THRESHOLDS.medium.max) {
+    return 'medium';
+  }
+  return 'high';
+}
+
+/**
+ * Generate a single cell for the risk matrix.
+ *
+ * @param severity - Severity level (1-5)
+ * @param likelihood - Likelihood level (1-5)
+ * @returns A complete risk matrix cell
+ */
+export function generateRiskMatrixCell(
+  severity: SeverityLevel,
+  likelihood: LikelihoodLevel
+): RiskMatrixCell {
+  const baseScore = calculateBaseRiskScore(severity, likelihood);
+
+  return {
+    severity,
+    likelihood,
+    riskLevel: RISK_MATRIX_MAPPING[severity][likelihood],
+    baseScore,
+  };
+}
+
+/**
+ * Generate a complete row for the risk matrix at a given severity level.
+ *
+ * @param severity - The severity level for this row (1-5)
+ * @returns A complete risk matrix row
+ */
+export function generateRiskMatrixRow(severity: SeverityLevel): RiskMatrixRow {
+  const cells = LIKELIHOOD_LEVELS.map((likelihood) =>
+    generateRiskMatrixCell(severity, likelihood)
+  ) as [RiskMatrixCell, RiskMatrixCell, RiskMatrixCell, RiskMatrixCell, RiskMatrixCell];
+
+  return {
+    severity,
+    severityLabel: SEVERITY_LABELS[severity],
+    cells,
+  };
+}
+
+/**
+ * Generate the complete 5x5 risk matrix.
+ *
+ * The matrix is organized with:
+ * - Rows: Severity levels (5 down to 1, highest at top)
+ * - Columns: Likelihood levels (1 to 5, left to right)
+ *
+ * Each cell contains the risk level and base score for that combination.
+ *
+ * @returns The complete 5x5 risk matrix structure
+ */
+export function generateRiskMatrix(): RiskMatrix {
+  // Generate rows from severity 5 down to 1 (highest at top)
+  const rows = ([5, 4, 3, 2, 1] as SeverityLevel[]).map((severity) =>
+    generateRiskMatrixRow(severity)
+  ) as [RiskMatrixRow, RiskMatrixRow, RiskMatrixRow, RiskMatrixRow, RiskMatrixRow];
+
+  // Generate column headers
+  const columns = LIKELIHOOD_LEVELS.map((level) => ({
+    level,
+    label: LIKELIHOOD_LABELS[level],
+  }));
+
+  // Count cells by risk level
+  let lowRiskCells = 0;
+  let mediumRiskCells = 0;
+  let highRiskCells = 0;
+
+  for (const row of rows) {
+    for (const cell of row.cells) {
+      switch (cell.riskLevel) {
+        case 'low':
+          lowRiskCells++;
+          break;
+        case 'medium':
+          mediumRiskCells++;
+          break;
+        case 'high':
+          highRiskCells++;
+          break;
+      }
+    }
+  }
+
+  return {
+    columns,
+    rows,
+    summary: {
+      totalCells: 25,
+      lowRiskCells,
+      mediumRiskCells,
+      highRiskCells,
+    },
+  };
+}
+
+/**
+ * Get the risk matrix cell for specific severity and likelihood values.
+ *
+ * Convenience function to look up a single cell in the matrix.
+ *
+ * @param severity - Severity level (1-5)
+ * @param likelihood - Likelihood level (1-5)
+ * @returns The risk matrix cell, or null if inputs are invalid
+ */
+export function getRiskMatrixCell(
+  severity: number,
+  likelihood: number
+): RiskMatrixCell | null {
+  if (!isValidSeverityLevel(severity) || !isValidLikelihoodLevel(likelihood)) {
+    return null;
+  }
+
+  return generateRiskMatrixCell(severity, likelihood);
+}
+
+/**
+ * Get the risk matrix thresholds configuration.
+ *
+ * @returns The threshold configuration for the 2D matrix (base score 1-25)
+ */
+export function getRiskMatrixThresholds(): {
+  low: { min: number; max: number };
+  medium: { min: number; max: number };
+  high: { min: number; max: number };
+} {
+  return {
+    low: { ...RISK_MATRIX_THRESHOLDS.low },
+    medium: { ...RISK_MATRIX_THRESHOLDS.medium },
+    high: { ...RISK_MATRIX_THRESHOLDS.high },
+  };
+}
+
+/**
+ * Validate if a base risk score is within valid range (1-25).
+ *
+ * @param score - The score to validate
+ * @returns True if valid base score, false otherwise
+ */
+export function isValidBaseRiskScore(score: number): boolean {
+  return Number.isInteger(score) && score >= 1 && score <= 25;
+}
+
+/**
+ * Get all cells in the matrix that match a given risk level.
+ *
+ * Useful for highlighting specific risk levels in visualization.
+ *
+ * @param riskLevel - The risk level to filter by
+ * @returns Array of cells matching the risk level
+ */
+export function getRiskMatrixCellsByLevel(riskLevel: RiskLevel): RiskMatrixCell[] {
+  const cells: RiskMatrixCell[] = [];
+
+  for (const severity of SEVERITY_LEVELS) {
+    for (const likelihood of LIKELIHOOD_LEVELS) {
+      if (RISK_MATRIX_MAPPING[severity][likelihood] === riskLevel) {
+        cells.push(generateRiskMatrixCell(severity, likelihood));
+      }
+    }
+  }
+
+  return cells;
 }

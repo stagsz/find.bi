@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import type { RiskRanking } from '@hazop/types';
+import type { RiskRanking, RiskMatrixCell } from '@hazop/types';
 import {
   isValidSeverityLevel,
   isValidLikelihoodLevel,
@@ -30,6 +30,17 @@ import {
   getRiskLevelLabel,
   calculateRiskStatistics,
   getRiskDistribution,
+  // 5x5 Risk Matrix functions
+  getRiskLevelFromMatrix,
+  calculateBaseRiskScore,
+  determineRiskLevelFromBaseScore,
+  generateRiskMatrixCell,
+  generateRiskMatrixRow,
+  generateRiskMatrix,
+  getRiskMatrixCell,
+  getRiskMatrixThresholds,
+  isValidBaseRiskScore,
+  getRiskMatrixCellsByLevel,
 } from './risk-calculation.service.js';
 
 describe('Risk Calculation Service', () => {
@@ -627,6 +638,373 @@ describe('Risk Calculation Service', () => {
       expect(distribution!.low).toBe(50); // 1 out of 2 assessed
       expect(distribution!.medium).toBe(0);
       expect(distribution!.high).toBe(50); // 1 out of 2 assessed
+    });
+  });
+
+  // ==========================================================================
+  // 5x5 Risk Matrix Functions
+  // ==========================================================================
+
+  describe('getRiskLevelFromMatrix', () => {
+    it('should return correct risk level for corner cases', () => {
+      // Low corner: S1 × L1
+      expect(getRiskLevelFromMatrix(1, 1)).toBe('low');
+
+      // High corner: S5 × L5
+      expect(getRiskLevelFromMatrix(5, 5)).toBe('high');
+    });
+
+    it('should return correct risk levels across the matrix diagonal', () => {
+      expect(getRiskLevelFromMatrix(1, 1)).toBe('low'); // S1×L1
+      expect(getRiskLevelFromMatrix(2, 2)).toBe('low'); // S2×L2
+      expect(getRiskLevelFromMatrix(3, 3)).toBe('medium'); // S3×L3
+      expect(getRiskLevelFromMatrix(4, 4)).toBe('high'); // S4×L4
+      expect(getRiskLevelFromMatrix(5, 5)).toBe('high'); // S5×L5
+    });
+
+    it('should match the documented matrix layout', () => {
+      // Row S5 (severity 5)
+      expect(getRiskLevelFromMatrix(5, 1)).toBe('medium');
+      expect(getRiskLevelFromMatrix(5, 2)).toBe('high');
+      expect(getRiskLevelFromMatrix(5, 3)).toBe('high');
+      expect(getRiskLevelFromMatrix(5, 4)).toBe('high');
+      expect(getRiskLevelFromMatrix(5, 5)).toBe('high');
+
+      // Row S4 (severity 4)
+      expect(getRiskLevelFromMatrix(4, 1)).toBe('low');
+      expect(getRiskLevelFromMatrix(4, 2)).toBe('medium');
+      expect(getRiskLevelFromMatrix(4, 3)).toBe('medium');
+      expect(getRiskLevelFromMatrix(4, 4)).toBe('high');
+      expect(getRiskLevelFromMatrix(4, 5)).toBe('high');
+
+      // Row S3 (severity 3)
+      expect(getRiskLevelFromMatrix(3, 1)).toBe('low');
+      expect(getRiskLevelFromMatrix(3, 2)).toBe('low');
+      expect(getRiskLevelFromMatrix(3, 3)).toBe('medium');
+      expect(getRiskLevelFromMatrix(3, 4)).toBe('medium');
+      expect(getRiskLevelFromMatrix(3, 5)).toBe('high');
+
+      // Row S2 (severity 2)
+      expect(getRiskLevelFromMatrix(2, 1)).toBe('low');
+      expect(getRiskLevelFromMatrix(2, 2)).toBe('low');
+      expect(getRiskLevelFromMatrix(2, 3)).toBe('low');
+      expect(getRiskLevelFromMatrix(2, 4)).toBe('medium');
+      expect(getRiskLevelFromMatrix(2, 5)).toBe('medium');
+
+      // Row S1 (severity 1)
+      expect(getRiskLevelFromMatrix(1, 1)).toBe('low');
+      expect(getRiskLevelFromMatrix(1, 2)).toBe('low');
+      expect(getRiskLevelFromMatrix(1, 3)).toBe('low');
+      expect(getRiskLevelFromMatrix(1, 4)).toBe('low');
+      expect(getRiskLevelFromMatrix(1, 5)).toBe('medium');
+    });
+
+    it('should throw error for invalid severity', () => {
+      expect(() => getRiskLevelFromMatrix(0 as 1, 3)).toThrow('severity');
+      expect(() => getRiskLevelFromMatrix(6 as 1, 3)).toThrow('severity');
+    });
+
+    it('should throw error for invalid likelihood', () => {
+      expect(() => getRiskLevelFromMatrix(3, 0 as 1)).toThrow('likelihood');
+      expect(() => getRiskLevelFromMatrix(3, 6 as 1)).toThrow('likelihood');
+    });
+  });
+
+  describe('calculateBaseRiskScore', () => {
+    it('should calculate minimum base score (1 × 1 = 1)', () => {
+      expect(calculateBaseRiskScore(1, 1)).toBe(1);
+    });
+
+    it('should calculate maximum base score (5 × 5 = 25)', () => {
+      expect(calculateBaseRiskScore(5, 5)).toBe(25);
+    });
+
+    it('should calculate intermediate base scores correctly', () => {
+      expect(calculateBaseRiskScore(2, 3)).toBe(6);
+      expect(calculateBaseRiskScore(3, 4)).toBe(12);
+      expect(calculateBaseRiskScore(4, 5)).toBe(20);
+    });
+
+    it('should throw error for invalid severity', () => {
+      expect(() => calculateBaseRiskScore(0 as 1, 3)).toThrow('severity');
+    });
+
+    it('should throw error for invalid likelihood', () => {
+      expect(() => calculateBaseRiskScore(3, 0 as 1)).toThrow('likelihood');
+    });
+  });
+
+  describe('determineRiskLevelFromBaseScore', () => {
+    describe('Low risk (1-4)', () => {
+      it('should return low for score 1', () => {
+        expect(determineRiskLevelFromBaseScore(1)).toBe('low');
+      });
+
+      it('should return low for score 2', () => {
+        expect(determineRiskLevelFromBaseScore(2)).toBe('low');
+      });
+
+      it('should return low for score 4', () => {
+        expect(determineRiskLevelFromBaseScore(4)).toBe('low');
+      });
+    });
+
+    describe('Medium risk (5-14)', () => {
+      it('should return medium for score 5', () => {
+        expect(determineRiskLevelFromBaseScore(5)).toBe('medium');
+      });
+
+      it('should return medium for score 10', () => {
+        expect(determineRiskLevelFromBaseScore(10)).toBe('medium');
+      });
+
+      it('should return medium for score 14', () => {
+        expect(determineRiskLevelFromBaseScore(14)).toBe('medium');
+      });
+    });
+
+    describe('High risk (15-25)', () => {
+      it('should return high for score 15', () => {
+        expect(determineRiskLevelFromBaseScore(15)).toBe('high');
+      });
+
+      it('should return high for score 20', () => {
+        expect(determineRiskLevelFromBaseScore(20)).toBe('high');
+      });
+
+      it('should return high for score 25', () => {
+        expect(determineRiskLevelFromBaseScore(25)).toBe('high');
+      });
+    });
+
+    describe('Invalid scores', () => {
+      it('should throw error for score 0', () => {
+        expect(() => determineRiskLevelFromBaseScore(0)).toThrow('Invalid base risk score');
+      });
+
+      it('should throw error for score 26', () => {
+        expect(() => determineRiskLevelFromBaseScore(26)).toThrow('Invalid base risk score');
+      });
+
+      it('should throw error for negative score', () => {
+        expect(() => determineRiskLevelFromBaseScore(-1)).toThrow('Invalid base risk score');
+      });
+
+      it('should throw error for non-integer score', () => {
+        expect(() => determineRiskLevelFromBaseScore(10.5)).toThrow('Invalid base risk score');
+      });
+    });
+  });
+
+  describe('generateRiskMatrixCell', () => {
+    it('should generate a complete cell with all properties', () => {
+      const cell = generateRiskMatrixCell(3, 4);
+
+      expect(cell.severity).toBe(3);
+      expect(cell.likelihood).toBe(4);
+      expect(cell.baseScore).toBe(12);
+      expect(cell.riskLevel).toBe('medium');
+    });
+
+    it('should generate correct cell for low risk', () => {
+      const cell = generateRiskMatrixCell(1, 2);
+
+      expect(cell.baseScore).toBe(2);
+      expect(cell.riskLevel).toBe('low');
+    });
+
+    it('should generate correct cell for high risk', () => {
+      const cell = generateRiskMatrixCell(5, 5);
+
+      expect(cell.baseScore).toBe(25);
+      expect(cell.riskLevel).toBe('high');
+    });
+  });
+
+  describe('generateRiskMatrixRow', () => {
+    it('should generate a complete row with 5 cells', () => {
+      const row = generateRiskMatrixRow(3);
+
+      expect(row.severity).toBe(3);
+      expect(row.severityLabel).toBe('Moderate');
+      expect(row.cells).toHaveLength(5);
+    });
+
+    it('should have cells for all likelihood levels', () => {
+      const row = generateRiskMatrixRow(4);
+
+      expect(row.cells[0].likelihood).toBe(1);
+      expect(row.cells[1].likelihood).toBe(2);
+      expect(row.cells[2].likelihood).toBe(3);
+      expect(row.cells[3].likelihood).toBe(4);
+      expect(row.cells[4].likelihood).toBe(5);
+    });
+
+    it('should have consistent severity across all cells', () => {
+      const row = generateRiskMatrixRow(2);
+
+      row.cells.forEach((cell: RiskMatrixCell) => {
+        expect(cell.severity).toBe(2);
+      });
+    });
+  });
+
+  describe('generateRiskMatrix', () => {
+    it('should generate a complete 5x5 matrix', () => {
+      const matrix = generateRiskMatrix();
+
+      expect(matrix.rows).toHaveLength(5);
+      expect(matrix.columns).toHaveLength(5);
+      expect(matrix.summary.totalCells).toBe(25);
+    });
+
+    it('should have rows ordered from severity 5 (top) to 1 (bottom)', () => {
+      const matrix = generateRiskMatrix();
+
+      expect(matrix.rows[0].severity).toBe(5); // Top row
+      expect(matrix.rows[1].severity).toBe(4);
+      expect(matrix.rows[2].severity).toBe(3);
+      expect(matrix.rows[3].severity).toBe(2);
+      expect(matrix.rows[4].severity).toBe(1); // Bottom row
+    });
+
+    it('should have columns ordered from likelihood 1 (left) to 5 (right)', () => {
+      const matrix = generateRiskMatrix();
+
+      expect(matrix.columns[0].level).toBe(1);
+      expect(matrix.columns[1].level).toBe(2);
+      expect(matrix.columns[2].level).toBe(3);
+      expect(matrix.columns[3].level).toBe(4);
+      expect(matrix.columns[4].level).toBe(5);
+    });
+
+    it('should have correct column labels', () => {
+      const matrix = generateRiskMatrix();
+
+      expect(matrix.columns[0].label).toBe('Rare');
+      expect(matrix.columns[4].label).toBe('Almost Certain');
+    });
+
+    it('should have summary counts that match actual cell counts', () => {
+      const matrix = generateRiskMatrix();
+
+      // Count cells manually
+      let low = 0;
+      let medium = 0;
+      let high = 0;
+
+      for (const row of matrix.rows) {
+        for (const cell of row.cells) {
+          if (cell.riskLevel === 'low') low++;
+          else if (cell.riskLevel === 'medium') medium++;
+          else if (cell.riskLevel === 'high') high++;
+        }
+      }
+
+      expect(matrix.summary.lowRiskCells).toBe(low);
+      expect(matrix.summary.mediumRiskCells).toBe(medium);
+      expect(matrix.summary.highRiskCells).toBe(high);
+      expect(low + medium + high).toBe(25);
+    });
+  });
+
+  describe('getRiskMatrixCell', () => {
+    it('should return cell for valid inputs', () => {
+      const cell = getRiskMatrixCell(3, 4);
+
+      expect(cell).not.toBeNull();
+      expect(cell!.severity).toBe(3);
+      expect(cell!.likelihood).toBe(4);
+    });
+
+    it('should return null for invalid severity', () => {
+      expect(getRiskMatrixCell(0, 3)).toBeNull();
+      expect(getRiskMatrixCell(6, 3)).toBeNull();
+    });
+
+    it('should return null for invalid likelihood', () => {
+      expect(getRiskMatrixCell(3, 0)).toBeNull();
+      expect(getRiskMatrixCell(3, 6)).toBeNull();
+    });
+  });
+
+  describe('getRiskMatrixThresholds', () => {
+    it('should return correct low threshold', () => {
+      const thresholds = getRiskMatrixThresholds();
+
+      expect(thresholds.low.min).toBe(1);
+      expect(thresholds.low.max).toBe(4);
+    });
+
+    it('should return correct medium threshold', () => {
+      const thresholds = getRiskMatrixThresholds();
+
+      expect(thresholds.medium.min).toBe(5);
+      expect(thresholds.medium.max).toBe(14);
+    });
+
+    it('should return correct high threshold', () => {
+      const thresholds = getRiskMatrixThresholds();
+
+      expect(thresholds.high.min).toBe(15);
+      expect(thresholds.high.max).toBe(25);
+    });
+  });
+
+  describe('isValidBaseRiskScore', () => {
+    it('should return true for valid scores (1-25)', () => {
+      expect(isValidBaseRiskScore(1)).toBe(true);
+      expect(isValidBaseRiskScore(13)).toBe(true);
+      expect(isValidBaseRiskScore(25)).toBe(true);
+    });
+
+    it('should return false for invalid scores', () => {
+      expect(isValidBaseRiskScore(0)).toBe(false);
+      expect(isValidBaseRiskScore(26)).toBe(false);
+      expect(isValidBaseRiskScore(-1)).toBe(false);
+      expect(isValidBaseRiskScore(10.5)).toBe(false);
+    });
+  });
+
+  describe('getRiskMatrixCellsByLevel', () => {
+    it('should return all low risk cells', () => {
+      const cells = getRiskMatrixCellsByLevel('low');
+
+      cells.forEach((cell) => {
+        expect(cell.riskLevel).toBe('low');
+      });
+    });
+
+    it('should return all medium risk cells', () => {
+      const cells = getRiskMatrixCellsByLevel('medium');
+
+      cells.forEach((cell) => {
+        expect(cell.riskLevel).toBe('medium');
+      });
+    });
+
+    it('should return all high risk cells', () => {
+      const cells = getRiskMatrixCellsByLevel('high');
+
+      cells.forEach((cell) => {
+        expect(cell.riskLevel).toBe('high');
+      });
+    });
+
+    it('should return cells with correct base scores', () => {
+      const cells = getRiskMatrixCellsByLevel('high');
+
+      cells.forEach((cell) => {
+        expect(cell.baseScore).toBe(cell.severity * cell.likelihood);
+      });
+    });
+
+    it('should have total cells across all levels equal to 25', () => {
+      const lowCells = getRiskMatrixCellsByLevel('low');
+      const mediumCells = getRiskMatrixCellsByLevel('medium');
+      const highCells = getRiskMatrixCellsByLevel('high');
+
+      expect(lowCells.length + mediumCells.length + highCells.length).toBe(25);
     });
   });
 });

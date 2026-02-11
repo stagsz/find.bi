@@ -610,3 +610,111 @@ export interface UpdateRiskRankingPayload {
   /** Detectability level (1-5) */
   detectability: DetectabilityLevel;
 }
+
+// ============================================================================
+// 5x5 Risk Matrix
+// ============================================================================
+
+/**
+ * A single cell in the 5x5 risk matrix.
+ * Represents the risk level for a specific severity/likelihood combination.
+ */
+export interface RiskMatrixCell {
+  /** Severity level (row) */
+  severity: SeverityLevel;
+
+  /** Likelihood level (column) */
+  likelihood: LikelihoodLevel;
+
+  /** Risk level for this cell */
+  riskLevel: RiskLevel;
+
+  /** Base risk score (severity × likelihood) before detectability factor */
+  baseScore: number;
+}
+
+/**
+ * A complete row in the 5x5 risk matrix.
+ * Contains cells for all 5 likelihood levels at a given severity level.
+ */
+export interface RiskMatrixRow {
+  /** The severity level for this row */
+  severity: SeverityLevel;
+
+  /** Human-readable severity label */
+  severityLabel: string;
+
+  /** Cells for each likelihood level (1-5) */
+  cells: [RiskMatrixCell, RiskMatrixCell, RiskMatrixCell, RiskMatrixCell, RiskMatrixCell];
+}
+
+/**
+ * The complete 5x5 risk matrix structure.
+ * Standard industry tool for visualizing risk based on severity vs. likelihood.
+ *
+ * Note: This is a 2D simplification. The full risk calculation also includes
+ * detectability as a third factor: Risk Score = Severity × Likelihood × Detectability.
+ * The matrix shows base risk (Severity × Likelihood) which is then modified by detectability.
+ */
+export interface RiskMatrix {
+  /** Column headers (likelihood levels) */
+  columns: {
+    level: LikelihoodLevel;
+    label: string;
+  }[];
+
+  /** Matrix rows (one per severity level, from 5 down to 1) */
+  rows: [RiskMatrixRow, RiskMatrixRow, RiskMatrixRow, RiskMatrixRow, RiskMatrixRow];
+
+  /** Summary statistics */
+  summary: {
+    /** Total cells in matrix */
+    totalCells: number;
+    /** Count of low risk cells */
+    lowRiskCells: number;
+    /** Count of medium risk cells */
+    mediumRiskCells: number;
+    /** Count of high risk cells */
+    highRiskCells: number;
+  };
+}
+
+/**
+ * 5x5 Risk Matrix thresholds for 2D risk classification.
+ * These thresholds are based on the base score (severity × likelihood) only,
+ * providing a simpler view than the full 3D calculation.
+ *
+ * Base Score ranges: 1-25 (since both factors are 1-5)
+ * - Low: 1-4 (S×L where result suggests acceptable risk)
+ * - Medium: 5-14 (S×L where result requires attention)
+ * - High: 15-25 (S×L where result requires immediate action)
+ */
+export const RISK_MATRIX_THRESHOLDS = {
+  low: { min: 1, max: 4 },
+  medium: { min: 5, max: 14 },
+  high: { min: 15, max: 25 },
+} as const;
+
+/**
+ * Pre-defined 5x5 risk matrix mapping.
+ * Each cell shows the risk level for that severity/likelihood combination.
+ *
+ * Matrix layout (severity rows × likelihood columns):
+ * ```
+ *          L1    L2    L3    L4    L5
+ *    S5   Med   High  High  High  High
+ *    S4   Low   Med   Med   High  High
+ *    S3   Low   Low   Med   Med   High
+ *    S2   Low   Low   Low   Med   Med
+ *    S1   Low   Low   Low   Low   Med
+ * ```
+ *
+ * Access as RISK_MATRIX_MAPPING[severity][likelihood]
+ */
+export const RISK_MATRIX_MAPPING: Record<SeverityLevel, Record<LikelihoodLevel, RiskLevel>> = {
+  1: { 1: 'low', 2: 'low', 3: 'low', 4: 'low', 5: 'medium' },
+  2: { 1: 'low', 2: 'low', 3: 'low', 4: 'medium', 5: 'medium' },
+  3: { 1: 'low', 2: 'low', 3: 'medium', 4: 'medium', 5: 'high' },
+  4: { 1: 'low', 2: 'medium', 3: 'medium', 4: 'high', 5: 'high' },
+  5: { 1: 'medium', 2: 'high', 3: 'high', 4: 'high', 5: 'high' },
+};
