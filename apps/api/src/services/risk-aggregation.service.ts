@@ -793,7 +793,7 @@ export async function getEntriesByRiskLevel(
  */
 export function aggregateRiskRankings(
   riskRankings: (RiskRanking | null)[],
-  thresholdConfig?: RiskThresholdConfig
+  _thresholdConfig?: RiskThresholdConfig
 ): {
   statistics: RiskStatistics;
   distribution: RiskDistribution | null;

@@ -11,11 +11,7 @@
 
 import { describe, it, expect } from '@jest/globals';
 import type { RiskRanking } from '@hazop/types';
-import {
-  aggregateRiskRankings,
-  type RiskDistribution,
-  type ScorePercentiles,
-} from './risk-aggregation.service.js';
+import { aggregateRiskRankings } from './risk-aggregation.service.js';
 
 describe('Risk Aggregation Service', () => {
   // ==========================================================================
