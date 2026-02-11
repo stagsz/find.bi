@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 7 - LOPA & Compliance
-**Progress**: Phase 7 in progress - 7/23 tasks complete
-**Last Completed**: COMP-03 - Add PED compliance checks (3272479)
-**Next Task**: COMP-04 - Add OSHA PSM compliance checks
+**Progress**: Phase 7 in progress - 8/23 tasks complete
+**Last Completed**: COMP-04 - Add OSHA PSM compliance checks (5bd6749)
+**Next Task**: COMP-05 - Add EPA compliance checks
 
 ---
 
@@ -265,7 +265,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] COMP-01: Create regulatory standards database (IEC 61511, ISO 31000, ISO 9001) (9da783a)
 - [x] COMP-02: Add ATEX/DSEAR compliance checks (3fcdb2a)
 - [x] COMP-03: Add PED (Pressure Equipment Directive) compliance checks (3272479)
-- [ ] COMP-04: Add OSHA PSM compliance checks
+- [x] COMP-04: Add OSHA PSM compliance checks (5bd6749)
 - [ ] COMP-05: Add EPA compliance checks
 - [ ] COMP-06: Add SEVESO III directive compliance checks
 - [ ] COMP-07: Create compliance validation engine (cross-reference findings)
@@ -553,3 +553,4 @@ _No blockers currently._
 | COMP-01: Create regulatory standards database (IEC 61511, ISO 31000, ISO 9001) | 9da783a | 2026-02-11 |
 | COMP-02: Add ATEX/DSEAR compliance checks | 3fcdb2a | 2026-02-11 |
 | COMP-03: Add PED compliance checks | 3272479 | 2026-02-11 |
+| COMP-04: Add OSHA PSM compliance checks | 5bd6749 | 2026-02-11 |
