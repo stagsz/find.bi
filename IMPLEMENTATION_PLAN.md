@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 7 - LOPA & Compliance
-**Progress**: Phase 7 in progress - 12/23 tasks complete
-**Last Completed**: COMP-08 - Create POST /entries/:id/lopa endpoint (e75c4d1)
-**Next Task**: COMP-09 - Create GET /entries/:id/lopa endpoint
+**Progress**: Phase 7 in progress - 13/23 tasks complete
+**Last Completed**: COMP-09 - Create GET /entries/:id/lopa endpoint (8ba89e3)
+**Next Task**: COMP-10 - Create GET /projects/:id/compliance endpoint
 
 ---
 
@@ -272,7 +272,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 
 ### Backend API
 - [x] COMP-08: Create POST /entries/:id/lopa endpoint (create LOPA analysis) (e75c4d1)
-- [ ] COMP-09: Create GET /entries/:id/lopa endpoint (get LOPA results)
+- [x] COMP-09: Create GET /entries/:id/lopa endpoint (get LOPA results) (8ba89e3)
 - [ ] COMP-10: Create GET /projects/:id/compliance endpoint (compliance status)
 - [ ] COMP-11: Create GET /analyses/:id/compliance endpoint (analysis compliance report)
 
@@ -558,3 +558,4 @@ _No blockers currently._
 | COMP-06: Add SEVESO III directive compliance checks | 9b6d7d1 | 2026-02-11 |
 | COMP-07: Create compliance validation engine (cross-reference findings) | 6dd6041 | 2026-02-11 |
 | COMP-08: Create POST /entries/:id/lopa endpoint (create LOPA analysis) | e75c4d1 | 2026-02-11 |
+| COMP-09: Create GET /entries/:id/lopa endpoint (get LOPA results) | 8ba89e3 | 2026-02-11 |
