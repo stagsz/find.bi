@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 8 - Real-time Collaboration
-**Progress**: Phase 8 in progress - 8/16 tasks complete
-**Last Completed**: COLLAB-08 - Create POST /analyses/:id/invite endpoint (6b0d2e1)
-**Next Task**: COLLAB-09 - Create POST /sessions/:id/join endpoint (join collaboration)
+**Progress**: Phase 8 in progress - 9/16 tasks complete
+**Last Completed**: COLLAB-09 - Create POST /sessions/:id/join endpoint (185b7fe)
+**Next Task**: COLLAB-10 - Create useWebSocket hook for real-time updates
 
 ---
 
@@ -303,7 +303,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] COLLAB-06: Create POST /analyses/:id/collaborate endpoint (start session) (732d1da)
 - [x] COLLAB-07: Create GET /analyses/:id/collaborate endpoint (get active sessions) (8171768)
 - [x] COLLAB-08: Create POST /analyses/:id/invite endpoint (send invitation) (6b0d2e1)
-- [ ] COLLAB-09: Create POST /sessions/:id/join endpoint (join collaboration)
+- [x] COLLAB-09: Create POST /sessions/:id/join endpoint (join collaboration) (185b7fe)
 
 ### Frontend Collaboration
 - [ ] COLLAB-10: Create useWebSocket hook for real-time updates
@@ -577,3 +577,4 @@ _No blockers currently._
 | COLLAB-06: Create POST /analyses/:id/collaborate endpoint | 732d1da | 2026-02-11 |
 | COLLAB-07: Create GET /analyses/:id/collaborate endpoint | 8171768 | 2026-02-11 |
 | COLLAB-08: Create POST /analyses/:id/invite endpoint | 6b0d2e1 | 2026-02-11 |
+| COLLAB-09: Create POST /sessions/:id/join endpoint | 185b7fe | 2026-02-11 |
