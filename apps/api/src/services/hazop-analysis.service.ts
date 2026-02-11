@@ -56,6 +56,18 @@ export interface HazopAnalysisRowWithProgress extends HazopAnalysisRow {
 }
 
 /**
+ * HazOps analysis row with both details and progress metrics.
+ */
+export interface HazopAnalysisRowWithDetailsAndProgress extends HazopAnalysisRowWithDetails {
+  total_nodes: string;
+  analyzed_nodes: string;
+  total_entries: string;
+  high_risk_count: string;
+  medium_risk_count: string;
+  low_risk_count: string;
+}
+
+/**
  * Analysis entry row from the database.
  */
 export interface AnalysisEntryRow {
@@ -119,6 +131,18 @@ export interface HazopAnalysisWithDetails extends HazopAnalysis {
  * HazOps analysis with progress metrics.
  */
 export interface HazopAnalysisWithProgress extends HazopAnalysis {
+  totalNodes: number;
+  analyzedNodes: number;
+  totalEntries: number;
+  highRiskCount: number;
+  mediumRiskCount: number;
+  lowRiskCount: number;
+}
+
+/**
+ * HazOps analysis with both details and progress metrics.
+ */
+export interface HazopAnalysisWithDetailsAndProgress extends HazopAnalysisWithDetails {
   totalNodes: number;
   analyzedNodes: number;
   totalEntries: number;
@@ -195,6 +219,23 @@ function rowToHazopAnalysisWithDetails(row: HazopAnalysisRowWithDetails): HazopA
 function rowToHazopAnalysisWithProgress(row: HazopAnalysisRowWithProgress): HazopAnalysisWithProgress {
   return {
     ...rowToHazopAnalysis(row),
+    totalNodes: parseInt(row.total_nodes, 10),
+    analyzedNodes: parseInt(row.analyzed_nodes, 10),
+    totalEntries: parseInt(row.total_entries, 10),
+    highRiskCount: parseInt(row.high_risk_count, 10),
+    mediumRiskCount: parseInt(row.medium_risk_count, 10),
+    lowRiskCount: parseInt(row.low_risk_count, 10),
+  };
+}
+
+/**
+ * Convert a database row with both details and progress to HazopAnalysisWithDetailsAndProgress object.
+ */
+function rowToHazopAnalysisWithDetailsAndProgress(
+  row: HazopAnalysisRowWithDetailsAndProgress
+): HazopAnalysisWithDetailsAndProgress {
+  return {
+    ...rowToHazopAnalysisWithDetails(row),
     totalNodes: parseInt(row.total_nodes, 10),
     analyzedNodes: parseInt(row.analyzed_nodes, 10),
     totalEntries: parseInt(row.total_entries, 10),
@@ -412,14 +453,18 @@ export async function findAnalysisById(id: string): Promise<HazopAnalysisWithDet
 }
 
 /**
- * Find a HazOps analysis by ID with progress metrics.
+ * Find a HazOps analysis by ID with both details and progress metrics.
  * Returns null if analysis not found.
  */
-export async function findAnalysisByIdWithProgress(id: string): Promise<HazopAnalysisWithProgress | null> {
+export async function findAnalysisByIdWithProgress(id: string): Promise<HazopAnalysisWithDetailsAndProgress | null> {
   const pool = getPool();
-  const result = await pool.query<HazopAnalysisRowWithProgress>(
+  const result = await pool.query<HazopAnalysisRowWithDetailsAndProgress>(
     `SELECT
        ha.*,
+       pd.filename AS document_name,
+       lead_user.name AS lead_analyst_name,
+       lead_user.email AS lead_analyst_email,
+       created_user.name AS created_by_name,
        (SELECT COUNT(*) FROM hazop.analysis_nodes an WHERE an.document_id = ha.document_id) AS total_nodes,
        (SELECT COUNT(DISTINCT ae.node_id) FROM hazop.analysis_entries ae WHERE ae.analysis_id = ha.id) AS analyzed_nodes,
        (SELECT COUNT(*) FROM hazop.analysis_entries ae WHERE ae.analysis_id = ha.id) AS total_entries,
@@ -427,6 +472,9 @@ export async function findAnalysisByIdWithProgress(id: string): Promise<HazopAna
        (SELECT COUNT(*) FROM hazop.analysis_entries ae WHERE ae.analysis_id = ha.id AND ae.risk_level = 'medium') AS medium_risk_count,
        (SELECT COUNT(*) FROM hazop.analysis_entries ae WHERE ae.analysis_id = ha.id AND ae.risk_level = 'low') AS low_risk_count
      FROM hazop.hazop_analyses ha
+     JOIN hazop.pid_documents pd ON ha.document_id = pd.id
+     JOIN hazop.users lead_user ON ha.lead_analyst_id = lead_user.id
+     JOIN hazop.users created_user ON ha.created_by_id = created_user.id
      WHERE ha.id = $1`,
     [id]
   );
@@ -435,7 +483,7 @@ export async function findAnalysisByIdWithProgress(id: string): Promise<HazopAna
     return null;
   }
 
-  return rowToHazopAnalysisWithProgress(result.rows[0]);
+  return rowToHazopAnalysisWithDetailsAndProgress(result.rows[0]);
 }
 
 /**

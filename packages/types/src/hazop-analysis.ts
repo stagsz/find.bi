@@ -373,6 +373,30 @@ export interface HazopsAnalysisWithProgress extends HazopsAnalysis {
   lowRiskCount: number;
 }
 
+/**
+ * HazOps analysis with both details and progress metrics.
+ * Used in the analysis workspace where we need all information.
+ */
+export interface HazopsAnalysisWithDetailsAndProgress extends HazopsAnalysisWithDetails {
+  /** Total number of nodes in the document */
+  totalNodes: number;
+
+  /** Number of nodes with at least one analysis entry */
+  analyzedNodes: number;
+
+  /** Total number of analysis entries */
+  totalEntries: number;
+
+  /** Number of entries with high risk level */
+  highRiskCount: number;
+
+  /** Number of entries with medium risk level */
+  mediumRiskCount: number;
+
+  /** Number of entries with low risk level */
+  lowRiskCount: number;
+}
+
 // ============================================================================
 // Analysis Entry (Node + GuideWord Analysis)
 // ============================================================================

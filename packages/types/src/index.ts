@@ -77,6 +77,7 @@ export type {
   HazopsAnalysis,
   HazopsAnalysisWithDetails,
   HazopsAnalysisWithProgress,
+  HazopsAnalysisWithDetailsAndProgress,
   AnalysisEntry,
   AnalysisEntryWithNode,
   AnalysisEntryWithCreator,

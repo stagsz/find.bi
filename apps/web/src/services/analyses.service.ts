@@ -1,5 +1,6 @@
 import type {
   HazopsAnalysisWithDetails,
+  HazopsAnalysisWithDetailsAndProgress,
   AnalysisEntry,
   AnalysisStatus,
   GuideWord,
@@ -28,9 +29,10 @@ export interface ListAnalysesResponse {
 
 /**
  * Response type for getting a single analysis.
+ * Includes both details (document name, lead analyst info) and progress metrics.
  */
 export interface GetAnalysisResponse {
-  analysis: HazopsAnalysisWithDetails;
+  analysis: HazopsAnalysisWithDetailsAndProgress;
 }
 
 /**

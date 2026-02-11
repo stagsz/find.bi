@@ -8,10 +8,10 @@ import { documentsService } from '../services/documents.service';
 import { nodesService } from '../services/nodes.service';
 import { PIDViewer } from '../components/documents/PIDViewer';
 import { NodeOverlay } from '../components/documents/NodeOverlay';
-import { GuideWordSelector, DeviationInputForm, CausesInput, ConsequencesInput, SafeguardsInput, RecommendationsInput } from '../components/analyses';
+import { GuideWordSelector, DeviationInputForm, CausesInput, ConsequencesInput, SafeguardsInput, RecommendationsInput, AnalysisProgressTracker } from '../components/analyses';
 import type {
   ApiError,
-  HazopsAnalysisWithDetails,
+  HazopsAnalysisWithDetailsAndProgress,
   PIDDocumentWithUploader,
   AnalysisNodeWithCreator,
   AnalysisEntry,
@@ -68,7 +68,7 @@ export function AnalysisWorkspacePage() {
   const dividerRef = useRef<HTMLDivElement>(null);
 
   // Analysis, document, and nodes state
-  const [analysis, setAnalysis] = useState<HazopsAnalysisWithDetails | null>(null);
+  const [analysis, setAnalysis] = useState<HazopsAnalysisWithDetailsAndProgress | null>(null);
   const [document, setDocument] = useState<PIDDocumentWithUploader | null>(null);
   const [nodes, setNodes] = useState<AnalysisNodeWithCreator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -467,6 +467,17 @@ export function AnalysisWorkspacePage() {
               >
                 {ANALYSIS_STATUS_LABELS[analysis.status]}
               </span>
+
+              {/* Progress Tracker */}
+              <AnalysisProgressTracker
+                totalNodes={analysis.totalNodes}
+                analyzedNodes={analysis.analyzedNodes}
+                totalEntries={analysis.totalEntries}
+                highRiskCount={analysis.highRiskCount}
+                mediumRiskCount={analysis.mediumRiskCount}
+                lowRiskCount={analysis.lowRiskCount}
+                className="ml-4"
+              />
             </div>
 
             {/* Right: User and actions */}

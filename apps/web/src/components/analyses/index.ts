@@ -6,3 +6,4 @@ export { CausesInput } from './CausesInput';
 export { ConsequencesInput } from './ConsequencesInput';
 export { SafeguardsInput } from './SafeguardsInput';
 export { RecommendationsInput } from './RecommendationsInput';
+export { AnalysisProgressTracker } from './AnalysisProgressTracker';
