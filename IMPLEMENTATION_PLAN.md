@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 5 - Core HazOps Analysis Workflow
-**Progress**: Guide word unit tests verified complete
-**Last Completed**: HAZOP-28 - Add unit tests for guide word validation logic (edc343c)
-**Next Task**: HAZOP-29 - Add API tests for analysis CRUD endpoints
+**Progress**: API tests for analysis CRUD complete
+**Last Completed**: HAZOP-29 - Add API tests for analysis CRUD endpoints (07a45fc)
+**Next Task**: HAZOP-30 - Add E2E tests for complete analysis workflow
 
 ---
 
@@ -220,7 +220,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 
 ### HazOps Testing
 - [x] HAZOP-28: Add unit tests for guide word validation logic (edc343c)
-- [ ] HAZOP-29: Add API tests for analysis CRUD endpoints
+- [x] HAZOP-29: Add API tests for analysis CRUD endpoints (07a45fc)
 - [ ] HAZOP-30: Add E2E tests for complete analysis workflow
 
 ---
@@ -528,3 +528,4 @@ _No blockers currently._
 | HAZOP-26: Create analysis progress tracker (nodes completed/total) | 70a110a | 2026-02-11 |
 | HAZOP-27: Create analysis entry summary table | 0237edc | 2026-02-11 |
 | HAZOP-28: Add unit tests for guide word validation logic | edc343c | 2026-02-11 |
+| HAZOP-29: Add API tests for analysis CRUD endpoints | 07a45fc | 2026-02-11 |
