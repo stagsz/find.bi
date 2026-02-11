@@ -2604,6 +2604,7 @@ import {
   createLOPAAnalysis,
   getEntryWithAnalysisInfo,
   lopaExistsForEntry,
+  findLOPAByEntryId,
 } from '../services/lopa-analysis.service.js';
 import {
   isValidInitiatingEventFrequency,
@@ -3198,6 +3199,112 @@ export async function createEntryLOPA(req: Request, res: Response): Promise<void
         return;
       }
     }
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+/**
+ * GET /entries/:id/lopa
+ * Get the LOPA (Layers of Protection Analysis) for an analysis entry.
+ *
+ * Path parameters:
+ * - id: string (required) - Entry UUID
+ *
+ * Returns:
+ * - 200: The LOPA analysis for this entry
+ * - 401: Not authenticated
+ * - 403: Not authorized to access this entry's project
+ * - 404: Entry not found or LOPA does not exist
+ * - 500: Internal server error
+ */
+export async function getEntryLOPA(req: Request, res: Response): Promise<void> {
+  try {
+    const { id: entryId } = req.params;
+
+    // Get authenticated user ID
+    const userId = (req.user as { id: string } | undefined)?.id;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required',
+        },
+      });
+      return;
+    }
+
+    // Validate UUID format
+    if (!UUID_REGEX.test(entryId)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid entry ID format',
+          errors: [
+            {
+              field: 'id',
+              message: 'Entry ID must be a valid UUID',
+              code: 'INVALID_FORMAT',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    // Get entry info with project access check
+    const entryInfo = await getEntryWithAnalysisInfo(entryId);
+    if (!entryInfo) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Analysis entry not found',
+        },
+      });
+      return;
+    }
+
+    // Check if user has access to the project
+    const hasAccess = await userHasProjectAccess(userId, entryInfo.projectId);
+    if (!hasAccess) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this entry',
+        },
+      });
+      return;
+    }
+
+    // Get the LOPA analysis for this entry
+    const lopa = await findLOPAByEntryId(entryId);
+    if (!lopa) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'LOPA analysis not found for this entry',
+        },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { lopa },
+    });
+  } catch (error) {
+    console.error('Get entry LOPA error:', error);
 
     res.status(500).json({
       success: false,

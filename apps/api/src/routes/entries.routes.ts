@@ -17,6 +17,7 @@ import {
   deleteEntry,
   updateEntryRisk,
   createEntryLOPA,
+  getEntryLOPA,
 } from '../controllers/analyses.controller.js';
 
 const router = Router();
@@ -63,6 +64,24 @@ router.put('/:id', authenticate, requireAuth, updateEntry);
  * Only accessible by project members.
  */
 router.put('/:id/risk', authenticate, requireAuth, updateEntryRisk);
+
+/**
+ * GET /entries/:id/lopa
+ * Get the LOPA (Layers of Protection Analysis) for an analysis entry.
+ *
+ * Path parameters:
+ * - id: string (required) - Entry UUID
+ *
+ * Returns:
+ * - 200: The LOPA analysis for this entry
+ * - 401: Not authenticated
+ * - 403: Not authorized to access this entry's project
+ * - 404: Entry not found or LOPA does not exist
+ * - 500: Internal server error
+ *
+ * Only accessible by project members.
+ */
+router.get('/:id/lopa', authenticate, requireAuth, getEntryLOPA);
 
 /**
  * POST /entries/:id/lopa
