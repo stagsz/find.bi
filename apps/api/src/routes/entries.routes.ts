@@ -4,6 +4,7 @@
  * Provides endpoints for analysis entry operations:
  * - PUT /entries/:id - Update an existing analysis entry
  * - PUT /entries/:id/risk - Update risk ranking for an analysis entry
+ * - POST /entries/:id/lopa - Create LOPA analysis for an entry
  * - DELETE /entries/:id - Delete an existing analysis entry
  *
  * All routes require authentication.
@@ -11,7 +12,12 @@
 
 import { Router } from 'express';
 import { authenticate, requireAuth } from '../middleware/auth.middleware.js';
-import { updateEntry, deleteEntry, updateEntryRisk } from '../controllers/analyses.controller.js';
+import {
+  updateEntry,
+  deleteEntry,
+  updateEntryRisk,
+  createEntryLOPA,
+} from '../controllers/analyses.controller.js';
 
 const router = Router();
 
@@ -57,6 +63,30 @@ router.put('/:id', authenticate, requireAuth, updateEntry);
  * Only accessible by project members.
  */
 router.put('/:id/risk', authenticate, requireAuth, updateEntryRisk);
+
+/**
+ * POST /entries/:id/lopa
+ * Create a LOPA (Layers of Protection Analysis) for an analysis entry.
+ *
+ * Path parameters:
+ * - id: string (required) - Entry UUID
+ *
+ * Body:
+ * - scenarioDescription: string (required) - Description of the scenario
+ * - consequence: string (required) - Description of the consequence
+ * - initiatingEventCategory: string (required) - Category of initiating event
+ * - initiatingEventDescription: string (required) - Description of initiating event
+ * - initiatingEventFrequency: number (required) - Frequency per year
+ * - ipls: array (required) - Array of IPL objects with type, name, description, pfd, etc.
+ * - targetFrequency: number (required) - Target frequency per year
+ * - notes: string (optional) - Additional notes
+ *
+ * The entry must have a risk assessment with severity before creating LOPA.
+ * Only draft analyses can have LOPA created.
+ * Only one LOPA can exist per entry.
+ * Only accessible by project members.
+ */
+router.post('/:id/lopa', authenticate, requireAuth, createEntryLOPA);
 
 /**
  * DELETE /entries/:id

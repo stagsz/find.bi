@@ -2595,3 +2595,616 @@ export async function getRiskSummary(req: Request, res: Response): Promise<void>
     });
   }
 }
+
+// ============================================================================
+// Create Entry LOPA Analysis
+// ============================================================================
+
+import {
+  createLOPAAnalysis,
+  getEntryWithAnalysisInfo,
+  lopaExistsForEntry,
+} from '../services/lopa-analysis.service.js';
+import {
+  isValidInitiatingEventFrequency,
+  isValidTargetFrequency,
+  isValidPFD,
+} from '../services/lopa-calculation.service.js';
+import {
+  INITIATING_EVENT_CATEGORIES,
+  IPL_TYPES,
+  SAFETY_INTEGRITY_LEVELS,
+} from '@hazop/types';
+import type {
+  InitiatingEventCategory,
+  IPLType,
+  SafetyIntegrityLevel,
+} from '@hazop/types';
+
+/**
+ * Request body for creating a LOPA analysis.
+ */
+interface CreateLOPABody {
+  scenarioDescription?: unknown;
+  consequence?: unknown;
+  initiatingEventCategory?: unknown;
+  initiatingEventDescription?: unknown;
+  initiatingEventFrequency?: unknown;
+  ipls?: unknown;
+  targetFrequency?: unknown;
+  notes?: unknown;
+}
+
+/**
+ * IPL input from request body.
+ */
+interface IPLInput {
+  type?: unknown;
+  name?: unknown;
+  description?: unknown;
+  pfd?: unknown;
+  independentOfInitiator?: unknown;
+  independentOfOtherIPLs?: unknown;
+  sil?: unknown;
+  notes?: unknown;
+}
+
+/**
+ * Validate create LOPA request body.
+ * Returns an array of field errors if validation fails.
+ */
+function validateCreateLOPARequest(body: CreateLOPABody): FieldError[] {
+  const errors: FieldError[] = [];
+
+  // Validate scenarioDescription (required, non-empty string)
+  if (body.scenarioDescription === undefined || body.scenarioDescription === null) {
+    errors.push({
+      field: 'scenarioDescription',
+      message: 'Scenario description is required',
+      code: 'REQUIRED',
+    });
+  } else if (typeof body.scenarioDescription !== 'string') {
+    errors.push({
+      field: 'scenarioDescription',
+      message: 'Scenario description must be a string',
+      code: 'INVALID_TYPE',
+    });
+  } else if (body.scenarioDescription.trim().length === 0) {
+    errors.push({
+      field: 'scenarioDescription',
+      message: 'Scenario description cannot be empty',
+      code: 'EMPTY',
+    });
+  }
+
+  // Validate consequence (required, non-empty string)
+  if (body.consequence === undefined || body.consequence === null) {
+    errors.push({
+      field: 'consequence',
+      message: 'Consequence is required',
+      code: 'REQUIRED',
+    });
+  } else if (typeof body.consequence !== 'string') {
+    errors.push({
+      field: 'consequence',
+      message: 'Consequence must be a string',
+      code: 'INVALID_TYPE',
+    });
+  } else if (body.consequence.trim().length === 0) {
+    errors.push({
+      field: 'consequence',
+      message: 'Consequence cannot be empty',
+      code: 'EMPTY',
+    });
+  }
+
+  // Validate initiatingEventCategory (required, must be valid category)
+  if (body.initiatingEventCategory === undefined || body.initiatingEventCategory === null) {
+    errors.push({
+      field: 'initiatingEventCategory',
+      message: 'Initiating event category is required',
+      code: 'REQUIRED',
+    });
+  } else if (typeof body.initiatingEventCategory !== 'string') {
+    errors.push({
+      field: 'initiatingEventCategory',
+      message: 'Initiating event category must be a string',
+      code: 'INVALID_TYPE',
+    });
+  } else if (
+    !INITIATING_EVENT_CATEGORIES.includes(body.initiatingEventCategory as InitiatingEventCategory)
+  ) {
+    errors.push({
+      field: 'initiatingEventCategory',
+      message: `Initiating event category must be one of: ${INITIATING_EVENT_CATEGORIES.join(', ')}`,
+      code: 'INVALID_VALUE',
+    });
+  }
+
+  // Validate initiatingEventDescription (required, non-empty string)
+  if (body.initiatingEventDescription === undefined || body.initiatingEventDescription === null) {
+    errors.push({
+      field: 'initiatingEventDescription',
+      message: 'Initiating event description is required',
+      code: 'REQUIRED',
+    });
+  } else if (typeof body.initiatingEventDescription !== 'string') {
+    errors.push({
+      field: 'initiatingEventDescription',
+      message: 'Initiating event description must be a string',
+      code: 'INVALID_TYPE',
+    });
+  } else if (body.initiatingEventDescription.trim().length === 0) {
+    errors.push({
+      field: 'initiatingEventDescription',
+      message: 'Initiating event description cannot be empty',
+      code: 'EMPTY',
+    });
+  }
+
+  // Validate initiatingEventFrequency (required, positive number)
+  if (body.initiatingEventFrequency === undefined || body.initiatingEventFrequency === null) {
+    errors.push({
+      field: 'initiatingEventFrequency',
+      message: 'Initiating event frequency is required',
+      code: 'REQUIRED',
+    });
+  } else if (typeof body.initiatingEventFrequency !== 'number') {
+    errors.push({
+      field: 'initiatingEventFrequency',
+      message: 'Initiating event frequency must be a number',
+      code: 'INVALID_TYPE',
+    });
+  } else if (!isValidInitiatingEventFrequency(body.initiatingEventFrequency)) {
+    errors.push({
+      field: 'initiatingEventFrequency',
+      message: 'Initiating event frequency must be between 1e-8 and 100 per year',
+      code: 'OUT_OF_RANGE',
+    });
+  }
+
+  // Validate targetFrequency (required, positive number)
+  if (body.targetFrequency === undefined || body.targetFrequency === null) {
+    errors.push({
+      field: 'targetFrequency',
+      message: 'Target frequency is required',
+      code: 'REQUIRED',
+    });
+  } else if (typeof body.targetFrequency !== 'number') {
+    errors.push({
+      field: 'targetFrequency',
+      message: 'Target frequency must be a number',
+      code: 'INVALID_TYPE',
+    });
+  } else if (!isValidTargetFrequency(body.targetFrequency)) {
+    errors.push({
+      field: 'targetFrequency',
+      message: 'Target frequency must be greater than 0 and at most 1 per year',
+      code: 'OUT_OF_RANGE',
+    });
+  }
+
+  // Validate frequency ordering
+  if (
+    typeof body.initiatingEventFrequency === 'number' &&
+    typeof body.targetFrequency === 'number' &&
+    body.targetFrequency >= body.initiatingEventFrequency
+  ) {
+    errors.push({
+      field: 'targetFrequency',
+      message: 'Target frequency must be less than initiating event frequency',
+      code: 'INVALID_VALUE',
+    });
+  }
+
+  // Validate ipls (required, must be array)
+  if (body.ipls === undefined || body.ipls === null) {
+    errors.push({
+      field: 'ipls',
+      message: 'IPLs array is required',
+      code: 'REQUIRED',
+    });
+  } else if (!Array.isArray(body.ipls)) {
+    errors.push({
+      field: 'ipls',
+      message: 'IPLs must be an array',
+      code: 'INVALID_TYPE',
+    });
+  } else {
+    // Validate each IPL
+    const iplArray = body.ipls as IPLInput[];
+    for (let i = 0; i < iplArray.length; i++) {
+      const ipl = iplArray[i];
+      const prefix = `ipls[${i}]`;
+
+      // Validate type
+      if (ipl.type === undefined || ipl.type === null) {
+        errors.push({
+          field: `${prefix}.type`,
+          message: 'IPL type is required',
+          code: 'REQUIRED',
+        });
+      } else if (typeof ipl.type !== 'string') {
+        errors.push({
+          field: `${prefix}.type`,
+          message: 'IPL type must be a string',
+          code: 'INVALID_TYPE',
+        });
+      } else if (!IPL_TYPES.includes(ipl.type as IPLType)) {
+        errors.push({
+          field: `${prefix}.type`,
+          message: `IPL type must be one of: ${IPL_TYPES.join(', ')}`,
+          code: 'INVALID_VALUE',
+        });
+      }
+
+      // Validate name
+      if (ipl.name === undefined || ipl.name === null) {
+        errors.push({
+          field: `${prefix}.name`,
+          message: 'IPL name is required',
+          code: 'REQUIRED',
+        });
+      } else if (typeof ipl.name !== 'string') {
+        errors.push({
+          field: `${prefix}.name`,
+          message: 'IPL name must be a string',
+          code: 'INVALID_TYPE',
+        });
+      } else if ((ipl.name as string).trim().length === 0) {
+        errors.push({
+          field: `${prefix}.name`,
+          message: 'IPL name cannot be empty',
+          code: 'EMPTY',
+        });
+      }
+
+      // Validate description
+      if (ipl.description === undefined || ipl.description === null) {
+        errors.push({
+          field: `${prefix}.description`,
+          message: 'IPL description is required',
+          code: 'REQUIRED',
+        });
+      } else if (typeof ipl.description !== 'string') {
+        errors.push({
+          field: `${prefix}.description`,
+          message: 'IPL description must be a string',
+          code: 'INVALID_TYPE',
+        });
+      } else if ((ipl.description as string).trim().length === 0) {
+        errors.push({
+          field: `${prefix}.description`,
+          message: 'IPL description cannot be empty',
+          code: 'EMPTY',
+        });
+      }
+
+      // Validate pfd
+      if (ipl.pfd === undefined || ipl.pfd === null) {
+        errors.push({
+          field: `${prefix}.pfd`,
+          message: 'IPL PFD is required',
+          code: 'REQUIRED',
+        });
+      } else if (typeof ipl.pfd !== 'number') {
+        errors.push({
+          field: `${prefix}.pfd`,
+          message: 'IPL PFD must be a number',
+          code: 'INVALID_TYPE',
+        });
+      } else if (!isValidPFD(ipl.pfd)) {
+        errors.push({
+          field: `${prefix}.pfd`,
+          message: 'IPL PFD must be between 1e-5 and 1.0',
+          code: 'OUT_OF_RANGE',
+        });
+      }
+
+      // Validate independentOfInitiator
+      if (ipl.independentOfInitiator === undefined || ipl.independentOfInitiator === null) {
+        errors.push({
+          field: `${prefix}.independentOfInitiator`,
+          message: 'IPL independence of initiator is required',
+          code: 'REQUIRED',
+        });
+      } else if (typeof ipl.independentOfInitiator !== 'boolean') {
+        errors.push({
+          field: `${prefix}.independentOfInitiator`,
+          message: 'IPL independence of initiator must be a boolean',
+          code: 'INVALID_TYPE',
+        });
+      }
+
+      // Validate independentOfOtherIPLs
+      if (ipl.independentOfOtherIPLs === undefined || ipl.independentOfOtherIPLs === null) {
+        errors.push({
+          field: `${prefix}.independentOfOtherIPLs`,
+          message: 'IPL independence of other IPLs is required',
+          code: 'REQUIRED',
+        });
+      } else if (typeof ipl.independentOfOtherIPLs !== 'boolean') {
+        errors.push({
+          field: `${prefix}.independentOfOtherIPLs`,
+          message: 'IPL independence of other IPLs must be a boolean',
+          code: 'INVALID_TYPE',
+        });
+      }
+
+      // Validate sil (optional, but if provided must be 1-4)
+      if (ipl.sil !== undefined && ipl.sil !== null) {
+        if (typeof ipl.sil !== 'number' || !Number.isInteger(ipl.sil)) {
+          errors.push({
+            field: `${prefix}.sil`,
+            message: 'IPL SIL must be an integer',
+            code: 'INVALID_TYPE',
+          });
+        } else if (!SAFETY_INTEGRITY_LEVELS.includes(ipl.sil as SafetyIntegrityLevel)) {
+          errors.push({
+            field: `${prefix}.sil`,
+            message: 'IPL SIL must be 1, 2, 3, or 4',
+            code: 'INVALID_VALUE',
+          });
+        }
+      }
+
+      // Validate notes (optional, but if provided must be string)
+      if (ipl.notes !== undefined && ipl.notes !== null) {
+        if (typeof ipl.notes !== 'string') {
+          errors.push({
+            field: `${prefix}.notes`,
+            message: 'IPL notes must be a string',
+            code: 'INVALID_TYPE',
+          });
+        }
+      }
+    }
+  }
+
+  // Validate notes (optional, but if provided must be string)
+  if (body.notes !== undefined && body.notes !== null) {
+    if (typeof body.notes !== 'string') {
+      errors.push({
+        field: 'notes',
+        message: 'Notes must be a string',
+        code: 'INVALID_TYPE',
+      });
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * POST /entries/:id/lopa
+ * Create a LOPA (Layers of Protection Analysis) for an analysis entry.
+ *
+ * The entry must have a risk assessment with severity defined.
+ * The analysis must be in 'draft' status.
+ * Only one LOPA can exist per entry.
+ *
+ * Path parameters:
+ * - id: string (required) - Entry UUID
+ *
+ * Request body:
+ * - scenarioDescription: string (required) - Description of the scenario
+ * - consequence: string (required) - Description of the consequence
+ * - initiatingEventCategory: string (required) - Category of initiating event
+ * - initiatingEventDescription: string (required) - Description of initiating event
+ * - initiatingEventFrequency: number (required) - Frequency per year
+ * - ipls: array (required) - Array of IPL objects
+ * - targetFrequency: number (required) - Target frequency per year
+ * - notes: string (optional) - Additional notes
+ *
+ * Returns:
+ * - 201: Created LOPA analysis
+ * - 400: Validation error, entry not risk-assessed, or analysis not in draft
+ * - 401: Not authenticated
+ * - 403: Not authorized to access this entry's project
+ * - 404: Entry not found
+ * - 409: LOPA already exists for this entry
+ * - 500: Internal server error
+ */
+export async function createEntryLOPA(req: Request, res: Response): Promise<void> {
+  try {
+    const { id: entryId } = req.params;
+    const body = req.body as CreateLOPABody;
+
+    // Get authenticated user ID
+    const userId = (req.user as { id: string } | undefined)?.id;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required',
+        },
+      });
+      return;
+    }
+
+    // Validate UUID format
+    if (!UUID_REGEX.test(entryId)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid entry ID format',
+          errors: [
+            {
+              field: 'id',
+              message: 'Entry ID must be a valid UUID',
+              code: 'INVALID_FORMAT',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    // Validate request body
+    const validationErrors = validateCreateLOPARequest(body);
+    if (validationErrors.length > 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          errors: validationErrors,
+        },
+      });
+      return;
+    }
+
+    // Get entry info with project access check
+    const entryInfo = await getEntryWithAnalysisInfo(entryId);
+    if (!entryInfo) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Analysis entry not found',
+        },
+      });
+      return;
+    }
+
+    // Check if user has access to the project
+    const hasAccess = await userHasProjectAccess(userId, entryInfo.projectId);
+    if (!hasAccess) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this entry',
+        },
+      });
+      return;
+    }
+
+    // Check if analysis is in draft status
+    if (entryInfo.analysisStatus !== 'draft') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_STATUS',
+          message: `Can only create LOPA for draft analyses. Current status: ${entryInfo.analysisStatus}`,
+        },
+      });
+      return;
+    }
+
+    // Check if entry has severity assessed
+    if (entryInfo.severity === null) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Entry must have risk assessment with severity before creating LOPA',
+        },
+      });
+      return;
+    }
+
+    // Check if LOPA already exists for this entry
+    const exists = await lopaExistsForEntry(entryId);
+    if (exists) {
+      res.status(409).json({
+        success: false,
+        error: {
+          code: 'CONFLICT',
+          message: 'LOPA analysis already exists for this entry',
+        },
+      });
+      return;
+    }
+
+    // Build IPL array from request body
+    const iplArray = body.ipls as IPLInput[];
+    const ipls = iplArray.map((ipl) => ({
+      type: ipl.type as IPLType,
+      name: (ipl.name as string).trim(),
+      description: (ipl.description as string).trim(),
+      pfd: ipl.pfd as number,
+      independentOfInitiator: ipl.independentOfInitiator as boolean,
+      independentOfOtherIPLs: ipl.independentOfOtherIPLs as boolean,
+      sil: ipl.sil as SafetyIntegrityLevel | undefined,
+      notes: typeof ipl.notes === 'string' ? ipl.notes : undefined,
+    }));
+
+    // Create the LOPA analysis
+    const lopa = await createLOPAAnalysis(userId, {
+      analysisEntryId: entryId,
+      scenarioDescription: (body.scenarioDescription as string).trim(),
+      consequence: (body.consequence as string).trim(),
+      initiatingEventCategory: body.initiatingEventCategory as InitiatingEventCategory,
+      initiatingEventDescription: (body.initiatingEventDescription as string).trim(),
+      initiatingEventFrequency: body.initiatingEventFrequency as number,
+      ipls,
+      targetFrequency: body.targetFrequency as number,
+      notes: typeof body.notes === 'string' ? body.notes : undefined,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: { lopa },
+    });
+  } catch (error) {
+    console.error('Create entry LOPA error:', error);
+
+    // Handle specific error cases
+    if (error instanceof Error) {
+      if (error.message === 'Analysis entry not found') {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Analysis entry not found',
+          },
+        });
+        return;
+      }
+
+      if (error.message.includes('Invalid LOPA input')) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: error.message,
+          },
+        });
+        return;
+      }
+
+      if (error.message === 'LOPA analysis already exists for this entry') {
+        res.status(409).json({
+          success: false,
+          error: {
+            code: 'CONFLICT',
+            message: 'LOPA analysis already exists for this entry',
+          },
+        });
+        return;
+      }
+
+      if (error.message.includes('must have risk assessment')) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: error.message,
+          },
+        });
+        return;
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
