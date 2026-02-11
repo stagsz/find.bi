@@ -1856,6 +1856,609 @@ const OSHA_PSM: RegulatoryStandard = {
 };
 
 // ============================================================================
+// EPA RMP - Risk Management Program (40 CFR Part 68)
+// ============================================================================
+
+/**
+ * EPA RMP clauses relevant to HazOps analysis.
+ * EPA Risk Management Program (40 CFR Part 68) - Chemical Accident Prevention Provisions
+ *
+ * Task: COMP-05
+ */
+const EPA_RMP_CLAUSES: RegulatoryClause[] = [
+  // Subpart A - General
+  {
+    id: 'RMP-68.3',
+    title: 'Definitions',
+    description:
+      'Key definitions for the RMP rule including covered process, regulated substance, threshold quantity, ' +
+      'stationary source, and worst-case release scenario. Understanding these definitions is critical for ' +
+      'determining applicability and conducting proper hazard assessments.',
+    keywords: ['definitions', 'covered process', 'regulated substance', 'threshold quantity', 'stationary source'],
+    mandatory: true,
+    hazopsRelevance: ['methodology'],
+  },
+  {
+    id: 'RMP-68.10',
+    title: 'Applicability',
+    description:
+      'A stationary source that has more than a threshold quantity of a regulated substance in a process ' +
+      'shall comply with this part. Covers both toxic and flammable substances listed in 40 CFR 68.130.',
+    keywords: ['applicability', 'threshold quantity', 'toxic substances', 'flammable substances', 'covered source'],
+    mandatory: true,
+    hazopsRelevance: ['methodology'],
+  },
+  {
+    id: 'RMP-68.12',
+    title: 'General requirements',
+    description:
+      'The owner or operator shall submit a single RMP, ensure compliance with all applicable requirements, ' +
+      'register, and implement the prevention program. Program level (1, 2, or 3) is determined by ' +
+      'process characteristics and accident history.',
+    keywords: ['general requirements', 'RMP submission', 'program level', 'registration', 'prevention program'],
+    mandatory: true,
+    hazopsRelevance: ['documentation', 'methodology'],
+  },
+  // Subpart B - Hazard Assessment
+  {
+    id: 'RMP-68.20',
+    title: 'Applicability of hazard assessment',
+    description:
+      'The owner or operator shall prepare a worst-case release scenario analysis and shall document ' +
+      'five-year accident history. Programs 2 and 3 also require alternative release scenario analysis.',
+    keywords: ['hazard assessment', 'worst-case scenario', 'five-year history', 'alternative scenarios'],
+    mandatory: true,
+    hazopsRelevance: ['hazard_identification', 'risk_assessment'],
+  },
+  {
+    id: 'RMP-68.22',
+    title: 'Offsite consequence analysis parameters',
+    description:
+      'Defines parameters for conducting offsite consequence analysis including reference tables, ' +
+      'EPA guidance, and modeling requirements. Analysis must consider endpoints for toxic and ' +
+      'flammable substances and distances to public receptors.',
+    keywords: ['offsite analysis', 'consequence analysis', 'endpoints', 'toxic concentration', 'overpressure'],
+    mandatory: true,
+    hazopsRelevance: ['risk_assessment', 'methodology'],
+  },
+  {
+    id: 'RMP-68.25',
+    title: 'Worst-case release scenario analysis',
+    description:
+      'Analysis of release of the largest quantity of regulated substance from a vessel or process line ' +
+      'failure that results in the greatest distance to an endpoint. Must consider administrative controls ' +
+      'and passive mitigation, but not active mitigation.',
+    keywords: ['worst-case', 'largest quantity', 'endpoint distance', 'passive mitigation', 'vessel failure'],
+    mandatory: true,
+    hazopsRelevance: ['hazard_identification', 'risk_assessment'],
+  },
+  {
+    id: 'RMP-68.28',
+    title: 'Alternative release scenario analysis',
+    description:
+      'For Programs 2 and 3, analysis of more likely release scenarios considering transfer hose failures, ' +
+      'process vessel failures, piping failures, and overfilling. Must identify populations potentially ' +
+      'affected and environmental receptors.',
+    keywords: ['alternative scenario', 'likely release', 'transfer hose', 'piping failure', 'environmental receptors'],
+    mandatory: true,
+    hazopsRelevance: ['hazard_identification', 'risk_assessment'],
+  },
+  {
+    id: 'RMP-68.30',
+    title: 'Defining offsite impacts - Loss of control',
+    description:
+      'Analysis shall consider loss of administrative controls as well as equipment failures that could ' +
+      'result in release of regulated substances. Impact zones must be mapped.',
+    keywords: ['offsite impact', 'loss of control', 'equipment failure', 'impact zones', 'mapping'],
+    mandatory: true,
+    hazopsRelevance: ['hazard_identification', 'risk_assessment'],
+  },
+  {
+    id: 'RMP-68.33',
+    title: 'Five-year accident history',
+    description:
+      'Document all accidental releases from covered processes that resulted in deaths, injuries, ' +
+      'significant property damage, evacuations, sheltering in place, or environmental damage. ' +
+      'Must include date, quantity released, duration, weather conditions, onsite and offsite impacts.',
+    keywords: ['accident history', 'five-year', 'accidental releases', 'injuries', 'evacuations', 'environmental damage'],
+    mandatory: true,
+    hazopsRelevance: ['hazard_identification', 'documentation'],
+  },
+  {
+    id: 'RMP-68.36',
+    title: 'Review and update of hazard assessment',
+    description:
+      'The owner or operator shall review and update the hazard assessment at least once every five years. ' +
+      'Offsite consequence analysis must be updated when a new worst-case scenario is identified or ' +
+      'significant changes occur to the process.',
+    keywords: ['review', 'update', 'five years', 'revalidation', 'process changes'],
+    mandatory: true,
+    hazopsRelevance: ['follow_up', 'methodology'],
+  },
+  // Subpart C - Program 2 Prevention Program
+  {
+    id: 'RMP-68.48',
+    title: 'Safety information (Program 2)',
+    description:
+      'For Program 2 processes, the owner or operator shall compile and maintain safety information ' +
+      'including material safety data sheets, maximum intended inventory, safe upper and lower limits ' +
+      'for process parameters, and equipment specifications.',
+    keywords: ['safety information', 'MSDS', 'inventory', 'process limits', 'equipment specs', 'Program 2'],
+    mandatory: true,
+    hazopsRelevance: ['documentation', 'hazard_identification'],
+  },
+  {
+    id: 'RMP-68.50',
+    title: 'Hazard review (Program 2)',
+    description:
+      'Conduct a review of hazards associated with the regulated substances, process, and procedures. ' +
+      'The review shall identify hazards, previous incidents, engineering and administrative controls, ' +
+      'and consequences of failure of controls. Appropriate checklist or similar methodology required.',
+    keywords: ['hazard review', 'Program 2', 'checklist', 'hazard identification', 'control failure', 'previous incidents'],
+    mandatory: true,
+    hazopsRelevance: ['hazard_identification', 'risk_assessment', 'methodology'],
+  },
+  {
+    id: 'RMP-68.52',
+    title: 'Operating procedures (Program 2)',
+    description:
+      'Prepare written operating procedures that provide clear instructions for safely conducting ' +
+      'activities. Procedures must include steps for startup, normal operations, temporary operations, ' +
+      'emergency shutdown, and normal shutdown.',
+    keywords: ['operating procedures', 'written procedures', 'startup', 'shutdown', 'emergency operations'],
+    mandatory: true,
+    hazopsRelevance: ['documentation', 'safeguards'],
+  },
+  {
+    id: 'RMP-68.54',
+    title: 'Training (Program 2)',
+    description:
+      'Train all employees involved in operating a process in overview of the process and operating ' +
+      'procedures. Refresher training at least every three years. Documentation of training required.',
+    keywords: ['training', 'Program 2', 'refresher training', 'three years', 'operating procedures'],
+    mandatory: true,
+    hazopsRelevance: ['team_composition', 'documentation'],
+  },
+  {
+    id: 'RMP-68.56',
+    title: 'Maintenance (Program 2)',
+    description:
+      'Prepare and implement procedures to maintain the ongoing mechanical integrity of the process ' +
+      'equipment. Maintain equipment in accordance with industry standards and manufacturer guidance.',
+    keywords: ['maintenance', 'mechanical integrity', 'Program 2', 'equipment maintenance', 'industry standards'],
+    mandatory: true,
+    hazopsRelevance: ['safeguards', 'follow_up'],
+  },
+  {
+    id: 'RMP-68.58',
+    title: 'Compliance audits (Program 2)',
+    description:
+      'Certify that at least every three years a compliance audit has been conducted to verify ' +
+      'procedures and practices are adequate and being followed. Develop a report and address findings.',
+    keywords: ['compliance audit', 'three years', 'Program 2', 'certification', 'verification'],
+    mandatory: true,
+    hazopsRelevance: ['follow_up', 'methodology'],
+  },
+  {
+    id: 'RMP-68.60',
+    title: 'Incident investigation (Program 2)',
+    description:
+      'Investigate each incident that resulted in, or could reasonably have resulted in, a catastrophic ' +
+      'release within 48 hours. Document findings and implement recommendations.',
+    keywords: ['incident investigation', 'Program 2', '48 hours', 'catastrophic release', 'recommendations'],
+    mandatory: true,
+    hazopsRelevance: ['follow_up', 'hazard_identification'],
+  },
+  // Subpart D - Program 3 Prevention Program
+  {
+    id: 'RMP-68.65',
+    title: 'Process safety information (Program 3)',
+    description:
+      'Compile written process safety information before conducting a PHA. Information shall include ' +
+      'hazards of the substances, process technology, and equipment. Pertinent MSDS information required.',
+    keywords: ['process safety information', 'PSI', 'Program 3', 'MSDS', 'technology', 'equipment information'],
+    mandatory: true,
+    hazopsRelevance: ['documentation', 'hazard_identification'],
+  },
+  {
+    id: 'RMP-68.67',
+    title: 'Process hazard analysis (Program 3)',
+    description:
+      'Perform an initial PHA on all covered processes using an appropriate methodology such as What-If, ' +
+      'Checklist, What-If/Checklist, HAZOP, FMEA, Fault Tree, or equivalent. The PHA team must include ' +
+      'expertise in engineering, process operations, and the PHA methodology being used.',
+    keywords: ['PHA', 'process hazard analysis', 'HAZOP', 'FMEA', 'fault tree', 'What-If', 'team expertise'],
+    mandatory: true,
+    hazopsRelevance: ['hazard_identification', 'methodology', 'team_composition'],
+  },
+  {
+    id: 'RMP-68.67(c)',
+    title: 'PHA scope and content',
+    description:
+      'The PHA shall address hazards of the process, previous incidents with catastrophic potential, ' +
+      'engineering and administrative controls and their interrelationships, consequences of control ' +
+      'failure, facility siting, human factors, and qualitative evaluation of safeguards.',
+    keywords: ['PHA scope', 'hazards', 'incidents', 'controls', 'siting', 'human factors', 'safeguards evaluation'],
+    mandatory: true,
+    parentClauseId: 'RMP-68.67',
+    hazopsRelevance: ['hazard_identification', 'risk_assessment', 'safeguards'],
+  },
+  {
+    id: 'RMP-68.67(d)',
+    title: 'PHA recommendations and follow-up',
+    description:
+      'The PHA shall address findings and recommendations. The owner shall establish a system to ' +
+      'promptly address findings, document actions taken, and resolve recommendations in a timely manner.',
+    keywords: ['PHA recommendations', 'findings', 'resolution', 'corrective actions', 'timely'],
+    mandatory: true,
+    parentClauseId: 'RMP-68.67',
+    hazopsRelevance: ['recommendations', 'follow_up'],
+  },
+  {
+    id: 'RMP-68.67(e)',
+    title: 'PHA update and revalidation',
+    description:
+      'The PHA shall be updated and revalidated at least every five years. Each PHA update shall ' +
+      'address all recommendations from the previous PHA that have not been resolved.',
+    keywords: ['PHA update', 'revalidation', 'five years', 'previous recommendations', 'resolution tracking'],
+    mandatory: true,
+    parentClauseId: 'RMP-68.67',
+    hazopsRelevance: ['follow_up', 'methodology'],
+  },
+  {
+    id: 'RMP-68.67(f)',
+    title: 'PHA retention',
+    description:
+      'The owner or operator shall retain PHAs and updates for each process for the life of the process.',
+    keywords: ['retention', 'life of process', 'PHA records', 'documentation'],
+    mandatory: true,
+    parentClauseId: 'RMP-68.67',
+    hazopsRelevance: ['documentation'],
+  },
+  {
+    id: 'RMP-68.69',
+    title: 'Operating procedures (Program 3)',
+    description:
+      'Develop and implement written operating procedures that provide clear instructions for safely ' +
+      'conducting activities. Procedures shall address operating limits, safety and health considerations, ' +
+      'safety systems, and emergency operations including shutdown.',
+    keywords: ['operating procedures', 'Program 3', 'operating limits', 'safety systems', 'emergency shutdown'],
+    mandatory: true,
+    hazopsRelevance: ['documentation', 'safeguards'],
+  },
+  {
+    id: 'RMP-68.71',
+    title: 'Training (Program 3)',
+    description:
+      'Train each employee presently involved in operating a process and each employee before being ' +
+      'involved in a newly assigned process. Training must include overview of the process, operating ' +
+      'procedures, safety procedures, and emergency procedures. Refresher training at least every three years.',
+    keywords: ['training', 'Program 3', 'employee training', 'safety procedures', 'refresher', 'three years'],
+    mandatory: true,
+    hazopsRelevance: ['team_composition', 'documentation'],
+  },
+  {
+    id: 'RMP-68.73',
+    title: 'Mechanical integrity (Program 3)',
+    description:
+      'Establish and implement written procedures to maintain ongoing integrity of process equipment ' +
+      'including pressure vessels, storage tanks, piping systems, relief and vent systems, emergency ' +
+      'shutdown systems, controls, and pumps. Inspections and tests per recognized and generally ' +
+      'accepted good engineering practices.',
+    keywords: ['mechanical integrity', 'Program 3', 'pressure vessels', 'piping', 'relief systems', 'inspections'],
+    mandatory: true,
+    hazopsRelevance: ['safeguards', 'follow_up'],
+  },
+  {
+    id: 'RMP-68.75',
+    title: 'Management of change (Program 3)',
+    description:
+      'Establish and implement written procedures to manage changes to process chemicals, technology, ' +
+      'equipment, and procedures. Changes must be reviewed for impact on safety and health and ' +
+      'documented before implementation.',
+    keywords: ['management of change', 'MOC', 'Program 3', 'change procedures', 'safety impact'],
+    mandatory: true,
+    hazopsRelevance: ['management_of_change'],
+  },
+  {
+    id: 'RMP-68.75(c)',
+    title: 'MOC procedure requirements',
+    description:
+      'MOC procedures shall assure: technical basis for the proposed change, impact on safety and health, ' +
+      'modifications to operating procedures, necessary time period, and authorization requirements.',
+    keywords: ['MOC requirements', 'technical basis', 'safety impact', 'authorization', 'procedure modifications'],
+    mandatory: true,
+    parentClauseId: 'RMP-68.75',
+    hazopsRelevance: ['management_of_change', 'risk_assessment'],
+  },
+  {
+    id: 'RMP-68.77',
+    title: 'Pre-startup review (Program 3)',
+    description:
+      'Perform a pre-startup safety review for new and significantly modified stationary sources. Review ' +
+      'shall confirm construction and equipment are in accordance with design specifications, safety, ' +
+      'operating, maintenance, and emergency procedures are in place, and a PHA has been performed.',
+    keywords: ['pre-startup review', 'PSSR', 'Program 3', 'new facilities', 'modified facilities', 'design specifications'],
+    mandatory: true,
+    hazopsRelevance: ['follow_up', 'methodology'],
+  },
+  {
+    id: 'RMP-68.79',
+    title: 'Compliance audits (Program 3)',
+    description:
+      'Certify at least every three years that a compliance audit has been conducted to verify ' +
+      'procedures and practices are adequate and being followed. Audit by at least one person ' +
+      'knowledgeable in the process. Respond to findings and document deficiency corrections.',
+    keywords: ['compliance audit', 'Program 3', 'three years', 'audit team', 'findings', 'corrective actions'],
+    mandatory: true,
+    hazopsRelevance: ['follow_up', 'methodology'],
+  },
+  {
+    id: 'RMP-68.81',
+    title: 'Incident investigation (Program 3)',
+    description:
+      'Investigate each incident that resulted in, or could reasonably have resulted in, a catastrophic ' +
+      'release. Investigation must begin within 48 hours, include investigation team, document findings, ' +
+      'and address recommendations. Retain reports for five years.',
+    keywords: ['incident investigation', 'Program 3', '48 hours', 'investigation team', 'findings', 'five years'],
+    mandatory: true,
+    hazopsRelevance: ['follow_up', 'hazard_identification'],
+  },
+  {
+    id: 'RMP-68.83',
+    title: 'Employee participation (Program 3)',
+    description:
+      'Develop a written plan of action for employee participation. Employees must be consulted on ' +
+      'conduct and development of PHAs and development of other elements. Access to hazard information ' +
+      'and trade secret provisions.',
+    keywords: ['employee participation', 'Program 3', 'consultation', 'PHA involvement', 'access to information'],
+    mandatory: true,
+    hazopsRelevance: ['team_composition', 'methodology'],
+  },
+  {
+    id: 'RMP-68.85',
+    title: 'Hot work permit (Program 3)',
+    description:
+      'Issue a permit for hot work operations conducted on or near a covered process. Permit shall ' +
+      'document that fire prevention and protection requirements have been implemented.',
+    keywords: ['hot work', 'permit', 'Program 3', 'fire prevention', 'welding', 'cutting'],
+    mandatory: true,
+    hazopsRelevance: ['safeguards', 'hazard_identification'],
+  },
+  {
+    id: 'RMP-68.87',
+    title: 'Contractors (Program 3)',
+    description:
+      'Develop and implement procedures for contract employees performing maintenance, repair, turnaround, ' +
+      'or specialty work on or adjacent to covered processes. Ensure contractor safety performance ' +
+      'and provide hazard information.',
+    keywords: ['contractors', 'Program 3', 'contract employees', 'maintenance', 'safety performance'],
+    mandatory: true,
+    hazopsRelevance: ['team_composition', 'documentation'],
+  },
+  // Subpart E - Emergency Response
+  {
+    id: 'RMP-68.90',
+    title: 'Applicability of emergency response',
+    description:
+      'The owner or operator shall comply with emergency response requirements if employees will respond ' +
+      'to releases. Alternatively, may elect to be a non-responding stationary source if properly coordinated ' +
+      'with local emergency responders.',
+    keywords: ['emergency response', 'applicability', 'responding source', 'non-responding', 'local responders'],
+    mandatory: true,
+    hazopsRelevance: ['safeguards', 'methodology'],
+  },
+  {
+    id: 'RMP-68.93',
+    title: 'Emergency response program (responding sources)',
+    description:
+      'Develop and implement an emergency response program including emergency action plan, procedures for ' +
+      'informing the public and emergency responders, documentation of first aid and emergency medical treatment, ' +
+      'and procedures for emergency equipment use and inspection.',
+    keywords: ['emergency response program', 'emergency action plan', 'public notification', 'first aid', 'emergency equipment'],
+    mandatory: true,
+    hazopsRelevance: ['safeguards', 'recommendations'],
+  },
+  {
+    id: 'RMP-68.95',
+    title: 'Emergency response exercises',
+    description:
+      'Conduct exercises to evaluate the emergency response program. Notification exercises annually, ' +
+      'tabletop exercises annually, and field exercises at least once every ten years (or coordination ' +
+      'with local authorities).',
+    keywords: ['emergency exercises', 'drills', 'tabletop', 'field exercises', 'notification exercises'],
+    mandatory: true,
+    hazopsRelevance: ['follow_up', 'safeguards'],
+  },
+  {
+    id: 'RMP-68.96',
+    title: 'Emergency response program (non-responding sources)',
+    description:
+      'For stationary sources that will not respond to releases, establish response actions for employees, ' +
+      'procedures for informing public and responders, and coordination with local emergency planning ' +
+      'committee (LEPC).',
+    keywords: ['non-responding', 'LEPC coordination', 'public notification', 'local response'],
+    mandatory: true,
+    hazopsRelevance: ['safeguards', 'documentation'],
+  },
+  // Subpart G - Risk Management Plan
+  {
+    id: 'RMP-68.150',
+    title: 'Submission',
+    description:
+      'Submit a single RMP for the stationary source to a central point specified by EPA. Initial submission ' +
+      'and updates required. RMP must be submitted in the method specified by EPA.',
+    keywords: ['RMP submission', 'EPA reporting', 'central point', 'registration'],
+    mandatory: true,
+    hazopsRelevance: ['documentation'],
+  },
+  {
+    id: 'RMP-68.155',
+    title: 'Executive summary',
+    description:
+      'The RMP shall include an executive summary that provides a brief description of the accidental release ' +
+      'prevention and emergency response policies, stationary source description, regulated substances, ' +
+      'worst-case scenario summary, five-year accident history, and emergency response program summary.',
+    keywords: ['executive summary', 'RMP contents', 'prevention policy', 'source description', 'accident history'],
+    mandatory: true,
+    hazopsRelevance: ['documentation'],
+  },
+  {
+    id: 'RMP-68.160',
+    title: 'Registration',
+    description:
+      'Complete registration including facility identification, regulatory applicability, owner/operator ' +
+      'information, emergency contact, and NAICS codes for covered processes.',
+    keywords: ['registration', 'facility ID', 'NAICS codes', 'emergency contact', 'regulatory applicability'],
+    mandatory: true,
+    hazopsRelevance: ['documentation'],
+  },
+  {
+    id: 'RMP-68.165',
+    title: 'Offsite consequence analysis',
+    description:
+      'The RMP shall include the results of offsite consequence analysis for all covered processes, ' +
+      'including worst-case scenarios and alternative release scenarios as applicable by program level.',
+    keywords: ['offsite consequence', 'RMP contents', 'worst-case', 'alternative scenarios'],
+    mandatory: true,
+    hazopsRelevance: ['documentation', 'risk_assessment'],
+  },
+  {
+    id: 'RMP-68.168',
+    title: 'Five-year accident history submission',
+    description:
+      'The RMP shall include the five-year accident history for each covered process including all ' +
+      'required details about releases, impacts, and response actions.',
+    keywords: ['accident history', 'RMP contents', 'release details', 'impacts'],
+    mandatory: true,
+    hazopsRelevance: ['documentation', 'hazard_identification'],
+  },
+  {
+    id: 'RMP-68.170',
+    title: 'Prevention program submission',
+    description:
+      'The RMP shall include a description of the prevention program including NAICS code, SIC code, ' +
+      'chemical information, process description, and dates of most recent PHA/hazard review, compliance ' +
+      'audit, and incident investigation.',
+    keywords: ['prevention program', 'RMP contents', 'PHA dates', 'audit dates', 'process description'],
+    mandatory: true,
+    hazopsRelevance: ['documentation', 'methodology'],
+  },
+  {
+    id: 'RMP-68.175',
+    title: 'Emergency response program submission',
+    description:
+      'The RMP shall include information about the emergency response program including whether facility ' +
+      'is a responding or non-responding source, LEPC coordination, and exercise dates.',
+    keywords: ['emergency program', 'RMP contents', 'LEPC', 'exercise dates', 'response coordination'],
+    mandatory: true,
+    hazopsRelevance: ['documentation', 'safeguards'],
+  },
+  {
+    id: 'RMP-68.180',
+    title: 'Certification',
+    description:
+      'The RMP shall include a certification by the owner or operator that the information provided is ' +
+      'accurate, the facility has complied with all requirements, and actions have been taken consistent ' +
+      'with the risk management program.',
+    keywords: ['certification', 'owner certification', 'compliance', 'accuracy'],
+    mandatory: true,
+    hazopsRelevance: ['documentation'],
+  },
+  {
+    id: 'RMP-68.190',
+    title: 'Updates',
+    description:
+      'Update the RMP within five years of initial submission and no later than the date on which a new ' +
+      'regulated substance is first in a covered process. Update required when significant changes occur, ' +
+      'and corrections required within one month of discovery of errors.',
+    keywords: ['RMP update', 'five years', 'new substances', 'significant changes', 'corrections'],
+    mandatory: true,
+    hazopsRelevance: ['documentation', 'follow_up'],
+  },
+  // HazOps-specific guidance for EPA RMP
+  {
+    id: 'RMP-HazOps-1',
+    title: 'EPA RMP HazOps requirements summary',
+    description:
+      'When conducting HazOps for EPA RMP compliance: For Program 3 processes, a full PHA using HAZOP or ' +
+      'equivalent methodology is required. Team must include expertise in process operations, engineering, ' +
+      'and PHA methodology. Must address offsite consequences and environmental receptors.',
+    keywords: ['HazOps', 'HAZOP', 'EPA requirements', 'PHA', 'team composition', 'offsite consequences'],
+    mandatory: false,
+    hazopsRelevance: ['hazard_identification', 'methodology', 'team_composition'],
+  },
+  {
+    id: 'RMP-HazOps-2',
+    title: 'EPA RMP offsite impact considerations',
+    description:
+      'HazOps for EPA RMP must consider impacts beyond facility boundaries including: populations in ' +
+      'residential areas, schools, hospitals, commercial/industrial areas, public assembly areas, ' +
+      'and environmental receptors (parks, wildlife areas, waterways).',
+    keywords: ['offsite impact', 'public receptors', 'environmental receptors', 'populations', 'community impact'],
+    mandatory: false,
+    hazopsRelevance: ['hazard_identification', 'risk_assessment'],
+  },
+  {
+    id: 'RMP-HazOps-3',
+    title: 'EPA RMP safeguards documentation',
+    description:
+      'Typical safeguards for EPA RMP HazOps include: containment systems (dikes, drainage), detection ' +
+      'systems (monitors, alarms), mitigation systems (scrubbers, flares, sprays), administrative ' +
+      'controls, and emergency response equipment.',
+    keywords: ['safeguards', 'containment', 'detection', 'mitigation', 'scrubbers', 'flares', 'emergency equipment'],
+    mandatory: false,
+    hazopsRelevance: ['safeguards', 'recommendations'],
+  },
+  {
+    id: 'RMP-HazOps-4',
+    title: 'EPA RMP worst-case and alternative scenarios',
+    description:
+      'HazOps deviations should inform both worst-case and alternative release scenario analyses. ' +
+      'Worst-case: total release of largest vessel contents. Alternative: more likely scenarios ' +
+      'such as hose failures, pump seal failures, operator errors, equipment failures.',
+    keywords: ['worst-case', 'alternative scenario', 'hose failure', 'seal failure', 'operator error', 'scenario analysis'],
+    mandatory: false,
+    hazopsRelevance: ['hazard_identification', 'risk_assessment'],
+  },
+  {
+    id: 'RMP-HazOps-5',
+    title: 'EPA RMP integration with OSHA PSM',
+    description:
+      'Many facilities subject to EPA RMP are also subject to OSHA PSM. HazOps can satisfy PHA ' +
+      'requirements of both regulations when properly documented. Ensure both PSI and offsite ' +
+      'consequence requirements are addressed.',
+    keywords: ['PSM integration', 'dual compliance', 'OSHA', 'EPA', 'regulatory overlap'],
+    mandatory: false,
+    hazopsRelevance: ['methodology', 'documentation'],
+  },
+];
+
+/**
+ * EPA RMP standard definition.
+ */
+const EPA_RMP: RegulatoryStandard = {
+  id: 'EPA_RMP',
+  name: 'EPA RMP',
+  title: 'Chemical Accident Prevention Provisions (40 CFR Part 68)',
+  description:
+    'US federal EPA regulation requiring facilities using extremely hazardous substances at or above ' +
+    'threshold quantities to develop and implement Risk Management Programs. Applies to processes ' +
+    'containing substances listed in 40 CFR 68.130 including toxic and flammable substances. ' +
+    'Program levels (1, 2, or 3) based on process complexity, accident history, and proximity to ' +
+    'public receptors. Requires hazard assessment, prevention programs, and emergency response.',
+  category: 'environmental',
+  jurisdiction: 'united_states',
+  version: 'Amendments through 2024',
+  year: 1996,
+  issuingBody: 'Environmental Protection Agency (EPA)',
+  url: 'https://www.ecfr.gov/current/title-40/chapter-I/subchapter-C/part-68',
+  mandatory: true,
+  relatedStandards: ['OSHA_PSM', 'IEC_61511', 'ISO_31000'],
+  relevantClauses: EPA_RMP_CLAUSES,
+};
+
+// ============================================================================
 // Standards Database
 // ============================================================================
 
@@ -1869,6 +2472,7 @@ const REGULATORY_STANDARDS_DATABASE: Map<RegulatoryStandardId, RegulatoryStandar
   ['ATEX_DSEAR', ATEX_DSEAR],
   ['PED', PED],
   ['OSHA_PSM', OSHA_PSM],
+  ['EPA_RMP', EPA_RMP],
 ]);
 
 // ============================================================================
