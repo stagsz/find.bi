@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 6 - Risk Assessment
-**Progress**: Phase 6 (Risk Assessment) in progress - 12/16 tasks complete
-**Last Completed**: RISK-12 - Create interactive 5x5 risk matrix visualization (bce10fe)
-**Next Task**: RISK-13 - Create risk dashboard page with charts and metrics
+**Progress**: Phase 6 (Risk Assessment) in progress - 13/16 tasks complete
+**Last Completed**: RISK-13 - Create risk dashboard page with charts and metrics (625c2f6)
+**Next Task**: RISK-14 - Add risk filtering to analysis entry table
 
 ---
 
@@ -244,7 +244,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] RISK-10: Create detectability dropdown selector (1-5 scale with descriptions) (ba4efb6)
 - [x] RISK-11: Create risk score display component (color-coded badge) (2a5a12b)
 - [x] RISK-12: Create interactive 5x5 risk matrix visualization (bce10fe)
-- [ ] RISK-13: Create risk dashboard page with charts and metrics
+- [x] RISK-13: Create risk dashboard page with charts and metrics (625c2f6)
 - [ ] RISK-14: Add risk filtering to analysis entry table
 
 ### Risk Testing
@@ -542,3 +542,4 @@ _No blockers currently._
 | RISK-10: Create detectability dropdown selector (1-5 scale with descriptions) | ba4efb6 | 2026-02-11 |
 | RISK-11: Create risk score display component (color-coded badge) | 2a5a12b | 2026-02-11 |
 | RISK-12: Create interactive 5x5 risk matrix visualization | bce10fe | 2026-02-11 |
+| RISK-13: Create risk dashboard page with charts and metrics | 625c2f6 | 2026-02-11 |
