@@ -26,11 +26,14 @@ import {
   nodeExistsInDocument,
   listAnalysisEntries,
   findAnalysisEntryById,
-  getEntryAnalysisId,
   updateAnalysisEntry as updateAnalysisEntryService,
   deleteAnalysisEntry as deleteAnalysisEntryService,
 } from '../services/hazop-analysis.service.js';
-import { userHasProjectAccess, findProjectById, getUserProjectRole } from '../services/project.service.js';
+import {
+  userHasProjectAccess,
+  findProjectById,
+  getUserProjectRole,
+} from '../services/project.service.js';
 import { ANALYSIS_STATUSES, GUIDE_WORDS, RISK_LEVELS } from '@hazop/types';
 import type { AnalysisStatus, GuideWord, RiskLevel } from '@hazop/types';
 
@@ -1352,7 +1355,9 @@ export async function completeAnalysis(req: Request, res: Response): Promise<voi
         success: false,
         error: {
           code: 'INVALID_STATUS',
-          message: 'Only analyses in review status can be completed. Current status: ' + existingAnalysis.status,
+          message:
+            'Only analyses in review status can be completed. Current status: ' +
+            existingAnalysis.status,
         },
       });
       return;
@@ -1507,7 +1512,8 @@ export async function createAnalysisEntry(req: Request, res: Response): Promise<
         success: false,
         error: {
           code: 'INVALID_STATUS',
-          message: 'Can only add entries to draft analyses. Current status: ' + existingAnalysis.status,
+          message:
+            'Can only add entries to draft analyses. Current status: ' + existingAnalysis.status,
         },
       });
       return;
@@ -1535,10 +1541,12 @@ export async function createAnalysisEntry(req: Request, res: Response): Promise<
       guideWord: body.guideWord as GuideWord,
       parameter: (body.parameter as string).trim(),
       deviation: (body.deviation as string).trim(),
-      causes: Array.isArray(body.causes) ? body.causes as string[] : undefined,
-      consequences: Array.isArray(body.consequences) ? body.consequences as string[] : undefined,
-      safeguards: Array.isArray(body.safeguards) ? body.safeguards as string[] : undefined,
-      recommendations: Array.isArray(body.recommendations) ? body.recommendations as string[] : undefined,
+      causes: Array.isArray(body.causes) ? (body.causes as string[]) : undefined,
+      consequences: Array.isArray(body.consequences) ? (body.consequences as string[]) : undefined,
+      safeguards: Array.isArray(body.safeguards) ? (body.safeguards as string[]) : undefined,
+      recommendations: Array.isArray(body.recommendations)
+        ? (body.recommendations as string[])
+        : undefined,
       notes: typeof body.notes === 'string' ? body.notes : undefined,
     });
 
@@ -1796,7 +1804,13 @@ export async function listEntries(req: Request, res: Response): Promise<void> {
     // Parse query parameters
     const page = query.page ? parseInt(query.page, 10) : undefined;
     const limit = query.limit ? parseInt(query.limit, 10) : undefined;
-    const sortBy = query.sortBy as 'created_at' | 'updated_at' | 'parameter' | 'guide_word' | 'risk_score' | undefined;
+    const sortBy = query.sortBy as
+      | 'created_at'
+      | 'updated_at'
+      | 'parameter'
+      | 'guide_word'
+      | 'risk_score'
+      | undefined;
     const sortOrder = query.sortOrder as 'asc' | 'desc' | undefined;
     const search = query.search;
     const nodeId = query.nodeId;
@@ -1966,7 +1980,8 @@ export async function updateEntry(req: Request, res: Response): Promise<void> {
         success: false,
         error: {
           code: 'INVALID_STATUS',
-          message: 'Can only update entries in draft analyses. Current status: ' + existingAnalysis.status,
+          message:
+            'Can only update entries in draft analyses. Current status: ' + existingAnalysis.status,
         },
       });
       return;
@@ -1987,19 +2002,23 @@ export async function updateEntry(req: Request, res: Response): Promise<void> {
     }
 
     if (body.causes !== undefined) {
-      updateData.causes = Array.isArray(body.causes) ? body.causes as string[] : [];
+      updateData.causes = Array.isArray(body.causes) ? (body.causes as string[]) : [];
     }
 
     if (body.consequences !== undefined) {
-      updateData.consequences = Array.isArray(body.consequences) ? body.consequences as string[] : [];
+      updateData.consequences = Array.isArray(body.consequences)
+        ? (body.consequences as string[])
+        : [];
     }
 
     if (body.safeguards !== undefined) {
-      updateData.safeguards = Array.isArray(body.safeguards) ? body.safeguards as string[] : [];
+      updateData.safeguards = Array.isArray(body.safeguards) ? (body.safeguards as string[]) : [];
     }
 
     if (body.recommendations !== undefined) {
-      updateData.recommendations = Array.isArray(body.recommendations) ? body.recommendations as string[] : [];
+      updateData.recommendations = Array.isArray(body.recommendations)
+        ? (body.recommendations as string[])
+        : [];
     }
 
     if (body.notes !== undefined) {
@@ -2137,7 +2156,8 @@ export async function deleteEntry(req: Request, res: Response): Promise<void> {
         success: false,
         error: {
           code: 'INVALID_STATUS',
-          message: 'Can only delete entries in draft analyses. Current status: ' + existingAnalysis.status,
+          message:
+            'Can only delete entries in draft analyses. Current status: ' + existingAnalysis.status,
         },
       });
       return;
