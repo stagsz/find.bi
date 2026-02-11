@@ -4,10 +4,10 @@
 
 ## Current Status
 
-**Phase**: 5 - Core HazOps Analysis Workflow
-**Progress**: API tests for analysis CRUD complete
-**Last Completed**: HAZOP-29 - Add API tests for analysis CRUD endpoints (07a45fc)
-**Next Task**: HAZOP-30 - Add E2E tests for complete analysis workflow
+**Phase**: 6 - Risk Assessment
+**Progress**: Phase 5 (Core HazOps Analysis Workflow) complete
+**Last Completed**: HAZOP-30 - Add E2E tests for complete analysis workflow (3f93986)
+**Next Task**: RISK-01 - Create severity × likelihood × detectability calculation service
 
 ---
 
@@ -221,7 +221,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 ### HazOps Testing
 - [x] HAZOP-28: Add unit tests for guide word validation logic (edc343c)
 - [x] HAZOP-29: Add API tests for analysis CRUD endpoints (07a45fc)
-- [ ] HAZOP-30: Add E2E tests for complete analysis workflow
+- [x] HAZOP-30: Add E2E tests for complete analysis workflow (3f93986)
 
 ---
 
@@ -529,3 +529,4 @@ _No blockers currently._
 | HAZOP-27: Create analysis entry summary table | 0237edc | 2026-02-11 |
 | HAZOP-28: Add unit tests for guide word validation logic | edc343c | 2026-02-11 |
 | HAZOP-29: Add API tests for analysis CRUD endpoints | 07a45fc | 2026-02-11 |
+| HAZOP-30: Add E2E tests for complete analysis workflow | 3f93986 | 2026-02-11 |
