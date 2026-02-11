@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 6 - Risk Assessment
-**Progress**: Phase 6 (Risk Assessment) in progress - 6/16 tasks complete
-**Last Completed**: RISK-06 - Create GET /analyses/:id/risk-summary endpoint (aggregated risk view) (355c549)
-**Next Task**: RISK-07 - Create GET /projects/:id/risk-dashboard endpoint (project-level risk metrics)
+**Progress**: Phase 6 (Risk Assessment) in progress - 7/16 tasks complete
+**Last Completed**: RISK-07 - Create GET /projects/:id/risk-dashboard endpoint (project-level risk metrics) (5bd4aea)
+**Next Task**: RISK-08 - Create severity dropdown selector (1-5 scale with descriptions)
 
 ---
 
@@ -236,7 +236,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 ### Backend API
 - [x] RISK-05: Create PUT /entries/:id/risk endpoint (update risk ranking) (2ad5107)
 - [x] RISK-06: Create GET /analyses/:id/risk-summary endpoint (aggregated risk view) (355c549)
-- [ ] RISK-07: Create GET /projects/:id/risk-dashboard endpoint (project-level risk metrics)
+- [x] RISK-07: Create GET /projects/:id/risk-dashboard endpoint (project-level risk metrics) (5bd4aea)
 
 ### Frontend Risk Assessment
 - [ ] RISK-08: Create severity dropdown selector (1-5 scale with descriptions)
@@ -536,3 +536,4 @@ _No blockers currently._
 | RISK-04: Implement risk score aggregation for analysis sessions | 42b0668 | 2026-02-11 |
 | RISK-05: Create PUT /entries/:id/risk endpoint (update risk ranking) | 2ad5107 | 2026-02-11 |
 | RISK-06: Create GET /analyses/:id/risk-summary endpoint (aggregated risk view) | 355c549 | 2026-02-11 |
+| RISK-07: Create GET /projects/:id/risk-dashboard endpoint (project-level risk metrics) | 5bd4aea | 2026-02-11 |
