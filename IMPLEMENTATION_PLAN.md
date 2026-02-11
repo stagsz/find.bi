@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 6 - Risk Assessment
-**Progress**: Phase 6 (Risk Assessment) in progress - 15/16 tasks complete
-**Last Completed**: RISK-15 - Add unit tests for risk calculation logic (5db21bf)
-**Next Task**: RISK-16 - Add API tests for risk endpoints
+**Progress**: Phase 6 (Risk Assessment) COMPLETE - 16/16 tasks complete
+**Last Completed**: RISK-16 - Add API tests for risk endpoints (b8f4374)
+**Next Task**: LOPA-01 - Create LOPA calculation engine
 
 ---
 
@@ -249,7 +249,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 
 ### Risk Testing
 - [x] RISK-15: Add unit tests for risk calculation logic (5db21bf)
-- [ ] RISK-16: Add API tests for risk endpoints
+- [x] RISK-16: Add API tests for risk endpoints (b8f4374)
 
 ---
 
