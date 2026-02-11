@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 7 - LOPA & Compliance
-**Progress**: Phase 7 in progress - 21/23 tasks complete
-**Last Completed**: COMP-17 - Add unit tests for LOPA calculations (e6fdba6)
-**Next Task**: COMP-18 - Add unit tests for compliance validation logic
+**Progress**: Phase 7 in progress - 22/23 tasks complete
+**Last Completed**: COMP-18 - Add unit tests for compliance validation logic (48b7752)
+**Next Task**: COMP-19 - Add API tests for compliance endpoints
 
 ---
 
@@ -285,7 +285,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 
 ### Compliance Testing
 - [x] COMP-17: Add unit tests for LOPA calculations (e6fdba6)
-- [ ] COMP-18: Add unit tests for compliance validation logic
+- [x] COMP-18: Add unit tests for compliance validation logic (48b7752)
 - [ ] COMP-19: Add API tests for compliance endpoints
 
 ---
@@ -567,3 +567,4 @@ _No blockers currently._
 | COMP-15: Create compliance status badges for analyses | 50ebe44 | 2026-02-11 |
 | COMP-16: Create compliance dashboard with standard-by-standard breakdown | 2d1a3ad | 2026-02-11 |
 | COMP-17: Add unit tests for LOPA calculations | e6fdba6 | 2026-02-11 |
+| COMP-18: Add unit tests for compliance validation logic | 48b7752 | 2026-02-11 |
