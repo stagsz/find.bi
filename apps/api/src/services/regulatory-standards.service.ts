@@ -525,6 +525,291 @@ const ISO_9001: RegulatoryStandard = {
 };
 
 // ============================================================================
+// ATEX/DSEAR - Explosive Atmospheres Directives
+// ============================================================================
+
+/**
+ * ATEX/DSEAR clauses relevant to HazOps analysis.
+ *
+ * ATEX covers two EU directives:
+ * - ATEX 2014/34/EU (Equipment Directive): Equipment for explosive atmospheres
+ * - ATEX 1999/92/EC (Workplace Directive): Worker protection
+ *
+ * DSEAR (Dangerous Substances and Explosive Atmospheres Regulations 2002)
+ * is the UK implementation of ATEX 1999/92/EC.
+ *
+ * These regulations are critical for HazOps in process industries handling
+ * flammable gases, vapors, mists, or combustible dusts.
+ */
+const ATEX_DSEAR_CLAUSES: RegulatoryClause[] = [
+  // DSEAR/ATEX 1999/92/EC - Risk Assessment Requirements
+  {
+    id: 'DSEAR-5',
+    title: 'Risk assessment',
+    description:
+      'Where a dangerous substance is or may be present, the employer shall assess the risks arising ' +
+      'from that substance. The assessment shall include consideration of the hazardous properties ' +
+      'of the substance, circumstances of work including quantity, processes, and control measures.',
+    keywords: ['risk assessment', 'dangerous substance', 'hazardous properties', 'control measures'],
+    mandatory: true,
+    hazopsRelevance: ['hazard_identification', 'risk_assessment'],
+  },
+  {
+    id: 'DSEAR-5.1',
+    title: 'Risk assessment - Hazardous properties',
+    description:
+      'The risk assessment shall consider the hazardous properties of the dangerous substance, ' +
+      'including flammability, explosivity, and reactivity.',
+    keywords: ['flammability', 'explosivity', 'reactivity', 'hazardous properties'],
+    mandatory: true,
+    parentClauseId: 'DSEAR-5',
+    hazopsRelevance: ['hazard_identification'],
+  },
+  {
+    id: 'DSEAR-5.2',
+    title: 'Risk assessment - Work circumstances',
+    description:
+      'The risk assessment shall consider the circumstances of work, including work processes ' +
+      'and activities, quantities of dangerous substances, and interaction between substances.',
+    keywords: ['work processes', 'quantities', 'interaction', 'activities'],
+    mandatory: true,
+    parentClauseId: 'DSEAR-5',
+    hazopsRelevance: ['hazard_identification', 'methodology'],
+  },
+  {
+    id: 'DSEAR-5.3',
+    title: 'Risk assessment - Ignition sources',
+    description:
+      'The risk assessment shall identify potential ignition sources, including electrical equipment, ' +
+      'hot surfaces, static electricity, and mechanical sparks.',
+    keywords: ['ignition sources', 'electrical', 'static electricity', 'hot surfaces', 'sparks'],
+    mandatory: true,
+    parentClauseId: 'DSEAR-5',
+    hazopsRelevance: ['hazard_identification', 'risk_assessment'],
+  },
+  // Zone Classification
+  {
+    id: 'DSEAR-7',
+    title: 'Hazardous area classification (zoning)',
+    description:
+      'The employer shall classify hazardous places into zones on the basis of the frequency and ' +
+      'duration of explosive atmospheres. Zone 0/20 (continuous), Zone 1/21 (likely), Zone 2/22 (unlikely).',
+    keywords: ['zone', 'classification', 'explosive atmosphere', 'Zone 0', 'Zone 1', 'Zone 2'],
+    mandatory: true,
+    hazopsRelevance: ['hazard_identification', 'risk_ranking'],
+  },
+  {
+    id: 'DSEAR-7.1',
+    title: 'Zone 0/20 - Continuous explosive atmosphere',
+    description:
+      'A place in which an explosive atmosphere is present continuously or for long periods or frequently. ' +
+      'Zone 0 for gases/vapors, Zone 20 for dusts. Equipment must be Category 1 certified.',
+    keywords: ['Zone 0', 'Zone 20', 'continuous', 'Category 1', 'permanent hazard'],
+    mandatory: true,
+    parentClauseId: 'DSEAR-7',
+    hazopsRelevance: ['hazard_identification', 'safeguards'],
+  },
+  {
+    id: 'DSEAR-7.2',
+    title: 'Zone 1/21 - Likely explosive atmosphere',
+    description:
+      'A place in which an explosive atmosphere is likely to occur occasionally in normal operation. ' +
+      'Zone 1 for gases/vapors, Zone 21 for dusts. Equipment must be Category 2 or higher certified.',
+    keywords: ['Zone 1', 'Zone 21', 'occasionally', 'Category 2', 'likely hazard'],
+    mandatory: true,
+    parentClauseId: 'DSEAR-7',
+    hazopsRelevance: ['hazard_identification', 'safeguards'],
+  },
+  {
+    id: 'DSEAR-7.3',
+    title: 'Zone 2/22 - Unlikely explosive atmosphere',
+    description:
+      'A place in which an explosive atmosphere is not likely to occur in normal operation but, ' +
+      'if it does, will persist for a short period only. Zone 2 for gases/vapors, Zone 22 for dusts. ' +
+      'Equipment must be Category 3 or higher certified.',
+    keywords: ['Zone 2', 'Zone 22', 'unlikely', 'Category 3', 'abnormal operation'],
+    mandatory: true,
+    parentClauseId: 'DSEAR-7',
+    hazopsRelevance: ['hazard_identification', 'safeguards'],
+  },
+  // Control Measures
+  {
+    id: 'DSEAR-6',
+    title: 'Elimination and reduction of risks',
+    description:
+      'The employer shall ensure that risks are eliminated or reduced so far as is reasonably practicable. ' +
+      'This includes substitution, engineering controls, control of sources of ignition, and mitigation.',
+    keywords: ['elimination', 'reduction', 'substitution', 'engineering controls', 'mitigation'],
+    mandatory: true,
+    hazopsRelevance: ['safeguards', 'recommendations'],
+  },
+  {
+    id: 'DSEAR-6.1',
+    title: 'Prevention hierarchy - Substitution',
+    description:
+      'Where reasonably practicable, replace the dangerous substance with a substance or process ' +
+      'which eliminates or reduces the risk.',
+    keywords: ['substitution', 'replacement', 'eliminate', 'hierarchy of controls'],
+    mandatory: true,
+    parentClauseId: 'DSEAR-6',
+    hazopsRelevance: ['recommendations', 'safeguards'],
+  },
+  {
+    id: 'DSEAR-6.2',
+    title: 'Prevention hierarchy - Reduce quantity',
+    description:
+      'Reduce to a minimum the quantity of dangerous substances to the minimum necessary for the work.',
+    keywords: ['quantity', 'minimize', 'inventory reduction'],
+    mandatory: true,
+    parentClauseId: 'DSEAR-6',
+    hazopsRelevance: ['recommendations', 'safeguards'],
+  },
+  {
+    id: 'DSEAR-6.3',
+    title: 'Prevention hierarchy - Avoid release',
+    description:
+      'Avoid the release of dangerous substances, or if release cannot be prevented, prevent the ' +
+      'formation of explosive atmospheres.',
+    keywords: ['avoid release', 'containment', 'prevention', 'explosive atmosphere formation'],
+    mandatory: true,
+    parentClauseId: 'DSEAR-6',
+    hazopsRelevance: ['safeguards', 'recommendations'],
+  },
+  {
+    id: 'DSEAR-6.4',
+    title: 'Prevention hierarchy - Control ignition sources',
+    description:
+      'Control sources of ignition including static electricity discharges using appropriate equipment, ' +
+      'bonding, grounding, and work procedures.',
+    keywords: ['ignition control', 'static electricity', 'bonding', 'grounding', 'work procedures'],
+    mandatory: true,
+    parentClauseId: 'DSEAR-6',
+    hazopsRelevance: ['safeguards'],
+  },
+  {
+    id: 'DSEAR-6.5',
+    title: 'Mitigation measures',
+    description:
+      'Where prevention is not possible, mitigate the detrimental effects of an explosion to ensure ' +
+      'health and safety of employees. This includes explosion relief, suppression, and containment.',
+    keywords: ['mitigation', 'explosion relief', 'suppression', 'containment', 'venting'],
+    mandatory: true,
+    parentClauseId: 'DSEAR-6',
+    hazopsRelevance: ['safeguards', 'recommendations'],
+  },
+  // Equipment Requirements
+  {
+    id: 'DSEAR-8',
+    title: 'Equipment for hazardous areas',
+    description:
+      'Equipment and protective systems in hazardous areas shall be selected on the basis of ATEX ' +
+      'equipment groups and categories corresponding to the zone classification.',
+    keywords: ['equipment selection', 'ATEX', 'categories', 'groups', 'Ex-rating'],
+    mandatory: true,
+    hazopsRelevance: ['safeguards'],
+  },
+  {
+    id: 'ATEX-Annex-I',
+    title: 'Essential health and safety requirements (EHSR)',
+    description:
+      'ATEX 2014/34/EU Annex II specifies Essential Health and Safety Requirements for equipment ' +
+      'intended for use in explosive atmospheres, including ignition hazard assessment and protection.',
+    keywords: ['EHSR', 'essential requirements', 'Annex II', 'ignition hazard'],
+    mandatory: true,
+    hazopsRelevance: ['safeguards', 'methodology'],
+  },
+  // Documentation
+  {
+    id: 'DSEAR-9',
+    title: 'Explosion Protection Document',
+    description:
+      'The employer shall prepare an Explosion Protection Document (EPD) setting out the findings ' +
+      'of the risk assessment, measures taken, classification of zones, and equipment requirements.',
+    keywords: ['EPD', 'explosion protection document', 'documentation', 'findings'],
+    mandatory: true,
+    hazopsRelevance: ['documentation'],
+  },
+  {
+    id: 'DSEAR-9.1',
+    title: 'EPD content - Hazards identified',
+    description:
+      'The Explosion Protection Document shall describe the hazards that have been identified ' +
+      'and include the risk assessment results.',
+    keywords: ['hazards identified', 'risk assessment results', 'EPD content'],
+    mandatory: true,
+    parentClauseId: 'DSEAR-9',
+    hazopsRelevance: ['documentation', 'hazard_identification'],
+  },
+  {
+    id: 'DSEAR-9.2',
+    title: 'EPD content - Protective measures',
+    description:
+      'The Explosion Protection Document shall describe the measures which have been taken or will be taken ' +
+      'to comply with the regulations.',
+    keywords: ['protective measures', 'compliance', 'EPD content'],
+    mandatory: true,
+    parentClauseId: 'DSEAR-9',
+    hazopsRelevance: ['documentation', 'safeguards'],
+  },
+  {
+    id: 'DSEAR-9.3',
+    title: 'EPD content - Zone classification',
+    description:
+      'The Explosion Protection Document shall include the classification of hazardous places into zones.',
+    keywords: ['zone classification', 'hazardous places', 'EPD content'],
+    mandatory: true,
+    parentClauseId: 'DSEAR-9',
+    hazopsRelevance: ['documentation'],
+  },
+  // Coordination and Review
+  {
+    id: 'DSEAR-11',
+    title: 'Co-ordination',
+    description:
+      'Where two or more employers share a workplace, each shall co-operate with the others to comply ' +
+      'with the regulations and share relevant information about explosion risks.',
+    keywords: ['co-ordination', 'shared workplace', 'information sharing'],
+    mandatory: true,
+    hazopsRelevance: ['team_composition', 'methodology'],
+  },
+  {
+    id: 'DSEAR-5.4',
+    title: 'Review of risk assessment',
+    description:
+      'The risk assessment shall be reviewed regularly and immediately if there is reason to suspect ' +
+      'it is no longer valid or there has been a significant change.',
+    keywords: ['review', 'reassessment', 'change', 'validity'],
+    mandatory: true,
+    parentClauseId: 'DSEAR-5',
+    hazopsRelevance: ['follow_up', 'management_of_change'],
+  },
+];
+
+/**
+ * ATEX/DSEAR standard definition.
+ */
+const ATEX_DSEAR: RegulatoryStandard = {
+  id: 'ATEX_DSEAR',
+  name: 'ATEX/DSEAR',
+  title: 'Equipment and protective systems for explosive atmospheres',
+  description:
+    'European directives covering equipment and protective systems for use in explosive ' +
+    'atmospheres, and workplace protection. ATEX 2014/34/EU (Equipment Directive) covers ' +
+    'equipment certification, ATEX 1999/92/EC (Workplace Directive) covers worker protection. ' +
+    'DSEAR (Dangerous Substances and Explosive Atmospheres Regulations 2002) is the UK ' +
+    'implementation of ATEX 1999/92/EC.',
+  category: 'explosive_atmospheres',
+  jurisdiction: 'european_union',
+  version: 'ATEX 2014/34/EU, DSEAR 2002 (amended 2015)',
+  year: 2014,
+  issuingBody: 'European Commission / UK HSE',
+  url: 'https://www.hse.gov.uk/fireandexplosion/dsear.htm',
+  mandatory: true,
+  relatedStandards: ['IEC_61511', 'SEVESO_III'],
+  relevantClauses: ATEX_DSEAR_CLAUSES,
+};
+
+// ============================================================================
 // Standards Database
 // ============================================================================
 
@@ -535,6 +820,7 @@ const REGULATORY_STANDARDS_DATABASE: Map<RegulatoryStandardId, RegulatoryStandar
   ['IEC_61511', IEC_61511],
   ['ISO_31000', ISO_31000],
   ['ISO_9001', ISO_9001],
+  ['ATEX_DSEAR', ATEX_DSEAR],
 ]);
 
 // ============================================================================
