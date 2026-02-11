@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 6 - Risk Assessment
-**Progress**: Phase 6 (Risk Assessment) in progress - 2/16 tasks complete
-**Last Completed**: RISK-02 - Implement 5x5 risk matrix logic (Low, Medium, High mapping) (da65554)
-**Next Task**: RISK-03 - Create risk level threshold configuration
+**Progress**: Phase 6 (Risk Assessment) in progress - 3/16 tasks complete
+**Last Completed**: RISK-03 - Create risk level threshold configuration (4e33b9b)
+**Next Task**: RISK-04 - Implement risk score aggregation for analysis sessions
 
 ---
 
@@ -230,7 +230,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 ### Risk Calculation Engine
 - [x] RISK-01: Create severity × likelihood × detectability calculation service (328dd41)
 - [x] RISK-02: Implement 5x5 risk matrix logic (Low, Medium, High mapping) (da65554)
-- [ ] RISK-03: Create risk level threshold configuration
+- [x] RISK-03: Create risk level threshold configuration (4e33b9b)
 - [ ] RISK-04: Implement risk score aggregation for analysis sessions
 
 ### Backend API
@@ -532,3 +532,4 @@ _No blockers currently._
 | HAZOP-30: Add E2E tests for complete analysis workflow | 3f93986 | 2026-02-11 |
 | RISK-01: Create severity × likelihood × detectability calculation service | 328dd41 | 2026-02-11 |
 | RISK-02: Implement 5x5 risk matrix logic (Low, Medium, High mapping) | da65554 | 2026-02-11 |
+| RISK-03: Create risk level threshold configuration | 4e33b9b | 2026-02-11 |
