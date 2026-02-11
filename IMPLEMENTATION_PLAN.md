@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 6 - Risk Assessment
-**Progress**: Phase 6 (Risk Assessment) in progress - 8/16 tasks complete
-**Last Completed**: RISK-08 - Create severity dropdown selector (1-5 scale with descriptions) (fc2c543)
-**Next Task**: RISK-09 - Create likelihood dropdown selector (1-5 scale with descriptions)
+**Progress**: Phase 6 (Risk Assessment) in progress - 9/16 tasks complete
+**Last Completed**: RISK-09 - Create likelihood dropdown selector (1-5 scale with descriptions) (0483327)
+**Next Task**: RISK-10 - Create detectability dropdown selector (1-5 scale with descriptions)
 
 ---
 
@@ -240,7 +240,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 
 ### Frontend Risk Assessment
 - [x] RISK-08: Create severity dropdown selector (1-5 scale with descriptions) (fc2c543)
-- [ ] RISK-09: Create likelihood dropdown selector (1-5 scale with descriptions)
+- [x] RISK-09: Create likelihood dropdown selector (1-5 scale with descriptions) (0483327)
 - [ ] RISK-10: Create detectability dropdown selector (1-5 scale with descriptions)
 - [ ] RISK-11: Create risk score display component (color-coded badge)
 - [ ] RISK-12: Create interactive 5x5 risk matrix visualization
@@ -538,3 +538,4 @@ _No blockers currently._
 | RISK-06: Create GET /analyses/:id/risk-summary endpoint (aggregated risk view) | 355c549 | 2026-02-11 |
 | RISK-07: Create GET /projects/:id/risk-dashboard endpoint (project-level risk metrics) | 5bd4aea | 2026-02-11 |
 | RISK-08: Create severity dropdown selector (1-5 scale with descriptions) | fc2c543 | 2026-02-11 |
+| RISK-09: Create likelihood dropdown selector (1-5 scale with descriptions) | 0483327 | 2026-02-11 |
