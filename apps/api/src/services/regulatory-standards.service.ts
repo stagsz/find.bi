@@ -2459,6 +2459,603 @@ const EPA_RMP: RegulatoryStandard = {
 };
 
 // ============================================================================
+// SEVESO III Directive - Control of Major-Accident Hazards (2012/18/EU)
+// ============================================================================
+
+/**
+ * SEVESO III Directive clauses relevant to HazOps analysis.
+ * Directive 2012/18/EU on the control of major-accident hazards involving dangerous substances.
+ *
+ * Task: COMP-06
+ */
+const SEVESO_III_CLAUSES: RegulatoryClause[] = [
+  // Chapter I - General Provisions
+  {
+    id: 'SEVESO-Art.1',
+    title: 'Subject matter',
+    description:
+      'This Directive lays down rules for the prevention of major accidents involving dangerous ' +
+      'substances, and the limitation of their consequences for human health and the environment, ' +
+      'with a view to ensuring a high level of protection throughout the Union.',
+    keywords: ['major accidents', 'prevention', 'dangerous substances', 'protection', 'environment'],
+    mandatory: true,
+    hazopsRelevance: ['methodology', 'hazard_identification'],
+  },
+  {
+    id: 'SEVESO-Art.2',
+    title: 'Scope',
+    description:
+      'Applies to establishments where dangerous substances are present or may be generated in ' +
+      'quantities equal to or exceeding the qualifying quantities set out in Annex I. Lower-tier ' +
+      'establishments have qualifying quantities in column 2, upper-tier in column 3.',
+    keywords: ['scope', 'establishments', 'qualifying quantities', 'lower-tier', 'upper-tier', 'Annex I'],
+    mandatory: true,
+    hazopsRelevance: ['methodology'],
+  },
+  {
+    id: 'SEVESO-Art.3',
+    title: 'Definitions',
+    description:
+      'Key definitions including establishment, operator, dangerous substance, major accident, ' +
+      'hazard, risk, storage, and presence. An establishment includes the whole area under control ' +
+      'of an operator where dangerous substances are present.',
+    keywords: ['definitions', 'establishment', 'operator', 'major accident', 'hazard', 'risk', 'storage'],
+    mandatory: true,
+    hazopsRelevance: ['methodology'],
+  },
+  // Chapter II - Prevention of Major Accidents
+  {
+    id: 'SEVESO-Art.5',
+    title: 'General obligations of the operator',
+    description:
+      'Operators shall take all necessary measures to prevent major accidents and to limit their ' +
+      'consequences for human health and the environment. The operator shall be able to prove at any ' +
+      'time that all necessary measures have been taken.',
+    keywords: ['operator obligations', 'prevention', 'necessary measures', 'proof', 'consequences'],
+    mandatory: true,
+    hazopsRelevance: ['hazard_identification', 'safeguards', 'documentation'],
+  },
+  {
+    id: 'SEVESO-Art.7',
+    title: 'Notification',
+    description:
+      'Operators of all establishments (both tiers) shall submit a notification containing ' +
+      'information on the establishment, dangerous substances, installation, and immediate environment. ' +
+      'Notification required before construction, modification, or closure.',
+    keywords: ['notification', 'establishment', 'dangerous substances', 'installation', 'environment', 'modification'],
+    mandatory: true,
+    hazopsRelevance: ['documentation'],
+  },
+  {
+    id: 'SEVESO-Art.8',
+    title: 'Major-accident prevention policy (MAPP)',
+    description:
+      'Operators of all establishments shall draw up a document setting out their major-accident ' +
+      'prevention policy. The MAPP shall be designed to guarantee a high level of protection for ' +
+      'human health and the environment and shall be proportionate to the major-accident hazards.',
+    keywords: ['MAPP', 'prevention policy', 'document', 'protection', 'proportionate'],
+    mandatory: true,
+    hazopsRelevance: ['documentation', 'methodology'],
+  },
+  {
+    id: 'SEVESO-Art.8(1)',
+    title: 'MAPP content requirements',
+    description:
+      'The major-accident prevention policy shall include the operator\'s overall aims and principles ' +
+      'of action, role and responsibility of management, commitment to continuous improvement, ' +
+      'and ensuring a high level of protection.',
+    keywords: ['MAPP content', 'aims', 'principles', 'management responsibility', 'continuous improvement'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-Art.8',
+    hazopsRelevance: ['documentation', 'methodology'],
+  },
+  {
+    id: 'SEVESO-Art.8(5)',
+    title: 'MAPP implementation through SMS',
+    description:
+      'The major-accident prevention policy shall be implemented through appropriate means, structures ' +
+      'and a safety management system (SMS). For lower-tier establishments, the obligation may be ' +
+      'fulfilled through other appropriate means, structures and management systems.',
+    keywords: ['MAPP implementation', 'SMS', 'safety management system', 'lower-tier', 'upper-tier'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-Art.8',
+    hazopsRelevance: ['methodology', 'safeguards'],
+  },
+  // Safety Management System (Annex III)
+  {
+    id: 'SEVESO-AnnexIII.1',
+    title: 'SMS - Organization and personnel',
+    description:
+      'The safety management system shall include roles and responsibilities, identification of ' +
+      'training needs, involvement of employees and contractors. Shall define roles of personnel ' +
+      'involved in major hazard management at all levels in the organization.',
+    keywords: ['SMS', 'organization', 'personnel', 'training', 'roles', 'responsibilities', 'contractors'],
+    mandatory: true,
+    hazopsRelevance: ['team_composition', 'documentation'],
+  },
+  {
+    id: 'SEVESO-AnnexIII.2',
+    title: 'SMS - Identification and evaluation of major hazards',
+    description:
+      'Adoption and implementation of procedures for systematically identifying major hazards arising ' +
+      'from normal and abnormal operation. Assessment of the likelihood and severity of major hazards. ' +
+      'This includes HazOps, FMEA, fault tree analysis, and other recognized techniques.',
+    keywords: ['hazard identification', 'evaluation', 'major hazards', 'procedures', 'abnormal operation', 'HazOps'],
+    mandatory: true,
+    hazopsRelevance: ['hazard_identification', 'risk_assessment', 'methodology'],
+  },
+  {
+    id: 'SEVESO-AnnexIII.2(a)',
+    title: 'Hazard identification procedures',
+    description:
+      'Procedures shall cover identification of major hazards arising from normal and abnormal ' +
+      'operations including maintenance activities, and identification of external hazards such as ' +
+      'natural hazards, malicious acts, and nearby activities.',
+    keywords: ['procedures', 'hazard identification', 'maintenance', 'external hazards', 'natural hazards'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-AnnexIII.2',
+    hazopsRelevance: ['hazard_identification', 'methodology'],
+  },
+  {
+    id: 'SEVESO-AnnexIII.2(b)',
+    title: 'Consequence and likelihood assessment',
+    description:
+      'Assessment of the likelihood and severity of identified hazards. This includes analysis of ' +
+      'potential consequences for human health, the environment, and property, considering both ' +
+      'immediate and delayed effects.',
+    keywords: ['consequence assessment', 'likelihood', 'severity', 'health', 'environment', 'property'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-AnnexIII.2',
+    hazopsRelevance: ['risk_assessment', 'risk_ranking'],
+  },
+  {
+    id: 'SEVESO-AnnexIII.3',
+    title: 'SMS - Operational control',
+    description:
+      'Adoption and implementation of procedures and instructions for safe operation of installations, ' +
+      'processes and equipment for preventing major accidents. Procedures for control of critical ' +
+      'operations including maintenance and safe plant shutdown.',
+    keywords: ['operational control', 'procedures', 'safe operation', 'maintenance', 'shutdown', 'installation'],
+    mandatory: true,
+    hazopsRelevance: ['safeguards', 'documentation'],
+  },
+  {
+    id: 'SEVESO-AnnexIII.3(a)',
+    title: 'Control of process deviations',
+    description:
+      'Procedures for detecting and responding to deviations from normal operating conditions before ' +
+      'they lead to major accidents. Includes alarm management, process monitoring, and procedures ' +
+      'for restoring normal conditions or achieving safe shutdown.',
+    keywords: ['process deviations', 'alarms', 'monitoring', 'safe shutdown', 'response procedures'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-AnnexIII.3',
+    hazopsRelevance: ['safeguards', 'hazard_identification'],
+  },
+  {
+    id: 'SEVESO-AnnexIII.4',
+    title: 'SMS - Management of change',
+    description:
+      'Adoption and implementation of procedures for planning modifications to existing installations, ' +
+      'storage places, or processes. Modifications that could have major-accident implications shall ' +
+      'be subject to assessment before implementation.',
+    keywords: ['management of change', 'MOC', 'modifications', 'assessment', 'installations', 'processes'],
+    mandatory: true,
+    hazopsRelevance: ['management_of_change'],
+  },
+  {
+    id: 'SEVESO-AnnexIII.4(a)',
+    title: 'MOC assessment requirements',
+    description:
+      'Before any modification is made, assess whether it introduces new hazards or increases existing ' +
+      'risks. Update hazard identification and risk assessment. Ensure modifications do not compromise ' +
+      'existing safety measures.',
+    keywords: ['MOC assessment', 'new hazards', 'risk increase', 'update assessment', 'safety measures'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-AnnexIII.4',
+    hazopsRelevance: ['management_of_change', 'risk_assessment'],
+  },
+  {
+    id: 'SEVESO-AnnexIII.5',
+    title: 'SMS - Planning for emergencies',
+    description:
+      'Adoption and implementation of procedures to identify foreseeable emergencies by systematic ' +
+      'analysis. Prepare, test and review emergency plans. Provide specific training for staff. ' +
+      'Coordinate with external emergency services.',
+    keywords: ['emergency planning', 'foreseeable emergencies', 'emergency plans', 'training', 'external services'],
+    mandatory: true,
+    hazopsRelevance: ['safeguards', 'recommendations'],
+  },
+  {
+    id: 'SEVESO-AnnexIII.6',
+    title: 'SMS - Monitoring performance',
+    description:
+      'Adoption and implementation of procedures for ongoing assessment of compliance with SMS ' +
+      'objectives. Mechanisms for investigation and corrective action in case of non-compliance. ' +
+      'Procedures for recording near misses, accidents, and failures of protective systems.',
+    keywords: ['monitoring', 'performance', 'compliance', 'corrective action', 'near misses', 'accidents'],
+    mandatory: true,
+    hazopsRelevance: ['follow_up', 'documentation'],
+  },
+  {
+    id: 'SEVESO-AnnexIII.7',
+    title: 'SMS - Audit and review',
+    description:
+      'Adoption and implementation of procedures for periodic systematic assessment of the major-accident ' +
+      'prevention policy and SMS. Review of effectiveness by senior management. Documented review of ' +
+      'performance and updating of SMS.',
+    keywords: ['audit', 'review', 'systematic assessment', 'prevention policy', 'senior management', 'effectiveness'],
+    mandatory: true,
+    hazopsRelevance: ['follow_up', 'methodology'],
+  },
+  // Chapter III - Safety Report (Upper-Tier Only)
+  {
+    id: 'SEVESO-Art.10',
+    title: 'Safety report',
+    description:
+      'Operators of upper-tier establishments shall produce a safety report. The report shall ' +
+      'demonstrate that a major-accident prevention policy and SMS are in place, that major-accident ' +
+      'hazards have been identified and measures taken to prevent and limit consequences.',
+    keywords: ['safety report', 'upper-tier', 'MAPP', 'SMS', 'hazard identification', 'prevention measures'],
+    mandatory: true,
+    hazopsRelevance: ['documentation', 'hazard_identification'],
+  },
+  {
+    id: 'SEVESO-Art.10(1)a',
+    title: 'Safety report - Prevention policy and SMS demonstration',
+    description:
+      'The safety report shall demonstrate that a major-accident prevention policy and a safety ' +
+      'management system for implementing it have been put into effect in accordance with the elements ' +
+      'set out in Annex III.',
+    keywords: ['MAPP demonstration', 'SMS demonstration', 'safety report content', 'implementation'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-Art.10',
+    hazopsRelevance: ['documentation', 'methodology'],
+  },
+  {
+    id: 'SEVESO-Art.10(1)b',
+    title: 'Safety report - Hazard identification and measures',
+    description:
+      'The safety report shall demonstrate that major-accident hazards and possible major-accident ' +
+      'scenarios have been identified and that necessary measures have been taken to prevent such ' +
+      'accidents and to limit their consequences for human health and the environment.',
+    keywords: ['hazard identification', 'accident scenarios', 'prevention measures', 'consequence limitation'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-Art.10',
+    hazopsRelevance: ['hazard_identification', 'risk_assessment', 'safeguards'],
+  },
+  {
+    id: 'SEVESO-Art.10(1)c',
+    title: 'Safety report - Design, construction and operation safety',
+    description:
+      'The safety report shall demonstrate that adequate safety and reliability have been incorporated ' +
+      'into the design, construction, operation and maintenance of any installation, storage facility, ' +
+      'equipment and infrastructure connected with its operation.',
+    keywords: ['design safety', 'construction', 'operation', 'maintenance', 'reliability', 'infrastructure'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-Art.10',
+    hazopsRelevance: ['safeguards', 'documentation'],
+  },
+  {
+    id: 'SEVESO-Art.10(1)d',
+    title: 'Safety report - Internal emergency plan',
+    description:
+      'The safety report shall demonstrate that internal emergency plans have been drawn up and that ' +
+      'information has been supplied to the competent authority to enable external emergency plans ' +
+      'to be drawn up.',
+    keywords: ['internal emergency plan', 'external emergency plan', 'competent authority', 'information supply'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-Art.10',
+    hazopsRelevance: ['safeguards', 'documentation'],
+  },
+  {
+    id: 'SEVESO-Art.10(1)e',
+    title: 'Safety report - Land-use planning information',
+    description:
+      'The safety report shall provide sufficient information to the competent authority to enable ' +
+      'decisions on siting of new activities or developments around establishments to be taken.',
+    keywords: ['land-use planning', 'siting', 'new activities', 'developments', 'spatial planning'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-Art.10',
+    hazopsRelevance: ['documentation'],
+  },
+  {
+    id: 'SEVESO-AnnexII.4',
+    title: 'Safety report - Hazard identification and risk assessment content',
+    description:
+      'The safety report must contain a detailed description of possible major-accident scenarios ' +
+      'and their probability or conditions under which they occur. Assessment of extent and severity ' +
+      'of consequences including maps, images, or equivalent descriptions showing areas affected.',
+    keywords: ['accident scenarios', 'probability', 'extent', 'severity', 'consequence mapping', 'affected areas'],
+    mandatory: true,
+    hazopsRelevance: ['hazard_identification', 'risk_assessment', 'risk_ranking'],
+  },
+  {
+    id: 'SEVESO-AnnexII.4(i)',
+    title: 'Identification of sources of major hazards',
+    description:
+      'Identify all installations or storage areas which contain dangerous substances and describe ' +
+      'the processes and operations, potential accident scenarios including loss of containment, ' +
+      'fires, explosions, and toxic releases.',
+    keywords: ['hazard sources', 'installations', 'storage', 'loss of containment', 'fires', 'explosions', 'toxic'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-AnnexII.4',
+    hazopsRelevance: ['hazard_identification'],
+  },
+  {
+    id: 'SEVESO-AnnexII.4(ii)',
+    title: 'Major-accident scenarios selection',
+    description:
+      'Major-accident scenarios shall be selected based on the analysis of the likelihood and severity ' +
+      'of accidents. Include identification of scenarios which could have the most significant ' +
+      'consequences and identification of scenarios which are most likely to occur.',
+    keywords: ['scenario selection', 'likelihood', 'severity', 'significant consequences', 'most likely'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-AnnexII.4',
+    hazopsRelevance: ['risk_assessment', 'hazard_identification'],
+  },
+  {
+    id: 'SEVESO-AnnexII.5',
+    title: 'Safety report - Protection and intervention measures',
+    description:
+      'Description of technical parameters and equipment installed for safety of installations. ' +
+      'Includes containment systems, relief devices, safety instrumented systems, fire protection, ' +
+      'detection and alarm systems, and intervention measures.',
+    keywords: ['protection measures', 'intervention', 'containment', 'relief devices', 'SIS', 'fire protection', 'alarms'],
+    mandatory: true,
+    hazopsRelevance: ['safeguards', 'lopa'],
+  },
+  // Article 11 - Modification
+  {
+    id: 'SEVESO-Art.11',
+    title: 'Modification of installations and safety report update',
+    description:
+      'Before modifications to establishment, installation, storage facility, process, or nature/quantity ' +
+      'of dangerous substances that could have significant repercussions for major-accident hazards, ' +
+      'operator shall review and where necessary update the safety report.',
+    keywords: ['modification', 'safety report update', 'significant repercussions', 'storage', 'process changes'],
+    mandatory: true,
+    hazopsRelevance: ['management_of_change', 'documentation'],
+  },
+  {
+    id: 'SEVESO-Art.11(2)',
+    title: 'Prior notification of modifications',
+    description:
+      'The operator shall inform the competent authority before any modification which could have ' +
+      'significant repercussions on major-accident hazards, or which could result in a lower-tier ' +
+      'establishment becoming upper-tier or vice versa.',
+    keywords: ['prior notification', 'competent authority', 'tier change', 'significant modification'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-Art.11',
+    hazopsRelevance: ['management_of_change', 'documentation'],
+  },
+  // Article 12 - Emergency Plans
+  {
+    id: 'SEVESO-Art.12',
+    title: 'Internal emergency plans (upper-tier)',
+    description:
+      'Operators of upper-tier establishments shall draw up an internal emergency plan for measures ' +
+      'to be taken inside the establishment. The plan shall be drawn up in consultation with personnel ' +
+      'and be reviewed, tested and where necessary revised at least every three years.',
+    keywords: ['internal emergency plan', 'upper-tier', 'consultation', 'review', 'testing', 'three years'],
+    mandatory: true,
+    hazopsRelevance: ['safeguards', 'follow_up'],
+  },
+  {
+    id: 'SEVESO-AnnexIV.1',
+    title: 'Internal emergency plan content',
+    description:
+      'Internal emergency plans shall contain: names/positions of persons authorized to set emergency ' +
+      'procedures in motion, name of person in charge of liaison with external authorities, conditions ' +
+      'for triggering the plan, and actions to be taken for each foreseeable situation.',
+    keywords: ['emergency plan content', 'authorized persons', 'liaison', 'triggering conditions', 'foreseeable situations'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-Art.12',
+    hazopsRelevance: ['safeguards', 'documentation'],
+  },
+  {
+    id: 'SEVESO-AnnexIV.2',
+    title: 'Emergency plan - Mitigation and limitation measures',
+    description:
+      'Internal emergency plans shall include arrangements for limiting risks to persons on site ' +
+      'including alarm systems, actions to be taken on receipt of warning, evacuation procedures, ' +
+      'and arrangements for mitigating effects on the environment.',
+    keywords: ['mitigation', 'limitation', 'alarm systems', 'evacuation', 'environmental protection'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-Art.12',
+    hazopsRelevance: ['safeguards', 'recommendations'],
+  },
+  // Article 13 - External Emergency Plans
+  {
+    id: 'SEVESO-Art.13',
+    title: 'External emergency plans',
+    description:
+      'Member States shall ensure that external emergency plans are established by competent authorities ' +
+      'for upper-tier establishments. External plans shall be drawn up to coordinate external emergency ' +
+      'response and to ensure restoration of environment following major accidents.',
+    keywords: ['external emergency plan', 'competent authority', 'external response', 'restoration', 'environment'],
+    mandatory: true,
+    hazopsRelevance: ['safeguards', 'documentation'],
+  },
+  // Article 14 - Land-Use Planning
+  {
+    id: 'SEVESO-Art.13(4)',
+    title: 'Emergency plan review and testing',
+    description:
+      'External emergency plans shall be reviewed, tested and where necessary revised and updated ' +
+      'by the competent authority at suitable intervals not exceeding three years. The review shall ' +
+      'take account of changes in the establishments concerned and emergency services.',
+    keywords: ['emergency plan review', 'testing', 'revision', 'three years', 'emergency services'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-Art.13',
+    hazopsRelevance: ['follow_up'],
+  },
+  {
+    id: 'SEVESO-Art.15',
+    title: 'Land-use planning',
+    description:
+      'Member States shall ensure that their land-use planning policies take account of the need to ' +
+      'maintain appropriate safety distances between SEVESO establishments and residential areas, ' +
+      'public buildings, transport routes, recreational areas, and natural habitats.',
+    keywords: ['land-use planning', 'safety distances', 'residential areas', 'public buildings', 'transport'],
+    mandatory: true,
+    hazopsRelevance: ['safeguards', 'risk_assessment'],
+  },
+  // Review and Updates
+  {
+    id: 'SEVESO-Art.10(5)',
+    title: 'Safety report periodic review',
+    description:
+      'The safety report shall be periodically reviewed and where necessary updated at least every ' +
+      'five years, when new facts become known, when new technical knowledge warrants changes, or ' +
+      'when there are changes to safety requirements.',
+    keywords: ['periodic review', 'five years', 'update', 'new facts', 'technical knowledge', 'safety requirements'],
+    mandatory: true,
+    hazopsRelevance: ['follow_up', 'documentation'],
+  },
+  {
+    id: 'SEVESO-Art.10(6)',
+    title: 'Safety report review following major accidents or near misses',
+    description:
+      'The safety report shall be reviewed and where necessary updated following a major accident at ' +
+      'the establishment, or following significant developments in technical knowledge regarding the ' +
+      'assessment of hazards, or whenever justified by the analysis of near misses.',
+    keywords: ['review', 'major accident', 'near miss', 'technical knowledge', 'hazard assessment'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-Art.10(5)',
+    hazopsRelevance: ['follow_up', 'hazard_identification'],
+  },
+  // Inspections and Information
+  {
+    id: 'SEVESO-Art.20',
+    title: 'Inspections',
+    description:
+      'Member States shall ensure a system of inspections. All establishments shall be covered by an ' +
+      'inspection plan. For upper-tier establishments, inspection plan shall be based on systematic ' +
+      'appraisal of major-accident hazards. Time between site visits shall not exceed one year for ' +
+      'upper-tier and three years for lower-tier establishments.',
+    keywords: ['inspections', 'inspection plan', 'site visits', 'one year', 'three years', 'systematic appraisal'],
+    mandatory: true,
+    hazopsRelevance: ['follow_up'],
+  },
+  {
+    id: 'SEVESO-Art.20(5)',
+    title: 'Inspection program scope',
+    description:
+      'Inspections shall cover technical, organizational and managerial systems to ensure that the ' +
+      'operator can demonstrate that appropriate measures have been taken to prevent major accidents, ' +
+      'provide means for limiting on-site and off-site consequences, and maintain adequate safety.',
+    keywords: ['inspection scope', 'technical systems', 'organizational', 'managerial', 'prevention measures'],
+    mandatory: true,
+    parentClauseId: 'SEVESO-Art.20',
+    hazopsRelevance: ['follow_up', 'safeguards'],
+  },
+  {
+    id: 'SEVESO-Art.22',
+    title: 'Prohibition of use',
+    description:
+      'Member States shall prohibit use or bringing into use of any establishment, installation, ' +
+      'storage facility, or part thereof where measures taken by operator for prevention and mitigation ' +
+      'of major accidents are seriously deficient.',
+    keywords: ['prohibition', 'seriously deficient', 'prevention measures', 'mitigation', 'enforcement'],
+    mandatory: true,
+    hazopsRelevance: ['safeguards'],
+  },
+  // Public Information
+  {
+    id: 'SEVESO-Art.14',
+    title: 'Information to the public',
+    description:
+      'Member States shall ensure that information is made permanently available to the public including ' +
+      'electronically. The information shall include the nature of the major-accident hazards, safety ' +
+      'measures and behavior in the event of an accident.',
+    keywords: ['public information', 'right to know', 'safety measures', 'behavior', 'accident information'],
+    mandatory: true,
+    hazopsRelevance: ['documentation'],
+  },
+  // HazOps-specific guidance for SEVESO III
+  {
+    id: 'SEVESO-HazOps-1',
+    title: 'SEVESO III HazOps methodology requirements',
+    description:
+      'When conducting HazOps under SEVESO III: use systematic hazard identification techniques ' +
+      'including HazOps, FMEA, fault tree analysis. Address both normal and abnormal operations ' +
+      'including maintenance and startup/shutdown. Consider external hazards and domino effects.',
+    keywords: ['HazOps methodology', 'systematic', 'abnormal operations', 'external hazards', 'domino effects'],
+    mandatory: false,
+    hazopsRelevance: ['methodology', 'hazard_identification'],
+  },
+  {
+    id: 'SEVESO-HazOps-2',
+    title: 'SEVESO III scenario development',
+    description:
+      'Major-accident scenarios for SEVESO III shall include loss of containment scenarios (pool fires, ' +
+      'jet fires, vapor cloud explosions, BLEVEs), toxic releases (continuous and instantaneous), and ' +
+      'environmental releases to soil and water. Consider both onsite and offsite consequences.',
+    keywords: ['scenarios', 'loss of containment', 'pool fire', 'VCE', 'BLEVE', 'toxic release', 'environmental'],
+    mandatory: false,
+    hazopsRelevance: ['hazard_identification', 'risk_assessment'],
+  },
+  {
+    id: 'SEVESO-HazOps-3',
+    title: 'SEVESO III safeguards and IPLs',
+    description:
+      'Typical safeguards and independent protection layers (IPLs) for SEVESO III compliance include: ' +
+      'safety instrumented systems (SIS), pressure relief devices, containment systems (bunds, dikes), ' +
+      'fire and gas detection, water deluge systems, and emergency shutdown systems.',
+    keywords: ['safeguards', 'IPL', 'SIS', 'pressure relief', 'containment', 'bunds', 'fire detection', 'ESD'],
+    mandatory: false,
+    hazopsRelevance: ['safeguards', 'lopa'],
+  },
+  {
+    id: 'SEVESO-HazOps-4',
+    title: 'SEVESO III risk assessment criteria',
+    description:
+      'Risk assessment shall demonstrate that risks are as low as reasonably practicable (ALARP). ' +
+      'Consider individual risk and societal risk. Consequence assessment must include distances to ' +
+      'specified endpoints (fatality zones, injury zones, property damage).',
+    keywords: ['risk criteria', 'ALARP', 'individual risk', 'societal risk', 'endpoints', 'fatality zones'],
+    mandatory: false,
+    hazopsRelevance: ['risk_assessment', 'risk_ranking'],
+  },
+  {
+    id: 'SEVESO-HazOps-5',
+    title: 'SEVESO III documentation requirements',
+    description:
+      'HazOps studies supporting SEVESO III compliance shall be documented including: study scope and ' +
+      'methodology, team composition and qualifications, P&IDs and drawings reviewed, identified hazards ' +
+      'and scenarios, recommended actions, and action close-out status.',
+    keywords: ['documentation', 'study scope', 'team qualifications', 'P&IDs', 'recommendations', 'action tracking'],
+    mandatory: false,
+    hazopsRelevance: ['documentation', 'team_composition'],
+  },
+];
+
+/**
+ * SEVESO III Directive standard definition.
+ */
+const SEVESO_III: RegulatoryStandard = {
+  id: 'SEVESO_III',
+  name: 'SEVESO III',
+  title: 'Control of major-accident hazards involving dangerous substances (Directive 2012/18/EU)',
+  description:
+    'European Union directive aimed at prevention of major accidents involving dangerous substances ' +
+    'and limitation of their consequences. Applies to establishments where dangerous substances are ' +
+    'present in qualifying quantities defined in Annex I. Distinguishes between lower-tier and ' +
+    'upper-tier establishments with different requirements. Upper-tier establishments must produce ' +
+    'a safety report demonstrating hazard identification, prevention measures, and emergency planning. ' +
+    'Requires safety management systems, land-use planning considerations, and public information.',
+  category: 'major_hazards',
+  jurisdiction: 'european_union',
+  version: 'Directive 2012/18/EU',
+  year: 2012,
+  issuingBody: 'European Parliament and Council',
+  url: 'https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32012L0018',
+  mandatory: true,
+  relatedStandards: ['IEC_61511', 'ATEX_DSEAR', 'ISO_31000'],
+  relevantClauses: SEVESO_III_CLAUSES,
+};
+
+// ============================================================================
 // Standards Database
 // ============================================================================
 
@@ -2473,6 +3070,7 @@ const REGULATORY_STANDARDS_DATABASE: Map<RegulatoryStandardId, RegulatoryStandar
   ['PED', PED],
   ['OSHA_PSM', OSHA_PSM],
   ['EPA_RMP', EPA_RMP],
+  ['SEVESO_III', SEVESO_III],
 ]);
 
 // ============================================================================
