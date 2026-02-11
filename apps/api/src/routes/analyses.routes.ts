@@ -12,7 +12,7 @@
 
 import { Router } from 'express';
 import { authenticate, requireAuth } from '../middleware/auth.middleware.js';
-import { getAnalysisById, updateAnalysis, createAnalysisEntry, listEntries, completeAnalysis } from '../controllers/analyses.controller.js';
+import { getAnalysisById, updateAnalysis, createAnalysisEntry, listEntries, completeAnalysis, getRiskSummary } from '../controllers/analyses.controller.js';
 
 const router = Router();
 
@@ -109,5 +109,25 @@ router.post('/:id/entries', authenticate, requireAuth, createAnalysisEntry);
  * Only accessible if the user is a member of the project that owns the analysis.
  */
 router.get('/:id/entries', authenticate, requireAuth, listEntries);
+
+/**
+ * GET /analyses/:id/risk-summary
+ * Get aggregated risk summary for a HazOps analysis session.
+ *
+ * Path parameters:
+ * - id: string (required) - Analysis UUID
+ *
+ * Returns comprehensive risk aggregation including:
+ * - statistics: Overall statistics (total entries, assessed entries, counts by risk level)
+ * - distribution: Risk level distribution percentages
+ * - percentiles: Score percentiles (p25, p50, p75, p90, p95)
+ * - byNode: Risk breakdown per node
+ * - byGuideWord: Risk breakdown per guide word
+ * - highestRiskEntries: Top 10 highest risk entries
+ * - thresholds: Threshold configuration used for classification
+ *
+ * Only accessible if the user is a member of the project that owns the analysis.
+ */
+router.get('/:id/risk-summary', authenticate, requireAuth, getRiskSummary);
 
 export default router;

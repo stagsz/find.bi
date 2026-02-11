@@ -31,6 +31,7 @@ import {
   updateEntryRisk as updateEntryRiskService,
   clearEntryRisk as clearEntryRiskService,
 } from '../services/hazop-analysis.service.js';
+import { getAnalysisRiskAggregation } from '../services/risk-aggregation.service.js';
 import {
   calculateRiskRanking,
   validateRiskFactors,
@@ -2463,6 +2464,127 @@ export async function updateEntryRisk(req: Request, res: Response): Promise<void
     });
   } catch (error) {
     console.error('Update entry risk error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+// ============================================================================
+// Get Risk Summary
+// ============================================================================
+
+/**
+ * GET /analyses/:id/risk-summary
+ * Get aggregated risk summary for a HazOps analysis session.
+ *
+ * Returns comprehensive risk aggregation including:
+ * - Overall statistics (total entries, assessed entries, counts by risk level)
+ * - Risk level distribution percentages
+ * - Score percentiles (p25, p50, p75, p90, p95)
+ * - Breakdown by node (risk summary per node)
+ * - Breakdown by guide word (risk summary per guide word)
+ * - List of highest risk entries (top 10)
+ * - Threshold configuration used for classification
+ *
+ * Path parameters:
+ * - id: string (required) - Analysis UUID
+ *
+ * Returns:
+ * - 200: Aggregated risk summary
+ * - 400: Invalid analysis ID format
+ * - 401: Not authenticated
+ * - 403: Not authorized to access this analysis
+ * - 404: Analysis not found
+ * - 500: Internal server error
+ */
+export async function getRiskSummary(req: Request, res: Response): Promise<void> {
+  try {
+    const { id: analysisId } = req.params;
+
+    // Get authenticated user ID
+    const userId = (req.user as { id: string } | undefined)?.id;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required',
+        },
+      });
+      return;
+    }
+
+    // Validate UUID format
+    if (!UUID_REGEX.test(analysisId)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid analysis ID format',
+          errors: [
+            {
+              field: 'id',
+              message: 'Analysis ID must be a valid UUID',
+              code: 'INVALID_FORMAT',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    // Find the analysis to check project access
+    const existingAnalysis = await findAnalysisById(analysisId);
+    if (!existingAnalysis) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Analysis not found',
+        },
+      });
+      return;
+    }
+
+    // Check if user has access to the project that owns this analysis
+    const hasAccess = await userHasProjectAccess(userId, existingAnalysis.projectId);
+    if (!hasAccess) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this analysis',
+        },
+      });
+      return;
+    }
+
+    // Get the comprehensive risk aggregation
+    const riskAggregation = await getAnalysisRiskAggregation(analysisId);
+    if (!riskAggregation) {
+      // This should not happen since we already checked the analysis exists
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Analysis not found',
+        },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: riskAggregation,
+    });
+  } catch (error) {
+    console.error('Get risk summary error:', error);
 
     res.status(500).json({
       success: false,
