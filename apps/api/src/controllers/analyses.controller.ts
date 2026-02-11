@@ -48,8 +48,10 @@ import {
   getOrCreateActiveSession,
   joinSession,
   getActiveParticipants,
+  listSessionsForAnalysis,
   type CollaborationSessionWithDetails,
   type SessionParticipantWithDetails,
+  type CollaborationSessionStatus,
 } from '../services/collaboration.service.js';
 import { ANALYSIS_STATUSES, GUIDE_WORDS, RISK_LEVEL_FILTER_OPTIONS } from '@hazop/types';
 import type { AnalysisStatus, GuideWord, RiskLevelFilter } from '@hazop/types';
@@ -3837,6 +3839,214 @@ export async function startCollaboration(req: Request, res: Response): Promise<v
         return;
       }
     }
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+/**
+ * Valid status values for collaboration session filtering.
+ */
+const COLLABORATION_SESSION_STATUSES: readonly CollaborationSessionStatus[] = [
+  'active',
+  'paused',
+  'ended',
+];
+
+/**
+ * Response format for collaboration sessions list.
+ */
+interface CollaborationSessionsListResponse {
+  id: string;
+  analysisId: string;
+  name: string | null;
+  status: CollaborationSessionStatus;
+  createdById: string;
+  createdByName: string;
+  createdByEmail: string;
+  createdAt: string;
+  updatedAt: string;
+  endedAt: string | null;
+  notes: string | null;
+  participantCount: number;
+}
+
+/**
+ * Format a session for list response (without full participant details).
+ */
+function formatCollaborationSessionForList(
+  session: CollaborationSessionWithDetails,
+  participantCount: number
+): CollaborationSessionsListResponse {
+  return {
+    id: session.id,
+    analysisId: session.analysisId,
+    name: session.name,
+    status: session.status,
+    createdById: session.createdById,
+    createdByName: session.createdByName,
+    createdByEmail: session.createdByEmail,
+    createdAt: session.createdAt.toISOString(),
+    updatedAt: session.updatedAt.toISOString(),
+    endedAt: session.endedAt ? session.endedAt.toISOString() : null,
+    notes: session.notes,
+    participantCount,
+  };
+}
+
+/**
+ * GET /analyses/:id/collaborate
+ *
+ * Get collaboration sessions for an analysis.
+ *
+ * Path parameters:
+ * - id: Analysis UUID
+ *
+ * Query parameters:
+ * - status: Filter by session status (active, paused, ended). Optional.
+ *   If not provided, returns all sessions.
+ *
+ * Returns:
+ * - sessions: Array of collaboration sessions with participant counts
+ *
+ * Status codes:
+ * - 200: Sessions retrieved successfully
+ * - 400: Invalid analysis ID or status filter
+ * - 401: Not authenticated
+ * - 403: Not authorized to access this analysis
+ * - 404: Analysis not found
+ * - 500: Internal server error
+ */
+export async function getCollaborationSessions(req: Request, res: Response): Promise<void> {
+  try {
+    const { id: analysisId } = req.params;
+    const { status } = req.query;
+
+    // Get authenticated user ID
+    const userId = (req.user as { id: string } | undefined)?.id;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required',
+        },
+      });
+      return;
+    }
+
+    // Validate UUID format
+    if (!UUID_REGEX.test(analysisId)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid analysis ID format',
+          errors: [
+            {
+              field: 'id',
+              message: 'Analysis ID must be a valid UUID',
+              code: 'INVALID_FORMAT',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    // Validate status query parameter if provided
+    let statusFilter: CollaborationSessionStatus | undefined;
+    if (status !== undefined) {
+      if (typeof status !== 'string') {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid status parameter',
+            errors: [
+              {
+                field: 'status',
+                message: 'Status must be a string',
+                code: 'INVALID_TYPE',
+              },
+            ],
+          },
+        });
+        return;
+      }
+
+      if (!COLLABORATION_SESSION_STATUSES.includes(status as CollaborationSessionStatus)) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid status value',
+            errors: [
+              {
+                field: 'status',
+                message: `Status must be one of: ${COLLABORATION_SESSION_STATUSES.join(', ')}`,
+                code: 'INVALID_VALUE',
+              },
+            ],
+          },
+        });
+        return;
+      }
+
+      statusFilter = status as CollaborationSessionStatus;
+    }
+
+    // Find the analysis to get the project ID
+    const analysis = await findAnalysisById(analysisId);
+    if (!analysis) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Analysis not found',
+        },
+      });
+      return;
+    }
+
+    // Check if user has access to the project that owns this analysis
+    const hasAccess = await userHasProjectAccess(userId, analysis.projectId);
+    if (!hasAccess) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this analysis',
+        },
+      });
+      return;
+    }
+
+    // Get collaboration sessions for the analysis
+    const sessions = await listSessionsForAnalysis(analysisId, statusFilter);
+
+    // Get active participant counts for each session
+    const sessionsWithCounts = await Promise.all(
+      sessions.map(async (session) => {
+        const participants = await getActiveParticipants(session.id);
+        return formatCollaborationSessionForList(session, participants.length);
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        sessions: sessionsWithCounts,
+      },
+    });
+  } catch (error) {
+    console.error('Get collaboration sessions error:', error);
 
     res.status(500).json({
       success: false,

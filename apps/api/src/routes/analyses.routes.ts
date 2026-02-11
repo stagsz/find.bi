@@ -10,13 +10,14 @@
  * - GET /analyses/:id/risk-summary - Get aggregated risk summary
  * - GET /analyses/:id/compliance - Get compliance status against regulatory standards
  * - POST /analyses/:id/collaborate - Start or join a collaboration session
+ * - GET /analyses/:id/collaborate - Get collaboration sessions for an analysis
  *
  * All routes require authentication.
  */
 
 import { Router } from 'express';
 import { authenticate, requireAuth } from '../middleware/auth.middleware.js';
-import { getAnalysisById, updateAnalysis, createAnalysisEntry, listEntries, completeAnalysis, getRiskSummary, getAnalysisCompliance, startCollaboration } from '../controllers/analyses.controller.js';
+import { getAnalysisById, updateAnalysis, createAnalysisEntry, listEntries, completeAnalysis, getRiskSummary, getAnalysisCompliance, startCollaboration, getCollaborationSessions } from '../controllers/analyses.controller.js';
 
 const router = Router();
 
@@ -194,5 +195,34 @@ router.get('/:id/compliance', authenticate, requireAuth, getAnalysisCompliance);
  * Only accessible if the user is a member of the project that owns the analysis.
  */
 router.post('/:id/collaborate', authenticate, requireAuth, startCollaboration);
+
+/**
+ * GET /analyses/:id/collaborate
+ * Get collaboration sessions for an analysis.
+ *
+ * Path parameters:
+ * - id: string (required) - Analysis UUID
+ *
+ * Query parameters:
+ * - status: string (optional) - Filter by session status ('active', 'paused', 'ended')
+ *
+ * Returns:
+ * - sessions: Array of collaboration sessions
+ *   - id: Session UUID
+ *   - analysisId: Analysis UUID
+ *   - name: Session name (if provided)
+ *   - status: 'active' | 'paused' | 'ended'
+ *   - createdById: Creator's user UUID
+ *   - createdByName: Creator's name
+ *   - createdByEmail: Creator's email
+ *   - createdAt: ISO timestamp
+ *   - updatedAt: ISO timestamp
+ *   - endedAt: ISO timestamp (if ended)
+ *   - notes: Session notes
+ *   - participantCount: Number of currently active participants
+ *
+ * Only accessible if the user is a member of the project that owns the analysis.
+ */
+router.get('/:id/collaborate', authenticate, requireAuth, getCollaborationSessions);
 
 export default router;
