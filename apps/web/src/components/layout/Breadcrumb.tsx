@@ -3,6 +3,7 @@ import { IconChevronRight, IconHome } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { projectsService } from '../../services/projects.service';
 import { analysesService } from '../../services/analyses.service';
+import { NotificationDropdown } from './NotificationDropdown';
 
 /**
  * A breadcrumb item with label and optional link.
@@ -177,58 +178,72 @@ export function Breadcrumb() {
   };
 
   const breadcrumbs = buildBreadcrumbs();
-
-  // Don't render on dashboard or if no breadcrumbs
-  if (breadcrumbs.length === 0) {
-    return null;
-  }
+  const isDashboard = breadcrumbs.length === 0;
 
   return (
-    <nav aria-label="Breadcrumb" className="flex items-center px-6 py-3 bg-white border-b border-slate-200">
+    <nav
+      aria-label="Breadcrumb"
+      className="flex items-center justify-between px-6 py-3 bg-white border-b border-slate-200"
+    >
+      {/* Breadcrumb trail - empty on dashboard */}
       <ol className="flex items-center gap-2 text-sm">
-        {breadcrumbs.map((item, index) => (
-          <li key={item.label + index} className="flex items-center">
-            {index > 0 && (
-              <IconChevronRight
-                size={14}
-                stroke={2}
-                className="text-slate-400 mx-2"
-                aria-hidden="true"
-              />
-            )}
-
-            {item.isCurrent ? (
-              <span
-                className="text-slate-700 font-medium"
-                aria-current="page"
-              >
-                {index === 0 && (
-                  <IconHome size={16} stroke={1.5} className="inline-block mr-1.5 -mt-0.5" />
-                )}
-                {isLoading && (item.label.includes('Project') || item.label.includes('Analysis')) ? (
-                  <span className="inline-block w-20 h-4 bg-slate-200 rounded animate-pulse" />
-                ) : (
-                  item.label
-                )}
-              </span>
-            ) : (
-              <Link
-                to={item.path || '/'}
-                className="text-slate-500 hover:text-slate-700 transition-colors"
-              >
-                {index === 0 && (
-                  <IconHome size={16} stroke={1.5} className="inline-block mr-1.5 -mt-0.5" />
-                )}
-                {isLoading && (item.label.includes('Project') || item.label.includes('Analysis')) ? (
-                  <span className="inline-block w-20 h-4 bg-slate-200 rounded animate-pulse" />
-                ) : (
-                  item.label
-                )}
-              </Link>
-            )}
+        {isDashboard ? (
+          <li className="flex items-center">
+            <span className="text-slate-700 font-medium" aria-current="page">
+              <IconHome size={16} stroke={1.5} className="inline-block mr-1.5 -mt-0.5" />
+              Dashboard
+            </span>
           </li>
-        ))}
+        ) : (
+          breadcrumbs.map((item, index) => (
+            <li key={item.label + index} className="flex items-center">
+              {index > 0 && (
+                <IconChevronRight
+                  size={14}
+                  stroke={2}
+                  className="text-slate-400 mx-2"
+                  aria-hidden="true"
+                />
+              )}
+
+              {item.isCurrent ? (
+                <span
+                  className="text-slate-700 font-medium"
+                  aria-current="page"
+                >
+                  {index === 0 && (
+                    <IconHome size={16} stroke={1.5} className="inline-block mr-1.5 -mt-0.5" />
+                  )}
+                  {isLoading && (item.label.includes('Project') || item.label.includes('Analysis')) ? (
+                    <span className="inline-block w-20 h-4 bg-slate-200 rounded animate-pulse" />
+                  ) : (
+                    item.label
+                  )}
+                </span>
+              ) : (
+                <Link
+                  to={item.path || '/'}
+                  className="text-slate-500 hover:text-slate-700 transition-colors"
+                >
+                  {index === 0 && (
+                    <IconHome size={16} stroke={1.5} className="inline-block mr-1.5 -mt-0.5" />
+                  )}
+                  {isLoading && (item.label.includes('Project') || item.label.includes('Analysis')) ? (
+                    <span className="inline-block w-20 h-4 bg-slate-200 rounded animate-pulse" />
+                  ) : (
+                    item.label
+                  )}
+                </Link>
+              )}
+            </li>
+          ))
+        )}
       </ol>
+
+      {/* Header actions - notifications */}
+      <div className="hidden lg:flex items-center">
+        <NotificationDropdown />
+      </div>
     </nav>
   );
 }

@@ -16,3 +16,15 @@ export {
   type ColorScheme,
   type ThemeStore,
 } from './theme.store';
+
+export {
+  useNotificationStore,
+  selectNotifications,
+  selectUnreadNotifications,
+  selectUnreadCount,
+  selectIsOpen,
+  type NotificationStore,
+  type Notification,
+  type NotificationType,
+  type NotificationPriority,
+} from './notifications.store';
