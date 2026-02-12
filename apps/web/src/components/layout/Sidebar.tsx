@@ -8,10 +8,21 @@ import {
   IconUser,
   IconLogout,
   IconAlertTriangle,
+  IconX,
 } from '@tabler/icons-react';
 import { useAuthStore, selectUser } from '../../store/auth.store';
 import { authService } from '../../services/auth.service';
 import { useNavigate } from 'react-router-dom';
+
+/**
+ * Sidebar props for responsive behavior.
+ */
+interface SidebarProps {
+  /** Callback to close the sidebar (mobile/tablet) */
+  onClose?: () => void;
+  /** Whether to show the close button (mobile/tablet) */
+  showCloseButton?: boolean;
+}
 
 /**
  * Navigation item configuration.
@@ -85,8 +96,9 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
  * - User menu at bottom with profile link and logout
  * - Active route highlighting
  * - Clean, professional design matching HazOp industrial aesthetic
+ * - Responsive: Close button on mobile/tablet
  */
-export function Sidebar() {
+export function Sidebar({ onClose, showCloseButton = false }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const user = useAuthStore(selectUser);
@@ -141,10 +153,20 @@ export function Sidebar() {
         <div className="flex items-center justify-center w-9 h-9 bg-blue-600 rounded">
           <IconAlertTriangle size={20} stroke={2} />
         </div>
-        <div>
+        <div className="flex-1">
           <div className="font-semibold text-sm text-white">HazOp Assistant</div>
           <div className="text-xs text-slate-400">Process Safety</div>
         </div>
+        {/* Close button - mobile/tablet only */}
+        {showCloseButton && onClose && (
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-9 h-9 rounded text-slate-400 hover:bg-slate-800 hover:text-white transition-colors lg:hidden"
+            aria-label="Close navigation menu"
+          >
+            <IconX size={20} stroke={1.5} />
+          </button>
+        )}
       </div>
 
       {/* Main Navigation */}
