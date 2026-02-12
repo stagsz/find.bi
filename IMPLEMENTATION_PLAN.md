@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 10 - Dashboard & Navigation
-**Progress**: Phase 10 in progress - 5/12 tasks done
-**Last Completed**: DASH-05 - Create pending actions widget
-**Next Task**: DASH-06 - Create activity timeline widget
+**Progress**: Phase 10 in progress - 6/12 tasks done
+**Last Completed**: DASH-06 - Create activity timeline widget
+**Next Task**: NAV-01 - Create main navigation sidebar with icons
 
 ---
 
@@ -359,7 +359,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] DASH-03: Create recent analyses widget (40fc2a2)
 - [x] DASH-04: Create risk overview chart (distribution across projects) (a22c298)
 - [x] DASH-05: Create pending actions widget (analyses needing review) (daf9873)
-- [ ] DASH-06: Create activity timeline widget
+- [x] DASH-06: Create activity timeline widget (eb0f05d)
 
 ### Navigation & Layout
 - [ ] NAV-01: Create main navigation sidebar with icons
@@ -611,3 +611,4 @@ _No blockers currently._
 | DASH-03: Create recent analyses widget | 40fc2a2 | 2026-02-12 |
 | DASH-04: Create risk overview chart (distribution across projects) | a22c298 | 2026-02-12 |
 | DASH-05: Create pending actions widget (analyses needing review) | daf9873 | 2026-02-12 |
+| DASH-06: Create activity timeline widget | eb0f05d | 2026-02-12 |
