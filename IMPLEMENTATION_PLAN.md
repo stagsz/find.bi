@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 8 - Real-time Collaboration
-**Progress**: Phase 8 in progress - 13/16 tasks complete
-**Last Completed**: COLLAB-13 - Create real-time entry update animations (0786151)
-**Next Task**: COLLAB-14 - Create conflict resolution modal
+**Progress**: Phase 8 in progress - 14/16 tasks complete
+**Last Completed**: COLLAB-14 - Create conflict resolution modal (2a38312)
+**Next Task**: COLLAB-15 - Add unit tests for WebSocket event handlers
 
 ---
 
@@ -310,7 +310,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] COLLAB-11: Create collaboration status indicator (active users shown) (0737faf)
 - [x] COLLAB-12: Create user presence avatars on analysis workspace (5355a6d)
 - [x] COLLAB-13: Create real-time entry update animations (0786151)
-- [ ] COLLAB-14: Create conflict resolution modal
+- [x] COLLAB-14: Create conflict resolution modal (2a38312)
 
 ### Collaboration Testing
 - [ ] COLLAB-15: Add unit tests for WebSocket event handlers
@@ -582,3 +582,4 @@ _No blockers currently._
 | COLLAB-11: Create collaboration status indicator (active users shown) | 0737faf | 2026-02-12 |
 | COLLAB-12: Create user presence avatars on analysis workspace | 5355a6d | 2026-02-12 |
 | COLLAB-13: Create real-time entry update animations | 0786151 | 2026-02-12 |
+| COLLAB-14: Create conflict resolution modal | 2a38312 | 2026-02-12 |
