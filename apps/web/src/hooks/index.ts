@@ -28,3 +28,6 @@ export {
   useHighlightAnimation,
   type AnimationType,
 } from './useHighlightAnimation';
+
+// Toast notifications
+export { useToast } from './useToast';

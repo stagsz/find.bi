@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button, TextInput, Textarea, Select, Alert } from '@mantine/core';
 import { projectsService, type ProjectListItem } from '../../services/projects.service';
 import { useAuthStore, selectUser } from '../../store/auth.store';
+import { useToast } from '../../hooks';
 import type { ProjectStatus, ApiError } from '@hazop/types';
 
 /**
@@ -58,6 +59,7 @@ interface ProjectSettingsPanelProps {
  */
 export function ProjectSettingsPanel({ project, onProjectUpdate }: ProjectSettingsPanelProps) {
   const currentUser = useAuthStore(selectUser);
+  const toast = useToast();
 
   // Form state
   const [name, setName] = useState(project.name);
@@ -67,7 +69,6 @@ export function ProjectSettingsPanel({ project, onProjectUpdate }: ProjectSettin
   // UI state
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
-  const [success, setSuccess] = useState(false);
 
   // Determine user's role in project
   const userRole = project.memberRole || (project.createdById === currentUser?.id ? 'owner' : null);
@@ -91,7 +92,6 @@ export function ProjectSettingsPanel({ project, onProjectUpdate }: ProjectSettin
     setDescription(project.description || '');
     setStatus(project.status);
     setError(null);
-    setSuccess(false);
   }, [project.id, project.name, project.description, project.status]);
 
   /**
@@ -106,7 +106,6 @@ export function ProjectSettingsPanel({ project, onProjectUpdate }: ProjectSettin
 
     setIsSaving(true);
     setError(null);
-    setSuccess(false);
 
     const result = await projectsService.updateProject(project.id, {
       name: name.trim(),
@@ -115,12 +114,12 @@ export function ProjectSettingsPanel({ project, onProjectUpdate }: ProjectSettin
     });
 
     if (result.success) {
-      setSuccess(true);
       onProjectUpdate?.();
-      // Clear success message after a delay
-      setTimeout(() => setSuccess(false), 3000);
+      toast.success('Project settings updated successfully', { title: 'Settings Saved' });
     } else {
-      setError(result.error || { code: 'UNKNOWN', message: 'Failed to update project' });
+      const err = result.error || { code: 'UNKNOWN', message: 'Failed to update project' };
+      setError(err);
+      toast.error(err, { title: 'Update Failed' });
     }
 
     setIsSaving(false);
@@ -134,7 +133,6 @@ export function ProjectSettingsPanel({ project, onProjectUpdate }: ProjectSettin
     setDescription(project.description || '');
     setStatus(project.status);
     setError(null);
-    setSuccess(false);
   };
 
   // Read-only state for viewers
@@ -191,22 +189,6 @@ export function ProjectSettingsPanel({ project, onProjectUpdate }: ProjectSettin
           Update project name, description, and status
         </p>
       </div>
-
-      {/* Success alert */}
-      {success && (
-        <Alert
-          color="green"
-          variant="light"
-          className="mb-4"
-          styles={{
-            root: { borderRadius: '4px' },
-          }}
-          onClose={() => setSuccess(false)}
-          withCloseButton
-        >
-          Project settings updated successfully.
-        </Alert>
-      )}
 
       {/* Error alert */}
       {error && (

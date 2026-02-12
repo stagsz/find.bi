@@ -1,11 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { MantineProvider, createTheme, MantineColorScheme } from '@mantine/core';
+import { Notifications } from '@mantine/notifications';
 import App from './App';
 import { useThemeStore, selectColorScheme } from './store';
 import { ErrorBoundary } from './components/errors';
 import './index.css';
 import '@mantine/core/styles.css';
+import '@mantine/notifications/styles.css';
 
 /**
  * Custom Mantine theme for HazOp Assistant.
@@ -35,6 +37,7 @@ function ThemeWrapper({ children }: { children: React.ReactNode }) {
       defaultColorScheme={colorScheme as MantineColorScheme}
       forceColorScheme={colorScheme as MantineColorScheme}
     >
+      <Notifications position="top-right" autoClose={4000} />
       {children}
     </MantineProvider>
   );

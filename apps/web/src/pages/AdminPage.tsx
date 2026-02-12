@@ -7,6 +7,7 @@ import {
   type ListUsersFilters,
   type ListUsersSortOptions,
 } from '../services/admin.service';
+import { useToast } from '../hooks';
 import type { User, UserRole, ApiError } from '@hazop/types';
 import { TableRowSkeleton } from '../components/skeletons';
 
@@ -76,6 +77,7 @@ const ROLE_EDITOR_OPTIONS = [
  */
 export function AdminPage() {
   const currentUser = useAuthStore(selectUser);
+  const toast = useToast();
 
   // User list state
   const [users, setUsers] = useState<User[]>([]);
@@ -174,8 +176,12 @@ export function AdminPage() {
       setUsers((prev) =>
         prev.map((u) => (u.id === user.id ? result.data!.user : u))
       );
+      const newStatus = !user.isActive ? 'activated' : 'deactivated';
+      toast.success(`User ${user.name} has been ${newStatus}`, { title: 'Status Updated' });
     } else {
-      setError(result.error || { code: 'UNKNOWN', message: 'Failed to update user status' });
+      const err = result.error || { code: 'UNKNOWN', message: 'Failed to update user status' };
+      setError(err);
+      toast.error(err, { title: 'Status Update Failed' });
     }
 
     setUpdatingUserId(null);
@@ -241,8 +247,13 @@ export function AdminPage() {
         prev.map((u) => (u.id === roleModalUser.id ? result.data!.user : u))
       );
       handleCloseRoleModal();
+      toast.success(`Role for ${roleModalUser.name} changed to ${ROLE_LABELS[selectedRole]}`, {
+        title: 'Role Updated',
+      });
     } else {
-      setError(result.error || { code: 'UNKNOWN', message: 'Failed to update user role' });
+      const err = result.error || { code: 'UNKNOWN', message: 'Failed to update user role' };
+      setError(err);
+      toast.error(err, { title: 'Role Update Failed' });
     }
 
     setIsUpdatingRole(false);

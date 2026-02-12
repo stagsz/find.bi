@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { TextInput, Button, Alert } from '@mantine/core';
 import { useAuthStore, selectUser } from '../store/auth.store';
 import { userService } from '../services/user.service';
+import { useToast } from '../hooks';
 
 /**
  * Profile page component for viewing and editing user profile.
@@ -17,13 +18,13 @@ import { userService } from '../services/user.service';
 export function ProfilePage() {
   const user = useAuthStore(selectUser);
   const { isLoading, error } = useAuthStore();
+  const toast = useToast();
 
   // Form state
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [organization, setOrganization] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<{
     name?: string;
     email?: string;
@@ -75,7 +76,6 @@ export function ProfilePage() {
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSuccessMessage(null);
 
     if (!validateForm()) {
       return;
@@ -88,8 +88,10 @@ export function ProfilePage() {
     });
 
     if (result.success) {
-      setSuccessMessage('Profile updated successfully');
+      toast.success('Profile updated successfully', { title: 'Profile Saved' });
       setIsEditing(false);
+    } else if (result.error) {
+      toast.error(result.error, { title: 'Update Failed' });
     }
   };
 
@@ -103,7 +105,6 @@ export function ProfilePage() {
       setOrganization(user.organization);
     }
     setValidationErrors({});
-    setSuccessMessage(null);
     useAuthStore.getState().setError(null);
     setIsEditing(false);
   };
@@ -151,22 +152,6 @@ export function ProfilePage() {
           </div>
 
           <div className="p-6">
-            {/* Success Message */}
-            {successMessage && (
-              <Alert
-                color="green"
-                variant="light"
-                className="mb-6"
-                styles={{
-                  root: { borderRadius: '4px' },
-                }}
-                onClose={() => setSuccessMessage(null)}
-                withCloseButton
-              >
-                {successMessage}
-              </Alert>
-            )}
-
             {/* API Error Alert */}
             {error && (
               <Alert

@@ -8,6 +8,7 @@ import {
   type ListProjectsSortOptions,
   type ProjectListItem,
 } from '../services/projects.service';
+import { useToast } from '../hooks';
 import type { ProjectStatus, ProjectMemberRole, ApiError } from '@hazop/types';
 import { TableRowSkeleton } from '../components/skeletons';
 
@@ -80,6 +81,7 @@ const SORT_OPTIONS = [
 export function ProjectsPage() {
   const navigate = useNavigate();
   const currentUser = useAuthStore(selectUser);
+  const toast = useToast();
 
   // Project list state
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
@@ -222,8 +224,11 @@ export function ProjectsPage() {
       handleCloseCreateModal();
       // Refresh the project list to include the new project
       fetchProjects();
+      toast.success(`Project "${trimmedName}" created successfully`, { title: 'Project Created' });
     } else {
-      setCreateError(result.error || { code: 'UNKNOWN', message: 'Failed to create project' });
+      const err = result.error || { code: 'UNKNOWN', message: 'Failed to create project' };
+      setCreateError(err);
+      toast.error(err, { title: 'Failed to Create Project' });
     }
 
     setIsCreatingProject(false);

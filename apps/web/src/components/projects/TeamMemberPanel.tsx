@@ -3,6 +3,7 @@ import { Button, Table, Alert, Modal, TextInput, Select, Loader } from '@mantine
 import { projectsService, type ProjectListItem } from '../../services/projects.service';
 import { adminService } from '../../services/admin.service';
 import { useAuthStore, selectUser } from '../../store/auth.store';
+import { useToast } from '../../hooks';
 import type { ProjectMemberWithUser, ProjectMemberRole, ApiError, User } from '@hazop/types';
 
 /**
@@ -66,6 +67,7 @@ interface TeamMemberPanelProps {
  */
 export function TeamMemberPanel({ project, onMembersChange }: TeamMemberPanelProps) {
   const currentUser = useAuthStore(selectUser);
+  const toast = useToast();
 
   // Members state
   const [members, setMembers] = useState<ProjectMemberWithUser[]>([]);
@@ -185,8 +187,14 @@ export function TeamMemberPanel({ project, onMembersChange }: TeamMemberPanelPro
       handleCloseAddModal();
       // Notify parent
       onMembersChange?.();
+      // Show success toast
+      toast.success(`${searchResult.name} has been added to the project`, {
+        title: 'Member Added',
+      });
     } else {
-      setAddError(result.error || { code: 'UNKNOWN', message: 'Failed to add member' });
+      const error = result.error || { code: 'UNKNOWN', message: 'Failed to add member' };
+      setAddError(error);
+      toast.error(error, { title: 'Failed to Add Member' });
     }
 
     setIsAdding(false);
@@ -199,7 +207,9 @@ export function TeamMemberPanel({ project, onMembersChange }: TeamMemberPanelPro
     // Don't allow removing the owner
     const memberToRemove = members.find((m) => m.userId === userId);
     if (memberToRemove?.role === 'owner') {
-      setError({ code: 'FORBIDDEN', message: 'Cannot remove the project owner' });
+      const error = { code: 'FORBIDDEN', message: 'Cannot remove the project owner' };
+      setError(error);
+      toast.error(error);
       return;
     }
 
@@ -213,8 +223,17 @@ export function TeamMemberPanel({ project, onMembersChange }: TeamMemberPanelPro
       await fetchMembers();
       // Notify parent
       onMembersChange?.();
+      // Show success toast
+      toast.success(
+        memberToRemove
+          ? `${memberToRemove.userName} has been removed from the project`
+          : 'Member has been removed',
+        { title: 'Member Removed' }
+      );
     } else {
-      setError(result.error || { code: 'UNKNOWN', message: 'Failed to remove member' });
+      const error = result.error || { code: 'UNKNOWN', message: 'Failed to remove member' };
+      setError(error);
+      toast.error(error, { title: 'Failed to Remove Member' });
     }
 
     setRemovingUserId(null);

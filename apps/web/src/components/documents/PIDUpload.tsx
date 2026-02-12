@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Button, Alert, Progress } from '@mantine/core';
 import { documentsService } from '../../services/documents.service';
+import { useToast } from '../../hooks';
 import type { PIDDocumentWithUploader, ApiError } from '@hazop/types';
 
 /**
@@ -94,6 +95,8 @@ interface PIDUploadProps {
  * - File preview before upload
  */
 export function PIDUpload({ projectId, onUploadComplete, disabled = false }: PIDUploadProps) {
+  const toast = useToast();
+
   // Drag state
   const [isDragActive, setIsDragActive] = useState(false);
 
@@ -104,7 +107,6 @@ export function PIDUpload({ projectId, onUploadComplete, disabled = false }: PID
   // Upload state
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<ApiError | null>(null);
-  const [uploadSuccess, setUploadSuccess] = useState(false);
 
   // File input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -116,7 +118,6 @@ export function PIDUpload({ projectId, onUploadComplete, disabled = false }: PID
     // Reset state
     setValidationError(null);
     setUploadError(null);
-    setUploadSuccess(false);
 
     if (!files || files.length === 0) {
       return;
@@ -221,16 +222,17 @@ export function PIDUpload({ projectId, onUploadComplete, disabled = false }: PID
 
     setIsUploading(true);
     setUploadError(null);
-    setUploadSuccess(false);
 
     const result = await documentsService.uploadDocument(projectId, selectedFile);
 
     if (result.success && result.data) {
-      setUploadSuccess(true);
       setSelectedFile(null);
+      toast.success('Document uploaded successfully', { title: 'Upload Complete' });
       onUploadComplete?.(result.data.document);
     } else {
-      setUploadError(result.error || { code: 'UNKNOWN', message: 'Failed to upload document' });
+      const error = result.error || { code: 'UNKNOWN', message: 'Failed to upload document' };
+      setUploadError(error);
+      toast.error(error, { title: 'Upload Failed' });
     }
 
     setIsUploading(false);
@@ -243,26 +245,10 @@ export function PIDUpload({ projectId, onUploadComplete, disabled = false }: PID
     setSelectedFile(null);
     setValidationError(null);
     setUploadError(null);
-    setUploadSuccess(false);
   };
 
   return (
     <div className="space-y-4">
-      {/* Success message */}
-      {uploadSuccess && (
-        <Alert
-          color="green"
-          variant="light"
-          onClose={() => setUploadSuccess(false)}
-          withCloseButton
-          styles={{
-            root: { borderRadius: '4px' },
-          }}
-        >
-          Document uploaded successfully.
-        </Alert>
-      )}
-
       {/* Error messages */}
       {(validationError || uploadError) && (
         <Alert
