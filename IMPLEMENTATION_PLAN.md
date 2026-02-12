@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 11 - Polish & Deployment
-**Progress**: Phase 11 IN PROGRESS - 4/15 tasks done
-**Last Completed**: PERF-04 - Implement optimistic updates for analysis entries
-**Next Task**: PERF-05 - Add keyboard shortcuts for common analysis actions
+**Progress**: Phase 11 IN PROGRESS - 5/15 tasks done
+**Last Completed**: PERF-05 - Add keyboard shortcuts for common analysis actions
+**Next Task**: OPS-01 - Set up Prometheus metrics collection
 
 ---
 
@@ -378,7 +378,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] PERF-02: Implement error boundaries with fallback UI (5fdd495)
 - [x] PERF-03: Add toast notifications for success/error feedback (967d6eb)
 - [x] PERF-04: Implement optimistic updates for analysis entries (33fbc71)
-- [ ] PERF-05: Add keyboard shortcuts for common analysis actions
+- [x] PERF-05: Add keyboard shortcuts for common analysis actions (a27d5e8)
 
 ### Monitoring & Logging
 - [ ] OPS-01: Set up Prometheus metrics collection
@@ -622,3 +622,4 @@ _No blockers currently._
 | PERF-02: Implement error boundaries with fallback UI | 5fdd495 | 2026-02-12 |
 | PERF-03: Add toast notifications for success/error feedback | 967d6eb | 2026-02-12 |
 | PERF-04: Implement optimistic updates for analysis entries | 33fbc71 | 2026-02-12 |
+| PERF-05: Add keyboard shortcuts for common analysis actions | a27d5e8 | 2026-02-12 |
