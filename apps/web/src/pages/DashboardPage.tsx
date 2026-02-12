@@ -2,7 +2,11 @@ import { Button } from '@mantine/core';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore, selectUser } from '../store/auth.store';
 import { authService } from '../services/auth.service';
-import { ProjectSummaryCards, RecentAnalysesWidget } from '../components/dashboard';
+import {
+  ProjectSummaryCards,
+  RecentAnalysesWidget,
+  RiskOverviewWidget,
+} from '../components/dashboard';
 
 /**
  * Dashboard page - the main landing page for authenticated users.
@@ -52,10 +56,7 @@ export function DashboardPage() {
             </div>
 
             <div className="flex items-center gap-4">
-              <Link
-                to="/profile"
-                className="text-sm text-slate-600 hover:text-slate-900"
-              >
+              <Link to="/profile" className="text-sm text-slate-600 hover:text-slate-900">
                 {user?.name} ({user?.role.replace('_', ' ')})
               </Link>
               <Button
@@ -124,22 +125,8 @@ export function DashboardPage() {
           {/* Recent analyses widget */}
           <RecentAnalysesWidget />
 
-          {/* Risk overview chart - DASH-04 placeholder */}
-          <section className="bg-white border border-slate-200 rounded">
-            <div className="px-4 py-3 border-b border-slate-200">
-              <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
-                Risk Overview
-              </h3>
-            </div>
-            <div className="p-4">
-              <div className="text-center py-8 text-slate-500">
-                <p className="text-sm">No risk data available.</p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Risk distribution will appear once analyses are created.
-                </p>
-              </div>
-            </div>
-          </section>
+          {/* Risk overview chart */}
+          <RiskOverviewWidget />
         </div>
 
         {/* Bottom row: Pending actions + Activity timeline */}
