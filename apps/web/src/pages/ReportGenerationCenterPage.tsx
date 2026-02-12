@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
-import { Button, Alert, Loader, Tabs, Progress } from '@mantine/core';
+import { Button, Alert, Loader, Tabs } from '@mantine/core';
 import { useAuthStore, selectUser } from '../store/auth.store';
 import { authService } from '../services/auth.service';
 import { projectsService } from '../services/projects.service';
 import { analysesService } from '../services/analyses.service';
 import { reportsService } from '../services/reports.service';
-import { ReportRequestForm } from '../components/reports';
+import { ReportRequestForm, ReportProgressIndicator } from '../components/reports';
 import type {
   ReportWithDetails,
   ReportTemplateWithCreator,
@@ -143,23 +143,15 @@ function ActiveReportCard({ report, progress, onRefresh }: ActiveReportCardProps
         </div>
       </div>
 
-      {report.status === 'generating' && (
-        <div className="mt-3">
-          <Progress
-            value={progress ?? 0}
-            size="sm"
-            color="blue"
-            striped
-            animated
-          />
-          <p className="text-xs text-slate-500 mt-1">
-            {progress !== undefined ? `${progress}% complete` : 'Processing...'}
-          </p>
-        </div>
-      )}
-
-      {report.status === 'pending' && (
-        <p className="text-xs text-slate-500 mt-3">Waiting in queue...</p>
+      {/* Progress indicator for pending/generating states */}
+      {(report.status === 'pending' || report.status === 'generating') && (
+        <ReportProgressIndicator
+          status={report.status}
+          progress={progress}
+          size="sm"
+          showMessage={true}
+          className="mt-3"
+        />
       )}
 
       <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between items-center">
