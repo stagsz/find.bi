@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 9 - Report Generation
-**Progress**: Phase 9 in progress - 10/21 tasks done
-**Last Completed**: REPORT-10 - Create GET /reports/:id/download endpoint
-**Next Task**: REPORT-11 - Create GET /projects/:id/reports endpoint (list generated reports)
+**Progress**: Phase 9 in progress - 11/21 tasks done
+**Last Completed**: REPORT-11 - Create GET /projects/:id/reports endpoint (list generated reports)
+**Next Task**: REPORT-12 - Create GET /templates endpoint (list available templates)
 
 ---
 
@@ -333,7 +333,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] REPORT-08: Create POST /projects/:id/reports endpoint (request report generation) (7c0e470)
 - [x] REPORT-09: Create GET /reports/:id/status endpoint (check generation status) (726cff3)
 - [x] REPORT-10: Create GET /reports/:id/download endpoint (download generated report) (33111ac)
-- [ ] REPORT-11: Create GET /projects/:id/reports endpoint (list generated reports)
+- [x] REPORT-11: Create GET /projects/:id/reports endpoint (list generated reports) (af2877c)
 - [ ] REPORT-12: Create GET /templates endpoint (list available templates)
 
 ### Frontend Report UI
@@ -595,3 +595,4 @@ _No blockers currently._
 | REPORT-08: Create POST /projects/:id/reports endpoint | 7c0e470 | 2026-02-12 |
 | REPORT-09: Create GET /reports/:id/status endpoint | 726cff3 | 2026-02-12 |
 | REPORT-10: Create GET /reports/:id/download endpoint | 33111ac | 2026-02-12 |
+| REPORT-11: Create GET /projects/:id/reports endpoint | af2877c | 2026-02-12 |
