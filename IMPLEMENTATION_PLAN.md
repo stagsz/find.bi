@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 9 - Report Generation
-**Progress**: Phase 9 in progress - 7/21 tasks done
-**Last Completed**: REPORT-07 - Create report template management service
-**Next Task**: REPORT-08 - Create POST /projects/:id/reports endpoint
+**Progress**: Phase 9 in progress - 8/21 tasks done
+**Last Completed**: REPORT-08 - Create POST /projects/:id/reports endpoint
+**Next Task**: REPORT-09 - Create GET /reports/:id/status endpoint
 
 ---
 
@@ -330,7 +330,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] REPORT-07: Create report template management service (5896ba2)
 
 ### Backend API
-- [ ] REPORT-08: Create POST /projects/:id/reports endpoint (request report generation)
+- [x] REPORT-08: Create POST /projects/:id/reports endpoint (request report generation) (7c0e470)
 - [ ] REPORT-09: Create GET /reports/:id/status endpoint (check generation status)
 - [ ] REPORT-10: Create GET /reports/:id/download endpoint (download generated report)
 - [ ] REPORT-11: Create GET /projects/:id/reports endpoint (list generated reports)
@@ -592,3 +592,4 @@ _No blockers currently._
 | REPORT-05: Create PowerPoint presentation generator | 91fb804 | 2026-02-12 |
 | REPORT-06: Create risk matrix image generator | fbdede2 | 2026-02-12 |
 | REPORT-07: Create report template management service | 5896ba2 | 2026-02-12 |
+| REPORT-08: Create POST /projects/:id/reports endpoint | 7c0e470 | 2026-02-12 |
