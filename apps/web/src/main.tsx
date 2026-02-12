@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { MantineProvider, createTheme, MantineColorScheme } from '@mantine/core';
 import App from './App';
 import { useThemeStore, selectColorScheme } from './store';
+import { ErrorBoundary } from './components/errors';
 import './index.css';
 import '@mantine/core/styles.css';
 
@@ -39,10 +40,29 @@ function ThemeWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Global error handler for logging unhandled errors.
+ * In production, this would send errors to a monitoring service.
+ */
+function handleGlobalError(error: Error): void {
+  if (import.meta.env.DEV) {
+    console.error('[Global Error Boundary] Unhandled error:', error);
+  }
+  // In production, send to error monitoring service (e.g., Sentry)
+  // errorMonitoringService.captureException(error);
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ThemeWrapper>
-      <App />
-    </ThemeWrapper>
+    <ErrorBoundary
+      fallbackVariant="page"
+      fallbackTitle="Application Error"
+      fallbackDescription="The application encountered an unexpected error. Please refresh the page to try again."
+      onError={handleGlobalError}
+    >
+      <ThemeWrapper>
+        <App />
+      </ThemeWrapper>
+    </ErrorBoundary>
   </React.StrictMode>
 );

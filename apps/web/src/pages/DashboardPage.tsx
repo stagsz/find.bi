@@ -8,6 +8,7 @@ import {
   PendingActionsWidget,
   ActivityTimelineWidget,
 } from '../components/dashboard';
+import { ErrorBoundary } from '../components/errors';
 
 /**
  * Dashboard page - the main landing page for authenticated users.
@@ -81,25 +82,50 @@ export function DashboardPage() {
           <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide mb-4">
             Project Overview
           </h3>
-          <ProjectSummaryCards />
+          <ErrorBoundary
+            fallbackVariant="widget"
+            fallbackTitle="Failed to load project summary"
+          >
+            <ProjectSummaryCards />
+          </ErrorBoundary>
         </section>
 
         {/* Middle row: Recent analyses + Risk overview */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Recent analyses widget */}
-          <RecentAnalysesWidget />
+          <ErrorBoundary
+            fallbackVariant="widget"
+            fallbackTitle="Failed to load recent analyses"
+          >
+            <RecentAnalysesWidget />
+          </ErrorBoundary>
 
           {/* Risk overview chart */}
-          <RiskOverviewWidget />
+          <ErrorBoundary
+            fallbackVariant="widget"
+            fallbackTitle="Failed to load risk overview"
+          >
+            <RiskOverviewWidget />
+          </ErrorBoundary>
         </div>
 
         {/* Bottom row: Pending actions + Activity timeline */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Pending actions widget */}
-          <PendingActionsWidget />
+          <ErrorBoundary
+            fallbackVariant="widget"
+            fallbackTitle="Failed to load pending actions"
+          >
+            <PendingActionsWidget />
+          </ErrorBoundary>
 
           {/* Activity timeline widget */}
-          <ActivityTimelineWidget />
+          <ErrorBoundary
+            fallbackVariant="widget"
+            fallbackTitle="Failed to load activity timeline"
+          >
+            <ActivityTimelineWidget />
+          </ErrorBoundary>
         </div>
 
         {/* Quick links section */}

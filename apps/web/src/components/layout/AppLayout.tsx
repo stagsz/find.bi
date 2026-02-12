@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { IconMenu2, IconAlertTriangle } from '@tabler/icons-react';
 import { Sidebar } from './Sidebar';
 import { Breadcrumb } from './Breadcrumb';
 import { NotificationDropdown } from './NotificationDropdown';
+import { ErrorBoundary } from '../errors';
 import { useThemeStore, selectColorScheme } from '../../store';
 
 /**
@@ -25,8 +26,23 @@ import { useThemeStore, selectColorScheme } from '../../store';
 export function AppLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const colorScheme = useThemeStore(selectColorScheme);
   const isDark = colorScheme === 'dark';
+
+  /**
+   * Handle navigation to home from error boundary.
+   */
+  const handleNavigateHome = useCallback(() => {
+    navigate('/');
+  }, [navigate]);
+
+  /**
+   * Handle going back from error boundary.
+   */
+  const handleGoBack = useCallback(() => {
+    navigate(-1);
+  }, [navigate]);
 
   /**
    * Close sidebar when route changes (mobile navigation).
@@ -101,9 +117,17 @@ export function AppLayout() {
         {/* Breadcrumb navigation */}
         <Breadcrumb />
 
-        {/* Page content */}
+        {/* Page content with error boundary */}
         <main className="flex-1 overflow-y-auto">
-          <Outlet />
+          <ErrorBoundary
+            fallbackVariant="section"
+            fallbackTitle="Page Error"
+            fallbackDescription="An error occurred while loading this page. Please try again or navigate to a different page."
+            onNavigateHome={handleNavigateHome}
+            onGoBack={handleGoBack}
+          >
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>

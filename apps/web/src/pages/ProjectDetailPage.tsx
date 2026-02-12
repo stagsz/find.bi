@@ -8,6 +8,7 @@ import { TeamMemberPanel } from '../components/projects/TeamMemberPanel';
 import { ProjectSettingsPanel } from '../components/projects/ProjectSettingsPanel';
 import { PIDUpload, DocumentList } from '../components/documents';
 import { AnalysesTab } from '../components/analyses';
+import { ErrorBoundary } from '../components/errors';
 import type { ProjectStatus, ProjectMemberRole, ApiError, PIDDocumentWithUploader } from '@hazop/types';
 
 /**
@@ -489,26 +490,46 @@ export function ProjectDetailPage() {
 
             {/* Documents Tab */}
             <Tabs.Panel value="documents">
-              <DocumentsTab
-                project={project}
-                currentUser={currentUser}
-                onDocumentUpload={fetchProject}
-              />
+              <ErrorBoundary
+                fallbackVariant="section"
+                fallbackTitle="Failed to load documents"
+              >
+                <DocumentsTab
+                  project={project}
+                  currentUser={currentUser}
+                  onDocumentUpload={fetchProject}
+                />
+              </ErrorBoundary>
             </Tabs.Panel>
 
             {/* Analysis Tab */}
             <Tabs.Panel value="analysis">
-              <AnalysesTab projectId={project.id} />
+              <ErrorBoundary
+                fallbackVariant="section"
+                fallbackTitle="Failed to load analyses"
+              >
+                <AnalysesTab projectId={project.id} />
+              </ErrorBoundary>
             </Tabs.Panel>
 
             {/* Team Tab */}
             <Tabs.Panel value="team">
-              <TeamMemberPanel project={project} onMembersChange={fetchProject} />
+              <ErrorBoundary
+                fallbackVariant="section"
+                fallbackTitle="Failed to load team members"
+              >
+                <TeamMemberPanel project={project} onMembersChange={fetchProject} />
+              </ErrorBoundary>
             </Tabs.Panel>
 
             {/* Settings Tab */}
             <Tabs.Panel value="settings">
-              <ProjectSettingsPanel project={project} onProjectUpdate={fetchProject} />
+              <ErrorBoundary
+                fallbackVariant="section"
+                fallbackTitle="Failed to load settings"
+              >
+                <ProjectSettingsPanel project={project} onProjectUpdate={fetchProject} />
+              </ErrorBoundary>
             </Tabs.Panel>
           </Tabs>
         </div>

@@ -10,6 +10,7 @@ import { PIDViewer } from '../components/documents/PIDViewer';
 import { NodeOverlay } from '../components/documents/NodeOverlay';
 import { GuideWordSelector, DeviationInputForm, CausesInput, ConsequencesInput, SafeguardsInput, RecommendationsInput, AnalysisProgressTracker, AnalysisEntrySummaryTable } from '../components/analyses';
 import { CollaborationIndicator, ConflictResolutionModal } from '../components/collaboration';
+import { ErrorBoundary } from '../components/errors';
 import { useWebSocket, useHighlightAnimation } from '../hooks';
 import type { AnimationType } from '../hooks';
 import type {
@@ -603,17 +604,22 @@ export function AnalysisWorkspacePage() {
 
           {/* P&ID Viewer Content */}
           <div className="flex-1 relative overflow-hidden">
-            <PIDViewerWithOverlay
-              document={document}
-              nodes={nodes}
-              selectedNodeId={selectedNodeId}
-              onNodeClick={handleNodeClick}
-              onViewerStateChange={(zoom, position, natural) => {
-                setViewerZoom(zoom);
-                setViewerPosition(position);
-                setNaturalDimensions(natural);
-              }}
-            />
+            <ErrorBoundary
+              fallbackVariant="widget"
+              fallbackTitle="Failed to load P&ID viewer"
+            >
+              <PIDViewerWithOverlay
+                document={document}
+                nodes={nodes}
+                selectedNodeId={selectedNodeId}
+                onNodeClick={handleNodeClick}
+                onViewerStateChange={(zoom, position, natural) => {
+                  setViewerZoom(zoom);
+                  setViewerPosition(position);
+                  setNaturalDimensions(natural);
+                }}
+              />
+            </ErrorBoundary>
           </div>
         </div>
 
@@ -664,6 +670,10 @@ export function AnalysisWorkspacePage() {
 
           {/* Analysis Panel Content */}
           <div className="flex-1 overflow-auto p-4">
+            <ErrorBoundary
+              fallbackVariant="section"
+              fallbackTitle="Failed to load analysis panel"
+            >
             {/* Summary Table View */}
             {rightPaneView === 'summary' && analysisId && (
               <AnalysisEntrySummaryTable
@@ -849,6 +859,7 @@ export function AnalysisWorkspacePage() {
             )}
               </>
             )}
+            </ErrorBoundary>
           </div>
         </div>
       </div>
