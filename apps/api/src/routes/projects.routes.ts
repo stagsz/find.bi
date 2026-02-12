@@ -14,7 +14,7 @@ import { authenticate, requireAuth } from '../middleware/auth.middleware.js';
 import { listProjects, createProject, getProjectById, updateProject, deleteProject, addMember, removeMember, listMembers, getProjectRiskDashboardController, getProjectComplianceController } from '../controllers/projects.controller.js';
 import { listDocuments, uploadDocument } from '../controllers/documents.controller.js';
 import { createAnalysis, listAnalyses } from '../controllers/analyses.controller.js';
-import { createReport } from '../controllers/reports.controller.js';
+import { createReport, listReports } from '../controllers/reports.controller.js';
 import { uploadPID, handleMulterError, validatePIDUpload } from '../middleware/upload.middleware.js';
 
 const router = Router();
@@ -258,6 +258,28 @@ router.get('/:id/analyses', authenticate, requireAuth, listAnalyses);
  * Returns the created analysis with details.
  */
 router.post('/:id/analyses', authenticate, requireAuth, createAnalysis);
+
+/**
+ * GET /projects/:id/reports
+ * List generated reports for a project.
+ *
+ * Path parameters:
+ * - id: string (required) - Project UUID
+ *
+ * Query parameters:
+ * - page: number (1-based, default 1)
+ * - limit: number (default 20, max 100)
+ * - sortBy: 'requested_at' | 'generated_at' | 'name' | 'status' (default 'requested_at')
+ * - sortOrder: 'asc' | 'desc' (default 'desc')
+ * - search: string (searches report name)
+ * - status: ReportStatus (filter by generation status)
+ * - format: ReportFormat (filter by output format)
+ * - analysisId: string (filter by analysis UUID)
+ *
+ * Returns paginated list of reports with details including analysis name,
+ * project name, and generator user info.
+ */
+router.get('/:id/reports', authenticate, requireAuth, listReports);
 
 /**
  * POST /projects/:id/reports

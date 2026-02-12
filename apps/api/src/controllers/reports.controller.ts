@@ -12,7 +12,9 @@ import {
   createReport as createReportService,
   getProjectIdForAnalysis,
   analysisExists,
+  listProjectReports,
 } from '../services/reports.service.js';
+import type { ReportStatus } from '@hazop/types';
 import {
   getReportQueueService,
   createReportJobMessage,
@@ -802,6 +804,264 @@ export async function downloadReport(req: Request, res: Response): Promise<void>
     });
   } catch (error) {
     console.error('Download report error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+// ============================================================================
+// List Reports for Project
+// ============================================================================
+
+/**
+ * Query parameters for listing reports.
+ */
+interface ListReportsQuery {
+  page?: string;
+  limit?: string;
+  sortBy?: string;
+  sortOrder?: string;
+  search?: string;
+  status?: string;
+  format?: string;
+  analysisId?: string;
+}
+
+/**
+ * Valid sort fields for reports.
+ */
+const VALID_REPORT_SORT_FIELDS = ['requested_at', 'generated_at', 'name', 'status'];
+
+/**
+ * Valid report statuses.
+ */
+const VALID_REPORT_STATUSES: readonly ReportStatus[] = ['pending', 'generating', 'completed', 'failed'];
+
+/**
+ * Validate list reports query parameters.
+ * Returns an array of field errors if validation fails.
+ */
+function validateListReportsQuery(query: ListReportsQuery): FieldError[] {
+  const errors: FieldError[] = [];
+
+  // Validate page
+  if (query.page !== undefined) {
+    const page = parseInt(query.page, 10);
+    if (isNaN(page) || page < 1) {
+      errors.push({
+        field: 'page',
+        message: 'Page must be a positive integer',
+        code: 'INVALID_VALUE',
+      });
+    }
+  }
+
+  // Validate limit
+  if (query.limit !== undefined) {
+    const limit = parseInt(query.limit, 10);
+    if (isNaN(limit) || limit < 1 || limit > 100) {
+      errors.push({
+        field: 'limit',
+        message: 'Limit must be between 1 and 100',
+        code: 'INVALID_VALUE',
+      });
+    }
+  }
+
+  // Validate sortBy
+  if (query.sortBy !== undefined && !VALID_REPORT_SORT_FIELDS.includes(query.sortBy)) {
+    errors.push({
+      field: 'sortBy',
+      message: `sortBy must be one of: ${VALID_REPORT_SORT_FIELDS.join(', ')}`,
+      code: 'INVALID_VALUE',
+    });
+  }
+
+  // Validate sortOrder
+  if (query.sortOrder !== undefined && !['asc', 'desc'].includes(query.sortOrder)) {
+    errors.push({
+      field: 'sortOrder',
+      message: 'sortOrder must be "asc" or "desc"',
+      code: 'INVALID_VALUE',
+    });
+  }
+
+  // Validate status filter
+  if (query.status !== undefined && !VALID_REPORT_STATUSES.includes(query.status as ReportStatus)) {
+    errors.push({
+      field: 'status',
+      message: `status must be one of: ${VALID_REPORT_STATUSES.join(', ')}`,
+      code: 'INVALID_VALUE',
+    });
+  }
+
+  // Validate format filter
+  if (query.format !== undefined && !VALID_FORMATS.includes(query.format as ReportFormat)) {
+    errors.push({
+      field: 'format',
+      message: `format must be one of: ${VALID_FORMATS.join(', ')}`,
+      code: 'INVALID_VALUE',
+    });
+  }
+
+  // Validate analysisId format if provided
+  if (query.analysisId !== undefined && !UUID_REGEX.test(query.analysisId)) {
+    errors.push({
+      field: 'analysisId',
+      message: 'analysisId must be a valid UUID',
+      code: 'INVALID_FORMAT',
+    });
+  }
+
+  return errors;
+}
+
+/**
+ * GET /projects/:id/reports
+ * List generated reports for a project with pagination and filtering.
+ * All project members can view reports.
+ *
+ * Path parameters:
+ * - id: string (required) - Project UUID
+ *
+ * Query parameters:
+ * - page: number (1-based, default 1)
+ * - limit: number (default 20, max 100)
+ * - sortBy: 'requested_at' | 'generated_at' | 'name' | 'status' (default 'requested_at')
+ * - sortOrder: 'asc' | 'desc' (default 'desc')
+ * - search: string (searches report name)
+ * - status: ReportStatus (filter by generation status)
+ * - format: ReportFormat (filter by output format)
+ * - analysisId: string (filter by analysis UUID)
+ *
+ * Returns:
+ * - 200: Paginated list of reports with details
+ * - 400: Validation error
+ * - 401: Not authenticated
+ * - 403: Not authorized to access this project
+ * - 404: Project not found
+ * - 500: Internal server error
+ */
+export async function listReports(req: Request, res: Response): Promise<void> {
+  try {
+    const { id: projectId } = req.params;
+    const query = req.query as ListReportsQuery;
+
+    // Get authenticated user ID
+    const userId = (req.user as { id: string } | undefined)?.id;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required',
+        },
+      });
+      return;
+    }
+
+    // Validate project ID format
+    if (!UUID_REGEX.test(projectId)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid project ID format',
+          errors: [
+            {
+              field: 'id',
+              message: 'Project ID must be a valid UUID',
+              code: 'INVALID_FORMAT',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    // Validate query parameters
+    const validationErrors = validateListReportsQuery(query);
+    if (validationErrors.length > 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid query parameters',
+          errors: validationErrors,
+        },
+      });
+      return;
+    }
+
+    // Check if user has access to the project
+    const hasAccess = await userHasProjectAccess(userId, projectId);
+    if (!hasAccess) {
+      // Check if project exists to return appropriate error
+      const project = await findProjectById(projectId);
+      if (!project) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Project not found',
+          },
+        });
+        return;
+      }
+
+      // Project exists but user doesn't have access
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this project',
+        },
+      });
+      return;
+    }
+
+    // Parse query parameters
+    const page = query.page ? parseInt(query.page, 10) : undefined;
+    const limit = query.limit ? parseInt(query.limit, 10) : undefined;
+    const sortBy = query.sortBy as 'requested_at' | 'generated_at' | 'name' | 'status' | undefined;
+    const sortOrder = query.sortOrder as 'asc' | 'desc' | undefined;
+    const search = query.search;
+    const status = query.status as ReportStatus | undefined;
+    const format = query.format as ReportFormat | undefined;
+    const analysisId = query.analysisId;
+
+    // Fetch reports
+    const result = await listProjectReports(
+      projectId,
+      { analysisId, format, status, search },
+      { page, limit, sortBy, sortOrder }
+    );
+
+    // Calculate pagination metadata
+    const currentPage = page ?? 1;
+    const currentLimit = limit ?? 20;
+    const totalPages = Math.ceil(result.total / currentLimit);
+
+    res.status(200).json({
+      success: true,
+      data: result.reports,
+      meta: {
+        page: currentPage,
+        limit: currentLimit,
+        total: result.total,
+        totalPages,
+        hasNextPage: currentPage < totalPages,
+        hasPrevPage: currentPage > 1,
+      },
+    });
+  } catch (error) {
+    console.error('List reports error:', error);
+
     res.status(500).json({
       success: false,
       error: {

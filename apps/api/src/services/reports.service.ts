@@ -307,3 +307,142 @@ export async function analysisExists(analysisId: string): Promise<boolean> {
 
   return result.rows[0]?.exists ?? false;
 }
+
+// ============================================================================
+// List Reports for Project
+// ============================================================================
+
+/**
+ * Filters for listing reports.
+ */
+export interface ListReportsFilters {
+  /** Filter by analysis ID */
+  analysisId?: string;
+  /** Filter by report format */
+  format?: ReportFormat;
+  /** Filter by report status */
+  status?: ReportStatus;
+  /** Search by report name */
+  search?: string;
+}
+
+/**
+ * Pagination options for listing reports.
+ */
+export interface ListReportsPagination {
+  /** Page number (1-based) */
+  page?: number;
+  /** Items per page (default 20, max 100) */
+  limit?: number;
+  /** Sort field */
+  sortBy?: 'requested_at' | 'generated_at' | 'name' | 'status';
+  /** Sort order */
+  sortOrder?: 'asc' | 'desc';
+}
+
+/**
+ * Valid sort fields for reports (prevents SQL injection).
+ */
+const VALID_REPORT_SORT_FIELDS = ['requested_at', 'generated_at', 'name', 'status'];
+
+/**
+ * List reports for a project with filtering and pagination.
+ *
+ * Returns reports for all analyses within the project, with full details
+ * including analysis name, project name, and generator user info.
+ *
+ * @param projectId - The project ID to list reports for
+ * @param filters - Optional filters for analysis, format, status, search
+ * @param pagination - Optional pagination options
+ * @returns Reports array and total count
+ */
+export async function listProjectReports(
+  projectId: string,
+  filters?: ListReportsFilters,
+  pagination?: ListReportsPagination
+): Promise<ListReportsResult> {
+  const pool = getPool();
+
+  // Build WHERE clauses
+  const whereClauses = ['p.id = $1'];
+  const values: unknown[] = [projectId];
+  let paramIndex = 2;
+
+  // Filter by analysis ID
+  if (filters?.analysisId) {
+    whereClauses.push(`r.hazop_analysis_id = $${paramIndex}`);
+    values.push(filters.analysisId);
+    paramIndex++;
+  }
+
+  // Filter by format
+  if (filters?.format) {
+    whereClauses.push(`r.format = $${paramIndex}`);
+    values.push(filters.format);
+    paramIndex++;
+  }
+
+  // Filter by status
+  if (filters?.status) {
+    whereClauses.push(`r.status = $${paramIndex}`);
+    values.push(filters.status);
+    paramIndex++;
+  }
+
+  // Search by name (case-insensitive)
+  if (filters?.search) {
+    whereClauses.push(`r.name ILIKE $${paramIndex}`);
+    values.push(`%${filters.search}%`);
+    paramIndex++;
+  }
+
+  const whereClause = whereClauses.join(' AND ');
+
+  // Get total count
+  const countResult = await pool.query<{ count: string }>(
+    `SELECT COUNT(*) AS count
+     FROM hazop.reports r
+     INNER JOIN hazop.hazop_analyses ha ON r.hazop_analysis_id = ha.id
+     INNER JOIN hazop.projects p ON ha.project_id = p.id
+     WHERE ${whereClause}`,
+    values
+  );
+
+  const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
+
+  // Build ORDER BY clause with validated sort field
+  const sortBy = pagination?.sortBy && VALID_REPORT_SORT_FIELDS.includes(pagination.sortBy)
+    ? pagination.sortBy
+    : 'requested_at';
+  const sortOrder = pagination?.sortOrder === 'asc' ? 'ASC' : 'DESC';
+
+  // Build LIMIT and OFFSET
+  const page = pagination?.page ?? 1;
+  const limit = Math.min(pagination?.limit ?? 20, 100);
+  const offset = (page - 1) * limit;
+
+  // Fetch reports with details
+  const result = await pool.query<ReportRowWithDetails>(
+    `SELECT
+       r.id, r.hazop_analysis_id, r.name, r.format, r.template_used, r.status,
+       r.file_path, r.file_size, r.generated_by_id, r.requested_at, r.generated_at,
+       r.parameters, r.error_message, r.created_at, r.updated_at,
+       ha.name AS analysis_name,
+       p.name AS project_name,
+       p.id AS project_id,
+       u.name AS generated_by_name,
+       u.email AS generated_by_email
+     FROM hazop.reports r
+     INNER JOIN hazop.hazop_analyses ha ON r.hazop_analysis_id = ha.id
+     INNER JOIN hazop.projects p ON ha.project_id = p.id
+     INNER JOIN hazop.users u ON r.generated_by_id = u.id
+     WHERE ${whereClause}
+     ORDER BY r.${sortBy} ${sortOrder}
+     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+    [...values, limit, offset]
+  );
+
+  const reports = result.rows.map(rowToReportWithDetails);
+
+  return { reports, total };
+}
