@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 9 - Report Generation
-**Progress**: Phase 9 in progress - 19/21 tasks done
-**Last Completed**: REPORT-19 - Add unit tests for each report format generator
-**Next Task**: REPORT-20 - Add API tests for report generation endpoints
+**Progress**: Phase 9 in progress - 20/21 tasks done
+**Last Completed**: REPORT-20 - Add API tests for report generation endpoints
+**Next Task**: REPORT-21 - Add E2E tests for full report generation workflow
 
 ---
 
@@ -346,7 +346,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 
 ### Report Testing
 - [x] REPORT-19: Add unit tests for each report format generator (196ee88)
-- [ ] REPORT-20: Add API tests for report generation endpoints
+- [x] REPORT-20: Add API tests for report generation endpoints (69b1acd)
 - [ ] REPORT-21: Add E2E tests for full report generation workflow
 
 ---
@@ -604,3 +604,4 @@ _No blockers currently._
 | REPORT-17: Create reports list with download links | 244c02f | 2026-02-12 |
 | REPORT-18: Create template selector with preview | 0913b58 | 2026-02-12 |
 | REPORT-19: Add unit tests for each report format generator | 196ee88 | 2026-02-12 |
+| REPORT-20: Add API tests for report generation endpoints | 69b1acd | 2026-02-12 |
