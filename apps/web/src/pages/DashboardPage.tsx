@@ -2,6 +2,7 @@ import { Button } from '@mantine/core';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore, selectUser } from '../store/auth.store';
 import { authService } from '../services/auth.service';
+import { ProjectSummaryCards } from '../components/dashboard';
 
 /**
  * Dashboard page - the main landing page for authenticated users.
@@ -110,48 +111,12 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Project summary cards row - DASH-02 placeholder */}
+        {/* Project summary cards row */}
         <section className="mb-6">
           <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide mb-4">
             Project Overview
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Active projects card */}
-            <div className="bg-white border border-slate-200 rounded p-4">
-              <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                Active Projects
-              </div>
-              <div className="text-2xl font-semibold text-slate-900">—</div>
-              <div className="text-xs text-slate-400 mt-1">Loading...</div>
-            </div>
-
-            {/* In review card */}
-            <div className="bg-white border border-slate-200 rounded p-4">
-              <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                In Review
-              </div>
-              <div className="text-2xl font-semibold text-slate-900">—</div>
-              <div className="text-xs text-slate-400 mt-1">Loading...</div>
-            </div>
-
-            {/* Completed card */}
-            <div className="bg-white border border-slate-200 rounded p-4">
-              <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                Completed
-              </div>
-              <div className="text-2xl font-semibold text-slate-900">—</div>
-              <div className="text-xs text-slate-400 mt-1">Loading...</div>
-            </div>
-
-            {/* Draft/Planning card */}
-            <div className="bg-white border border-slate-200 rounded p-4">
-              <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                Planning
-              </div>
-              <div className="text-2xl font-semibold text-slate-900">—</div>
-              <div className="text-xs text-slate-400 mt-1">Loading...</div>
-            </div>
-          </div>
+          <ProjectSummaryCards />
         </section>
 
         {/* Middle row: Recent analyses + Risk overview */}
