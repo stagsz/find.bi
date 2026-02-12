@@ -25,6 +25,8 @@ import {
   findProjectById,
 } from '../services/project.service.js';
 import { findAnalysisById } from '../services/hazop-analysis.service.js';
+import { findReportByIdWithDetails } from '../services/reports.service.js';
+import { getSignedUrl } from '../services/storage.service.js';
 
 // ============================================================================
 // Constants
@@ -491,6 +493,135 @@ export async function createReport(req: Request, res: Response): Promise<void> {
       }
     }
 
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    });
+  }
+}
+
+/**
+ * GET /reports/:id/status
+ * Get the current status of a report generation job.
+ *
+ * Path parameters:
+ * - id: string (required) - Report UUID
+ *
+ * Returns:
+ * - 200: Report status with download URL if completed
+ * - 400: Invalid report ID format
+ * - 401: Not authenticated
+ * - 403: Not authorized to access this report
+ * - 404: Report not found
+ * - 500: Internal server error
+ */
+export async function getReportStatus(req: Request, res: Response): Promise<void> {
+  try {
+    const { id: reportId } = req.params;
+
+    // Get authenticated user ID
+    const userId = (req.user as { id: string } | undefined)?.id;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTHENTICATION_ERROR',
+          message: 'Authentication required',
+        },
+      });
+      return;
+    }
+
+    // Validate report ID format
+    if (!UUID_REGEX.test(reportId)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid report ID format',
+          errors: [
+            {
+              field: 'id',
+              message: 'Report ID must be a valid UUID',
+              code: 'INVALID_FORMAT',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    // Fetch report with details (includes project ID for authorization)
+    const report = await findReportByIdWithDetails(reportId);
+    if (!report) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Report not found',
+        },
+      });
+      return;
+    }
+
+    // Check if user has access to the project that owns this report
+    const hasAccess = await userHasProjectAccess(userId, report.projectId);
+    if (!hasAccess) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this report',
+        },
+      });
+      return;
+    }
+
+    // Build download URL if report is completed and has a file
+    let downloadUrl: string | null = null;
+    if (report.status === 'completed' && report.filePath) {
+      try {
+        downloadUrl = await getSignedUrl(report.filePath, { expiresIn: 3600 }); // 1 hour expiry
+      } catch (urlError) {
+        // Log but don't fail - URL generation is not critical
+        console.error('Failed to generate download URL:', urlError);
+      }
+    }
+
+    // Compute progress based on status
+    let progress: number | undefined;
+    switch (report.status) {
+      case 'pending':
+        progress = 0;
+        break;
+      case 'generating':
+        progress = 50; // Intermediate progress (actual progress tracking not implemented)
+        break;
+      case 'completed':
+        progress = 100;
+        break;
+      case 'failed':
+        progress = undefined; // No progress for failed reports
+        break;
+    }
+
+    // Return status response
+    res.status(200).json({
+      success: true,
+      data: {
+        reportId: report.id,
+        status: report.status,
+        progress,
+        downloadUrl,
+        errorMessage: report.status === 'failed' ? report.errorMessage : null,
+        completedAt: report.generatedAt,
+      },
+    });
+  } catch (error) {
+    console.error('Get report status error:', error);
     res.status(500).json({
       success: false,
       error: {
