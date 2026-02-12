@@ -7,6 +7,7 @@ import {
   RecentAnalysesWidget,
   RiskOverviewWidget,
   PendingActionsWidget,
+  ActivityTimelineWidget,
 } from '../components/dashboard';
 
 /**
@@ -135,22 +136,8 @@ export function DashboardPage() {
           {/* Pending actions widget */}
           <PendingActionsWidget />
 
-          {/* Activity timeline widget - DASH-06 placeholder */}
-          <section className="bg-white border border-slate-200 rounded">
-            <div className="px-4 py-3 border-b border-slate-200">
-              <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
-                Recent Activity
-              </h3>
-            </div>
-            <div className="p-4">
-              <div className="text-center py-8 text-slate-500">
-                <p className="text-sm">No recent activity.</p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Activity timeline will show your recent actions.
-                </p>
-              </div>
-            </div>
-          </section>
+          {/* Activity timeline widget */}
+          <ActivityTimelineWidget />
         </div>
 
         {/* Quick links section */}
