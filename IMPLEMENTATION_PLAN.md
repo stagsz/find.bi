@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 8 - Real-time Collaboration
-**Progress**: Phase 8 in progress - 11/16 tasks complete
-**Last Completed**: COLLAB-11 - Create collaboration status indicator (active users shown) (0737faf)
-**Next Task**: COLLAB-12 - Create user presence avatars on analysis workspace
+**Progress**: Phase 8 in progress - 12/16 tasks complete
+**Last Completed**: COLLAB-12 - Create user presence avatars on analysis workspace (5355a6d)
+**Next Task**: COLLAB-13 - Create real-time entry update animations
 
 ---
 
@@ -308,7 +308,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 ### Frontend Collaboration
 - [x] COLLAB-10: Create useWebSocket hook for real-time updates (ec225f5)
 - [x] COLLAB-11: Create collaboration status indicator (active users shown) (0737faf)
-- [ ] COLLAB-12: Create user presence avatars on analysis workspace
+- [x] COLLAB-12: Create user presence avatars on analysis workspace (5355a6d)
 - [ ] COLLAB-13: Create real-time entry update animations
 - [ ] COLLAB-14: Create conflict resolution modal
 
@@ -580,3 +580,4 @@ _No blockers currently._
 | COLLAB-09: Create POST /sessions/:id/join endpoint | 185b7fe | 2026-02-11 |
 | COLLAB-10: Create useWebSocket hook for real-time updates | ec225f5 | 2026-02-12 |
 | COLLAB-11: Create collaboration status indicator (active users shown) | 0737faf | 2026-02-12 |
+| COLLAB-12: Create user presence avatars on analysis workspace | 5355a6d | 2026-02-12 |
