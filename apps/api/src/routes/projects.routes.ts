@@ -14,6 +14,7 @@ import { authenticate, requireAuth } from '../middleware/auth.middleware.js';
 import { listProjects, createProject, getProjectById, updateProject, deleteProject, addMember, removeMember, listMembers, getProjectRiskDashboardController, getProjectComplianceController } from '../controllers/projects.controller.js';
 import { listDocuments, uploadDocument } from '../controllers/documents.controller.js';
 import { createAnalysis, listAnalyses } from '../controllers/analyses.controller.js';
+import { createReport } from '../controllers/reports.controller.js';
 import { uploadPID, handleMulterError, validatePIDUpload } from '../middleware/upload.middleware.js';
 
 const router = Router();
@@ -257,5 +258,27 @@ router.get('/:id/analyses', authenticate, requireAuth, listAnalyses);
  * Returns the created analysis with details.
  */
 router.post('/:id/analyses', authenticate, requireAuth, createAnalysis);
+
+/**
+ * POST /projects/:id/reports
+ * Request generation of a report for a HazOps analysis.
+ *
+ * Path parameters:
+ * - id: string (required) - Project UUID
+ *
+ * Request body:
+ * - analysisId: string (required) - ID of the analysis to generate report for
+ * - format: ReportFormat (required) - pdf | word | excel | powerpoint
+ * - template: string (required) - Template identifier
+ * - name: string (optional) - Custom report name
+ * - parameters: ReportParameters (optional) - Generation parameters
+ *
+ * Report generation is asynchronous. The endpoint returns immediately
+ * with a report ID and status URL for polling.
+ *
+ * Only project members can request reports.
+ * Returns the report job info with status URL.
+ */
+router.post('/:id/reports', authenticate, requireAuth, createReport);
 
 export default router;
