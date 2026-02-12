@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 10 - Dashboard & Navigation
-**Progress**: Phase 10 in progress - 4/12 tasks done
-**Last Completed**: DASH-04 - Create risk overview chart
-**Next Task**: DASH-05 - Create pending actions widget (analyses needing review)
+**Progress**: Phase 10 in progress - 5/12 tasks done
+**Last Completed**: DASH-05 - Create pending actions widget
+**Next Task**: DASH-06 - Create activity timeline widget
 
 ---
 
@@ -358,7 +358,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] DASH-02: Create project summary cards (active, completed, draft) (d497c68)
 - [x] DASH-03: Create recent analyses widget (40fc2a2)
 - [x] DASH-04: Create risk overview chart (distribution across projects) (a22c298)
-- [ ] DASH-05: Create pending actions widget (analyses needing review)
+- [x] DASH-05: Create pending actions widget (analyses needing review) (daf9873)
 - [ ] DASH-06: Create activity timeline widget
 
 ### Navigation & Layout
@@ -610,3 +610,4 @@ _No blockers currently._
 | DASH-02: Create project summary cards (active, completed, draft) | d497c68 | 2026-02-12 |
 | DASH-03: Create recent analyses widget | 40fc2a2 | 2026-02-12 |
 | DASH-04: Create risk overview chart (distribution across projects) | a22c298 | 2026-02-12 |
+| DASH-05: Create pending actions widget (analyses needing review) | daf9873 | 2026-02-12 |
