@@ -2,6 +2,8 @@ import { useState, useCallback, useMemo } from 'react';
 import { Tooltip } from '@mantine/core';
 import type { AnalysisNodeWithCreator, EquipmentType } from '@hazop/types';
 import { EQUIPMENT_TYPE_LABELS } from '@hazop/types';
+import { NodePresenceAvatars } from '../collaboration';
+import type { UserPresence } from '../../hooks/useWebSocket';
 
 /**
  * Marker size in pixels at zoom level 1.
@@ -79,6 +81,12 @@ interface NodeOverlayProps {
 
   /** Whether to show node labels */
   showLabels?: boolean;
+
+  /** Active users in the collaboration room (for presence indicators) */
+  activeUsers?: UserPresence[];
+
+  /** Current user's ID (to exclude from presence display) */
+  currentUserId?: string;
 }
 
 /**
@@ -103,6 +111,8 @@ export function NodeOverlay({
   onCanvasClick,
   interactive = true,
   showLabels = false,
+  activeUsers = [],
+  currentUserId,
 }: NodeOverlayProps) {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
@@ -326,6 +336,24 @@ export function NodeOverlay({
                   style={{ color }}
                 >
                   {node.nodeId}
+                </div>
+              )}
+
+              {/* Presence avatars for users viewing this node */}
+              {activeUsers.length > 0 && (
+                <div
+                  className="absolute"
+                  style={{
+                    left: markerSize / 2 + 2,
+                    top: -markerSize / 4,
+                  }}
+                >
+                  <NodePresenceAvatars
+                    users={activeUsers}
+                    nodeId={node.id}
+                    currentUserId={currentUserId}
+                    size="xs"
+                  />
                 </div>
               )}
             </div>

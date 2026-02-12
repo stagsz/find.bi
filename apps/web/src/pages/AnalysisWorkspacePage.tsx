@@ -1209,6 +1209,8 @@ function PIDViewerWithOverlay({
             onNodeClick={onNodeClick}
             interactive={true}
             showLabels={false}
+            activeUsers={wsState.roomUsers}
+            currentUserId={currentUser?.id}
           />
         )}
 

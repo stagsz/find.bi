@@ -7,3 +7,11 @@ export {
   CollaborationIndicator,
   CollaborationIndicatorCompact,
 } from './CollaborationIndicator';
+
+export {
+  UserPresenceAvatar,
+  UserPresenceAvatarGroup,
+  NodePresenceAvatars,
+  FieldPresenceAvatars,
+  PresenceCount,
+} from './UserPresenceAvatar';
