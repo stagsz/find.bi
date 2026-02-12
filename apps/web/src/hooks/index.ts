@@ -22,3 +22,9 @@ export {
   type WebSocketActions,
   type WebSocketEventHandlers,
 } from './useWebSocket';
+
+// UI animations
+export {
+  useHighlightAnimation,
+  type AnimationType,
+} from './useHighlightAnimation';

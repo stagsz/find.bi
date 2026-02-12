@@ -6,3 +6,69 @@
   --color-risk-medium: #f59e0b;
   --color-risk-high: #ef4444;
 }
+
+/* Real-time collaboration highlight animations */
+@keyframes highlight-created {
+  0% {
+    background-color: rgba(34, 197, 94, 0.3);
+    box-shadow: inset 0 0 0 2px rgba(34, 197, 94, 0.5);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+@keyframes highlight-updated {
+  0% {
+    background-color: rgba(59, 130, 246, 0.3);
+    box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.5);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+@keyframes highlight-deleted {
+  0% {
+    background-color: rgba(239, 68, 68, 0.3);
+    box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+    opacity: 1;
+  }
+}
+
+@keyframes highlight-risk {
+  0% {
+    background-color: rgba(245, 158, 11, 0.3);
+    box-shadow: inset 0 0 0 2px rgba(245, 158, 11, 0.5);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+/* Animation utility classes */
+.animate-highlight-created {
+  animation: highlight-created 1.5s ease-out forwards;
+}
+
+.animate-highlight-updated {
+  animation: highlight-updated 1.5s ease-out forwards;
+}
+
+.animate-highlight-deleted {
+  animation: highlight-deleted 1.5s ease-out forwards;
+}
+
+.animate-highlight-risk {
+  animation: highlight-risk 1.5s ease-out forwards;
+}

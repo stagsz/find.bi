@@ -10,7 +10,8 @@ import { PIDViewer } from '../components/documents/PIDViewer';
 import { NodeOverlay } from '../components/documents/NodeOverlay';
 import { GuideWordSelector, DeviationInputForm, CausesInput, ConsequencesInput, SafeguardsInput, RecommendationsInput, AnalysisProgressTracker, AnalysisEntrySummaryTable } from '../components/analyses';
 import { CollaborationIndicator } from '../components/collaboration';
-import { useWebSocket } from '../hooks';
+import { useWebSocket, useHighlightAnimation } from '../hooks';
+import type { AnimationType } from '../hooks';
 import type {
   ApiError,
   HazopsAnalysisWithDetailsAndProgress,
@@ -102,23 +103,38 @@ export function AnalysisWorkspacePage() {
   // Trigger for refreshing the summary table when entries are created/updated
   const [summaryRefreshTrigger, setSummaryRefreshTrigger] = useState(0);
 
+  // Highlight animation for real-time entry updates
+  const {
+    highlightedIds: highlightedEntries,
+    highlight: highlightEntry,
+  } = useHighlightAnimation(1500);
+
   // WebSocket for real-time collaboration
   const { state: wsState, actions: wsActions } = useWebSocket({
-    onEntryCreated: () => {
-      // Refresh summary table when another user creates an entry
+    onEntryCreated: (payload) => {
+      // Refresh summary table and highlight the new entry
       setSummaryRefreshTrigger((prev) => prev + 1);
+      if (payload.entry?.id) {
+        highlightEntry(payload.entry.id as string, 'created');
+      }
     },
-    onEntryUpdated: () => {
-      // Refresh summary table when another user updates an entry
+    onEntryUpdated: (payload) => {
+      // Refresh summary table and highlight the updated entry
       setSummaryRefreshTrigger((prev) => prev + 1);
+      highlightEntry(payload.entryId, 'updated');
     },
-    onEntryDeleted: () => {
-      // Refresh summary table when another user deletes an entry
-      setSummaryRefreshTrigger((prev) => prev + 1);
+    onEntryDeleted: (payload) => {
+      // Refresh summary table (entry will be removed, but flash briefly)
+      highlightEntry(payload.entryId, 'deleted');
+      // Delay refresh to show the delete animation
+      setTimeout(() => {
+        setSummaryRefreshTrigger((prev) => prev + 1);
+      }, 500);
     },
-    onRiskUpdated: () => {
-      // Refresh summary table when another user updates risk
+    onRiskUpdated: (payload) => {
+      // Refresh summary table and highlight the risk-updated entry
       setSummaryRefreshTrigger((prev) => prev + 1);
+      highlightEntry(payload.entryId, 'risk');
     },
   });
 
@@ -654,6 +670,7 @@ export function AnalysisWorkspacePage() {
                 analysisId={analysisId}
                 nodeMap={new Map(nodes.map((n) => [n.id, { nodeId: n.nodeId, description: n.description || '' }]))}
                 refreshTrigger={summaryRefreshTrigger}
+                highlightedEntries={highlightedEntries as Map<string, 'created' | 'updated' | 'deleted' | 'risk'>}
                 onEntryClick={(entry) => {
                   // When an entry is clicked, switch to entry view and select the node
                   const node = nodes.find((n) => n.id === entry.nodeId);

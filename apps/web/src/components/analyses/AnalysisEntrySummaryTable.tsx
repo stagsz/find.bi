@@ -77,6 +77,11 @@ interface NodeInfo {
 }
 
 /**
+ * Animation type for highlighting entries.
+ */
+type HighlightType = 'created' | 'updated' | 'deleted' | 'risk';
+
+/**
  * Props for the AnalysisEntrySummaryTable component.
  */
 interface AnalysisEntrySummaryTableProps {
@@ -94,6 +99,9 @@ interface AnalysisEntrySummaryTableProps {
 
   /** Optional className for additional styling */
   className?: string;
+
+  /** Map of entry IDs to highlight animation types */
+  highlightedEntries?: Map<string, HighlightType>;
 }
 
 /**
@@ -107,6 +115,7 @@ export function AnalysisEntrySummaryTable({
   onEntryClick,
   refreshTrigger = 0,
   className = '',
+  highlightedEntries,
 }: AnalysisEntrySummaryTableProps) {
   // Entries state
   const [entries, setEntries] = useState<AnalysisEntry[]>([]);
@@ -391,10 +400,15 @@ export function AnalysisEntrySummaryTable({
                   </Table.Td>
                 </Table.Tr>
               ) : (
-                entries.map((entry) => (
+                entries.map((entry) => {
+                  const highlightType = highlightedEntries?.get(entry.id);
+                  const highlightClass = highlightType
+                    ? `animate-highlight-${highlightType}`
+                    : '';
+                  return (
                   <Table.Tr
                     key={entry.id}
-                    className={onEntryClick ? 'cursor-pointer' : ''}
+                    className={`${onEntryClick ? 'cursor-pointer' : ''} ${highlightClass}`}
                     onClick={() => onEntryClick?.(entry)}
                   >
                     <Table.Td className="text-xs">
@@ -447,7 +461,8 @@ export function AnalysisEntrySummaryTable({
                       )}
                     </Table.Td>
                   </Table.Tr>
-                ))
+                  );
+                })
               )}
             </Table.Tbody>
           </Table>
