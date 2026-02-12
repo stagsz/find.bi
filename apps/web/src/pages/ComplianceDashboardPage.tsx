@@ -15,7 +15,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
-import { Button, Alert, Loader, MultiSelect } from '@mantine/core';
+import { Button, Alert, MultiSelect } from '@mantine/core';
 import {
   PieChart,
   Pie,
@@ -53,6 +53,7 @@ import {
   COMPLIANCE_STATUS_LABELS,
   COMPLIANCE_STATUS_COLORS,
 } from '@hazop/types';
+import { MetricCardSkeleton, ChartSkeleton, TableRowSkeleton, CardSkeleton } from '../components/skeletons';
 
 /**
  * Colors for compliance status in charts.
@@ -421,11 +422,78 @@ export function ComplianceDashboardPage() {
   // Loading state
   if (isLoadingCompliance && !complianceStatus) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader size="lg" color="blue" />
-          <p className="mt-4 text-slate-600">Loading compliance dashboard...</p>
-        </div>
+      <div className="min-h-screen bg-slate-50">
+        <header className="bg-white border-b border-slate-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <Link to="/" className="text-lg font-semibold text-slate-900 hover:text-slate-700">
+                HazOp Assistant
+              </Link>
+            </div>
+          </div>
+        </header>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Page title skeleton */}
+          <div className="mb-8 animate-pulse">
+            <div className="h-8 w-56 bg-slate-200 rounded mb-2" />
+            <div className="h-4 w-72 bg-slate-100 rounded" />
+          </div>
+
+          {/* Overall status summary skeleton */}
+          <div className="bg-white border border-slate-200 rounded p-6 mb-8 animate-pulse">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+              <div className="flex items-center gap-6">
+                <div className="w-36 h-36 bg-slate-200 rounded-full" />
+                <div>
+                  <div className="h-4 w-24 bg-slate-200 rounded mb-2" />
+                  <div className="h-6 w-32 bg-slate-100 rounded" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <MetricCardSkeleton key={i} showTrend={false} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Charts row skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="bg-white border border-slate-200 rounded p-6">
+              <div className="h-5 w-44 bg-slate-200 rounded mb-4 animate-pulse" />
+              <ChartSkeleton type="pie" height={256} />
+            </div>
+            <div className="bg-white border border-slate-200 rounded p-6">
+              <div className="h-5 w-40 bg-slate-200 rounded mb-4 animate-pulse" />
+              <ChartSkeleton type="bar" height={256} />
+            </div>
+          </div>
+
+          {/* Jurisdiction and Category skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <CardSkeleton showHeader lines={4} />
+            <CardSkeleton showHeader lines={4} />
+          </div>
+
+          {/* Table skeleton */}
+          <div className="bg-white border border-slate-200 rounded p-6">
+            <div className="h-5 w-56 bg-slate-200 rounded mb-4 animate-pulse" />
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  {['Standard', 'Status', 'Total', 'Compliant', 'Partial', 'Non-Compliant', 'N/A', 'Not Assessed', '%'].map((h) => (
+                    <th key={h} className="text-left py-2 px-3 font-medium text-slate-600 text-sm">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <TableRowSkeleton key={i} columns={9} columnWidths={['wide', 'medium', 'narrow', 'narrow', 'narrow', 'narrow', 'narrow', 'narrow', 'narrow']} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </main>
       </div>
     );
   }

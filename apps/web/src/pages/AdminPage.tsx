@@ -8,6 +8,7 @@ import {
   type ListUsersSortOptions,
 } from '../services/admin.service';
 import type { User, UserRole, ApiError } from '@hazop/types';
+import { TableRowSkeleton } from '../components/skeletons';
 
 /**
  * Role display labels mapping.
@@ -399,11 +400,14 @@ export function AdminPage() {
               </Table.Thead>
               <Table.Tbody>
                 {isLoadingUsers ? (
-                  <Table.Tr>
-                    <Table.Td colSpan={7} className="text-center py-8 text-slate-500">
-                      Loading users...
-                    </Table.Td>
-                  </Table.Tr>
+                  Array.from({ length: 5 }).map((_, index) => (
+                    <TableRowSkeleton
+                      key={index}
+                      columns={7}
+                      showActions
+                      columnWidths={['wide', 'wide', 'medium', 'medium', 'narrow', 'medium', 'medium']}
+                    />
+                  ))
                 ) : users.length === 0 ? (
                   <Table.Tr>
                     <Table.Td colSpan={7} className="text-center py-8 text-slate-500">

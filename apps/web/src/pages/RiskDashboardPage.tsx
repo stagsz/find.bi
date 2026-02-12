@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
-import { Button, Alert, Loader } from '@mantine/core';
+import { Button, Alert } from '@mantine/core';
 import {
   PieChart,
   Pie,
@@ -18,6 +18,7 @@ import { useAuthStore, selectUser } from '../store/auth.store';
 import { authService } from '../services/auth.service';
 import { projectsService } from '../services/projects.service';
 import { RiskMatrix, RiskScoreBadge } from '../components/risk';
+import { MetricCardSkeleton, ChartSkeleton, TableRowSkeleton } from '../components/skeletons';
 import type {
   ProjectRiskDashboard,
   ApiError,
@@ -203,11 +204,61 @@ export function RiskDashboardPage() {
   // Loading state
   if (isLoadingDashboard) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader size="lg" color="blue" />
-          <p className="mt-4 text-slate-600">Loading risk dashboard...</p>
-        </div>
+      <div className="min-h-screen bg-slate-50">
+        <header className="bg-white border-b border-slate-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <Link to="/" className="text-lg font-semibold text-slate-900 hover:text-slate-700">
+                HazOp Assistant
+              </Link>
+            </div>
+          </div>
+        </header>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Page title skeleton */}
+          <div className="mb-8 animate-pulse">
+            <div className="h-8 w-48 bg-slate-200 rounded mb-2" />
+            <div className="h-4 w-64 bg-slate-100 rounded" />
+          </div>
+
+          {/* Statistics cards skeleton */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <MetricCardSkeleton key={i} showTrend={i < 2} />
+            ))}
+          </div>
+
+          {/* Charts row skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="bg-white border border-slate-200 rounded p-6">
+              <div className="h-5 w-32 bg-slate-200 rounded mb-4 animate-pulse" />
+              <ChartSkeleton type="pie" height={256} />
+            </div>
+            <div className="bg-white border border-slate-200 rounded p-6">
+              <div className="h-5 w-40 bg-slate-200 rounded mb-4 animate-pulse" />
+              <ChartSkeleton type="bar" height={256} />
+            </div>
+          </div>
+
+          {/* Table skeleton */}
+          <div className="bg-white border border-slate-200 rounded p-6">
+            <div className="h-5 w-48 bg-slate-200 rounded mb-4 animate-pulse" />
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  {['Node', 'Guide Word', 'Parameter', 'Analysis', 'Score', 'Level'].map((h) => (
+                    <th key={h} className="text-left py-2 px-3 font-medium text-slate-600">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <TableRowSkeleton key={i} columns={6} columnWidths={['medium', 'medium', 'medium', 'wide', 'narrow', 'narrow']} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </main>
       </div>
     );
   }

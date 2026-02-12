@@ -15,6 +15,7 @@ import type { AnalysisStatus, ApiError, ComplianceStatus } from '@hazop/types';
 import { ANALYSIS_STATUS_LABELS } from '@hazop/types';
 import { NewAnalysisModal } from './NewAnalysisModal';
 import { ComplianceStatusCompact } from '../compliance';
+import { TableRowSkeleton } from '../skeletons';
 
 /**
  * Analysis status badge colors.
@@ -429,11 +430,14 @@ export function AnalysesTab({ projectId }: AnalysesTabProps) {
           </Table.Thead>
           <Table.Tbody>
             {isLoadingAnalyses ? (
-              <Table.Tr>
-                <Table.Td colSpan={8} className="text-center py-8 text-slate-500">
-                  Loading analyses...
-                </Table.Td>
-              </Table.Tr>
+              Array.from({ length: 5 }).map((_, index) => (
+                <TableRowSkeleton
+                  key={index}
+                  columns={8}
+                  showActions
+                  columnWidths={['wide', 'medium', 'medium', 'medium', 'medium', 'narrow', 'medium', 'medium']}
+                />
+              ))
             ) : analyses.length === 0 ? (
               <Table.Tr>
                 <Table.Td colSpan={8} className="text-center py-8 text-slate-500">

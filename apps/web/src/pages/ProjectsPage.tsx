@@ -9,6 +9,7 @@ import {
   type ProjectListItem,
 } from '../services/projects.service';
 import type { ProjectStatus, ProjectMemberRole, ApiError } from '@hazop/types';
+import { TableRowSkeleton } from '../components/skeletons';
 
 /**
  * Project status display labels.
@@ -389,11 +390,14 @@ export function ProjectsPage() {
               </Table.Thead>
               <Table.Tbody>
                 {isLoadingProjects ? (
-                  <Table.Tr>
-                    <Table.Td colSpan={7} className="text-center py-8 text-slate-500">
-                      Loading projects...
-                    </Table.Td>
-                  </Table.Tr>
+                  Array.from({ length: 5 }).map((_, index) => (
+                    <TableRowSkeleton
+                      key={index}
+                      columns={7}
+                      showActions
+                      columnWidths={['wide', 'medium', 'medium', 'medium', 'medium', 'medium', 'medium']}
+                    />
+                  ))
                 ) : projects.length === 0 ? (
                   <Table.Tr>
                     <Table.Td colSpan={7} className="text-center py-8 text-slate-500">

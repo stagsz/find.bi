@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button, TextInput, Select, Table, Alert, Pagination, Modal } from '@mantine/core';
 import { documentsService } from '../../services/documents.service';
 import type { PIDDocumentWithUploader, PIDDocumentStatus, ApiError } from '@hazop/types';
+import { TableRowSkeleton } from '../skeletons';
 
 /**
  * Document status display labels.
@@ -441,8 +442,32 @@ export function DocumentList({
 
       {/* Table or empty state */}
       {isLoading ? (
-        <div className="text-center py-8 border border-slate-200 rounded">
-          <p className="text-slate-500">Loading documents...</p>
+        <div className="border border-slate-200 rounded overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table striped>
+              <Table.Thead>
+                <Table.Tr className="bg-slate-50">
+                  <Table.Th className="font-medium text-slate-700 w-[60px]">Type</Table.Th>
+                  <Table.Th className="font-medium text-slate-700">Filename</Table.Th>
+                  <Table.Th className="font-medium text-slate-700">Status</Table.Th>
+                  <Table.Th className="font-medium text-slate-700">Size</Table.Th>
+                  <Table.Th className="font-medium text-slate-700">Uploaded By</Table.Th>
+                  <Table.Th className="font-medium text-slate-700">Uploaded</Table.Th>
+                  <Table.Th className="font-medium text-slate-700 text-right">Actions</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <TableRowSkeleton
+                    key={index}
+                    columns={7}
+                    showActions
+                    columnWidths={['narrow', 'wide', 'medium', 'narrow', 'medium', 'medium', 'medium']}
+                  />
+                ))}
+              </Table.Tbody>
+            </Table>
+          </div>
         </div>
       ) : documents.length === 0 ? (
         <div className="text-center py-8 border border-dashed border-slate-300 rounded">

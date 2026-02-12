@@ -8,6 +8,7 @@ import type {
   ApiError,
 } from '@hazop/types';
 import { REPORT_STATUS_LABELS, REPORT_FORMAT_LABELS } from '@hazop/types';
+import { TableRowSkeleton } from '../skeletons';
 
 // ============================================================================
 // Constants
@@ -467,8 +468,33 @@ export function ReportsList({
 
       {/* Table or empty state */}
       {isLoading ? (
-        <div className="text-center py-8 border border-slate-200 rounded">
-          <p className="text-slate-500">Loading reports...</p>
+        <div className="border border-slate-200 rounded overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table striped>
+              <Table.Thead>
+                <Table.Tr className="bg-slate-50">
+                  <Table.Th className="font-medium text-slate-700">Name</Table.Th>
+                  <Table.Th className="font-medium text-slate-700">Analysis</Table.Th>
+                  <Table.Th className="font-medium text-slate-700 text-center">Format</Table.Th>
+                  <Table.Th className="font-medium text-slate-700 text-center">Status</Table.Th>
+                  <Table.Th className="font-medium text-slate-700 text-right">Size</Table.Th>
+                  <Table.Th className="font-medium text-slate-700">Generated</Table.Th>
+                  <Table.Th className="font-medium text-slate-700">By</Table.Th>
+                  <Table.Th className="font-medium text-slate-700 text-right">Actions</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <TableRowSkeleton
+                    key={index}
+                    columns={8}
+                    showActions
+                    columnWidths={['wide', 'medium', 'narrow', 'narrow', 'narrow', 'medium', 'medium', 'medium']}
+                  />
+                ))}
+              </Table.Tbody>
+            </Table>
+          </div>
         </div>
       ) : reports.length === 0 ? (
         <div className="text-center py-8 border border-dashed border-slate-300 rounded">
