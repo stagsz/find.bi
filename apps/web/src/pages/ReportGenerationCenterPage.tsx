@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
-import { Button, Alert, Loader, Tabs, Select, TextInput, Progress } from '@mantine/core';
+import { Button, Alert, Loader, Tabs, Progress } from '@mantine/core';
 import { useAuthStore, selectUser } from '../store/auth.store';
 import { authService } from '../services/auth.service';
 import { projectsService } from '../services/projects.service';
 import { analysesService } from '../services/analyses.service';
 import { reportsService } from '../services/reports.service';
+import { ReportRequestForm } from '../components/reports';
 import type {
   ReportWithDetails,
   ReportTemplateWithCreator,
@@ -14,7 +15,7 @@ import type {
   ApiError,
   HazopsAnalysisWithDetails,
 } from '@hazop/types';
-import { REPORT_FORMAT_LABELS, REPORT_STATUS_LABELS } from '@hazop/types';
+import { REPORT_STATUS_LABELS } from '@hazop/types';
 
 // ============================================================================
 // Constants
@@ -201,12 +202,6 @@ export function ReportGenerationCenterPage() {
   // Generate tab state
   const [analyses, setAnalyses] = useState<HazopsAnalysisWithDetails[]>([]);
   const [templates, setTemplates] = useState<ReportTemplateWithCreator[]>([]);
-  const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
-  const [selectedFormat, setSelectedFormat] = useState<ReportFormat | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-  const [reportName, setReportName] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generateError, setGenerateError] = useState<string | null>(null);
 
   // Reports state
   const [reports, setReports] = useState<ReportWithDetails[]>([]);
@@ -345,40 +340,14 @@ export function ReportGenerationCenterPage() {
   }, [activeReports, reports]);
 
   /**
-   * Handle report generation request.
+   * Handle report generation request from the form.
    */
-  const handleGenerateReport = async () => {
-    if (!projectId || !selectedAnalysis || !selectedFormat || !selectedTemplate) {
-      setGenerateError('Please select an analysis, format, and template');
-      return;
-    }
-
-    setIsGenerating(true);
-    setGenerateError(null);
-
-    const result = await reportsService.createReport(projectId, {
-      analysisId: selectedAnalysis,
-      format: selectedFormat,
-      template: selectedTemplate,
-      name: reportName || undefined,
-    });
-
-    if (result.success && result.data) {
-      // Refresh reports list
-      await fetchReports();
-      // Switch to active tab
-      setActiveTab('active');
-      // Reset form
-      setSelectedAnalysis(null);
-      setSelectedFormat(null);
-      setSelectedTemplate(null);
-      setReportName('');
-    } else {
-      setGenerateError(result.error?.message || 'Failed to start report generation');
-    }
-
-    setIsGenerating(false);
-  };
+  const handleReportRequested = useCallback(async () => {
+    // Refresh reports list
+    await fetchReports();
+    // Switch to active tab
+    setActiveTab('active');
+  }, [fetchReports]);
 
   /**
    * Handle report download.
@@ -399,13 +368,6 @@ export function ReportGenerationCenterPage() {
     await authService.logout();
     navigate('/login');
   };
-
-  /**
-   * Get filtered templates based on selected format.
-   */
-  const filteredTemplates = selectedFormat
-    ? templates.filter(t => t.supportedFormats.includes(selectedFormat))
-    : templates;
 
   /**
    * Get active reports list.
@@ -555,105 +517,14 @@ export function ReportGenerationCenterPage() {
 
           {/* Generate Report Tab */}
           <Tabs.Panel value="generate" pt="md">
-            <div className="bg-white border border-slate-200 rounded p-6">
-              <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide mb-6">
-                New Report Request
-              </h2>
-
-              {generateError && (
-                <Alert color="red" mb="md" onClose={() => setGenerateError(null)} withCloseButton>
-                  {generateError}
-                </Alert>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Analysis Selection */}
-                <div>
-                  <Select
-                    label="Analysis"
-                    placeholder="Select an analysis"
-                    data={analyses.map(a => ({
-                      value: a.id,
-                      label: `${a.name} (${a.status})`,
-                    }))}
-                    value={selectedAnalysis}
-                    onChange={setSelectedAnalysis}
-                    required
-                    disabled={analyses.length === 0}
-                  />
-                  {analyses.length === 0 && (
-                    <p className="text-xs text-slate-500 mt-1">
-                      No approved or in-review analyses available
-                    </p>
-                  )}
-                </div>
-
-                {/* Format Selection */}
-                <div>
-                  <Select
-                    label="Output Format"
-                    placeholder="Select format"
-                    data={[
-                      { value: 'pdf', label: REPORT_FORMAT_LABELS.pdf },
-                      { value: 'word', label: REPORT_FORMAT_LABELS.word },
-                      { value: 'excel', label: REPORT_FORMAT_LABELS.excel },
-                      { value: 'powerpoint', label: REPORT_FORMAT_LABELS.powerpoint },
-                    ]}
-                    value={selectedFormat}
-                    onChange={(value) => {
-                      setSelectedFormat(value as ReportFormat);
-                      setSelectedTemplate(null); // Reset template when format changes
-                    }}
-                    required
-                  />
-                </div>
-
-                {/* Template Selection */}
-                <div>
-                  <Select
-                    label="Template"
-                    placeholder="Select a template"
-                    data={filteredTemplates.map(t => ({
-                      value: t.id,
-                      label: t.name,
-                      description: t.description || undefined,
-                    }))}
-                    value={selectedTemplate}
-                    onChange={setSelectedTemplate}
-                    required
-                    disabled={!selectedFormat || filteredTemplates.length === 0}
-                  />
-                  {selectedFormat && filteredTemplates.length === 0 && (
-                    <p className="text-xs text-slate-500 mt-1">
-                      No templates available for this format
-                    </p>
-                  )}
-                </div>
-
-                {/* Report Name */}
-                <div>
-                  <TextInput
-                    label="Report Name"
-                    placeholder="Optional custom name"
-                    value={reportName}
-                    onChange={(e) => setReportName(e.target.value)}
-                  />
-                  <p className="text-xs text-slate-500 mt-1">
-                    Leave blank to use default naming
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 pt-6 border-t border-slate-200">
-                <Button
-                  onClick={handleGenerateReport}
-                  loading={isGenerating}
-                  disabled={!selectedAnalysis || !selectedFormat || !selectedTemplate}
-                >
-                  Generate Report
-                </Button>
-              </div>
-            </div>
+            {projectId && (
+              <ReportRequestForm
+                projectId={projectId}
+                analyses={analyses}
+                templates={templates}
+                onReportRequested={handleReportRequested}
+              />
+            )}
           </Tabs.Panel>
 
           {/* Active Reports Tab */}
