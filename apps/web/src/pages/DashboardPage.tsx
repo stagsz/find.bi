@@ -2,7 +2,7 @@ import { Button } from '@mantine/core';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore, selectUser } from '../store/auth.store';
 import { authService } from '../services/auth.service';
-import { ProjectSummaryCards } from '../components/dashboard';
+import { ProjectSummaryCards, RecentAnalysesWidget } from '../components/dashboard';
 
 /**
  * Dashboard page - the main landing page for authenticated users.
@@ -121,22 +121,8 @@ export function DashboardPage() {
 
         {/* Middle row: Recent analyses + Risk overview */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Recent analyses widget - DASH-03 placeholder */}
-          <section className="bg-white border border-slate-200 rounded">
-            <div className="px-4 py-3 border-b border-slate-200">
-              <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
-                Recent Analyses
-              </h3>
-            </div>
-            <div className="p-4">
-              <div className="text-center py-8 text-slate-500">
-                <p className="text-sm">No recent analyses to display.</p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Create a new analysis to get started.
-                </p>
-              </div>
-            </div>
-          </section>
+          {/* Recent analyses widget */}
+          <RecentAnalysesWidget />
 
           {/* Risk overview chart - DASH-04 placeholder */}
           <section className="bg-white border border-slate-200 rounded">
