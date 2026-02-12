@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 10 - Dashboard & Navigation
-**Progress**: Phase 10 in progress - 2/12 tasks done
-**Last Completed**: DASH-02 - Create project summary cards (active, completed, draft)
-**Next Task**: DASH-03 - Create recent analyses widget
+**Progress**: Phase 10 in progress - 3/12 tasks done
+**Last Completed**: DASH-03 - Create recent analyses widget
+**Next Task**: DASH-04 - Create risk overview chart (distribution across projects)
 
 ---
 
@@ -356,7 +356,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 ### Frontend Dashboard
 - [x] DASH-01: Create main dashboard page layout (39b854b)
 - [x] DASH-02: Create project summary cards (active, completed, draft) (d497c68)
-- [ ] DASH-03: Create recent analyses widget
+- [x] DASH-03: Create recent analyses widget (40fc2a2)
 - [ ] DASH-04: Create risk overview chart (distribution across projects)
 - [ ] DASH-05: Create pending actions widget (analyses needing review)
 - [ ] DASH-06: Create activity timeline widget
@@ -608,3 +608,4 @@ _No blockers currently._
 | REPORT-21: Add E2E tests for full report generation workflow | f01ff28 | 2026-02-12 |
 | DASH-01: Create main dashboard page layout | 39b854b | 2026-02-12 |
 | DASH-02: Create project summary cards (active, completed, draft) | d497c68 | 2026-02-12 |
+| DASH-03: Create recent analyses widget | 40fc2a2 | 2026-02-12 |
