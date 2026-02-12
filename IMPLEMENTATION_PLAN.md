@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 9 - Report Generation
-**Progress**: Phase 9 in progress - 16/21 tasks done
-**Last Completed**: REPORT-16 - Create report preview component
-**Next Task**: REPORT-17 - Create reports list with download links
+**Progress**: Phase 9 in progress - 17/21 tasks done
+**Last Completed**: REPORT-17 - Create reports list with download links
+**Next Task**: REPORT-18 - Create template selector with preview
 
 ---
 
@@ -341,7 +341,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] REPORT-14: Create report request form (format, template, options) (7574785)
 - [x] REPORT-15: Create report generation progress indicator (098f987)
 - [x] REPORT-16: Create report preview component (32aecd9)
-- [ ] REPORT-17: Create reports list with download links
+- [x] REPORT-17: Create reports list with download links (244c02f)
 - [ ] REPORT-18: Create template selector with preview
 
 ### Report Testing
@@ -601,3 +601,4 @@ _No blockers currently._
 | REPORT-14: Create report request form (format, template, options) | 7574785 | 2026-02-12 |
 | REPORT-15: Create report generation progress indicator | 098f987 | 2026-02-12 |
 | REPORT-16: Create report preview component | 32aecd9 | 2026-02-12 |
+| REPORT-17: Create reports list with download links | 244c02f | 2026-02-12 |
