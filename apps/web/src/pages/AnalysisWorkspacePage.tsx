@@ -9,7 +9,7 @@ import { nodesService } from '../services/nodes.service';
 import { PIDViewer } from '../components/documents/PIDViewer';
 import { NodeOverlay } from '../components/documents/NodeOverlay';
 import { GuideWordSelector, DeviationInputForm, CausesInput, ConsequencesInput, SafeguardsInput, RecommendationsInput, AnalysisProgressTracker, AnalysisEntrySummaryTable } from '../components/analyses';
-import { CollaborationIndicator } from '../components/collaboration';
+import { CollaborationIndicator, ConflictResolutionModal } from '../components/collaboration';
 import { useWebSocket, useHighlightAnimation } from '../hooks';
 import type { AnimationType } from '../hooks';
 import type {
@@ -852,6 +852,23 @@ export function AnalysisWorkspacePage() {
           </div>
         </div>
       </div>
+
+      {/* Conflict Resolution Modal */}
+      <ConflictResolutionModal
+        isOpen={!!wsState.pendingConflict}
+        conflict={wsState.pendingConflict}
+        onResolve={(strategy) => {
+          // Clear the conflict and refresh the data
+          // In a real implementation, this would send the resolution to the server
+          wsActions.clearConflict();
+          setSummaryRefreshTrigger((prev) => prev + 1);
+          // TODO: Implement actual resolution logic via API call
+          console.log('Conflict resolution strategy:', strategy);
+        }}
+        onCancel={() => {
+          wsActions.clearConflict();
+        }}
+      />
     </div>
   );
 }

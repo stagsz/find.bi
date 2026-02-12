@@ -15,3 +15,5 @@ export {
   FieldPresenceAvatars,
   PresenceCount,
 } from './UserPresenceAvatar';
+
+export { ConflictResolutionModal } from './ConflictResolutionModal';
