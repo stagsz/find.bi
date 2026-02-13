@@ -1,0 +1,19 @@
+# Default owners for everything in the repo
+* @hazop-team
+
+# Frontend specific
+/apps/web/ @hazop-frontend-team
+
+# Backend specific
+/apps/api/ @hazop-backend-team
+
+# Infrastructure and deployment
+/.github/ @hazop-devops
+/docker/ @hazop-devops
+docker-compose*.yml @hazop-devops
+
+# Database migrations require careful review
+/migrations/ @hazop-backend-team @hazop-lead
+
+# Shared packages
+/packages/ @hazop-team
