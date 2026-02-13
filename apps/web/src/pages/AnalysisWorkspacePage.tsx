@@ -75,7 +75,7 @@ export function AnalysisWorkspacePage() {
 
   // Analysis, document, and nodes state
   const [analysis, setAnalysis] = useState<HazopsAnalysisWithDetailsAndProgress | null>(null);
-  const [document, setDocument] = useState<PIDDocumentWithUploader | null>(null);
+  const [pidDocument, setPidDocument] = useState<PIDDocumentWithUploader | null>(null);
   const [nodes, setNodes] = useState<AnalysisNodeWithCreator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<ApiError | null>(null);
@@ -207,7 +207,7 @@ export function AnalysisWorkspacePage() {
       return;
     }
 
-    setDocument(documentResult.data.document);
+    setPidDocument(documentResult.data.document);
 
     // Fetch nodes for the document
     const nodesResult = await nodesService.listNodes(analysisData.documentId, {}, {}, { limit: 1000 });
@@ -806,7 +806,7 @@ export function AnalysisWorkspacePage() {
               fallbackTitle="Failed to load P&ID viewer"
             >
               <PIDViewerWithOverlay
-                document={document}
+                document={pidDocument}
                 nodes={nodes}
                 selectedNodeId={selectedNodeId}
                 onNodeClick={handleNodeClick}
