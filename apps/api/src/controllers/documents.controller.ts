@@ -15,7 +15,7 @@ import {
   getUserProjectRole,
   findProjectById as findProjectByIdService,
 } from '../services/project.service.js';
-import { createPIDDocument, listProjectDocuments, findPIDDocumentById, deletePIDDocument, createAnalysisNode, nodeIdExistsForDocument, listDocumentNodes, findAnalysisNodeById, updateAnalysisNode, nodeIdExistsForDocumentExcluding, deleteAnalysisNode } from '../services/pid-document.service.js';
+import { createPIDDocument, listProjectDocuments, findPIDDocumentById, deletePIDDocument, updatePIDDocumentStatus, createAnalysisNode, nodeIdExistsForDocument, listDocumentNodes, findAnalysisNodeById, updateAnalysisNode, nodeIdExistsForDocumentExcluding, deleteAnalysisNode } from '../services/pid-document.service.js';
 import { uploadFile, generateStoragePath, deleteFile, getSignedDownloadUrl } from '../services/storage.service.js';
 import { getUploadedFileBuffer, getUploadMeta } from '../middleware/upload.middleware.js';
 import { PID_DOCUMENT_STATUSES, EQUIPMENT_TYPES } from '@hazop/types';
@@ -386,10 +386,26 @@ export async function uploadDocument(req: Request, res: Response): Promise<void>
       uploadedById: userId,
     });
 
-    res.status(201).json({
-      success: true,
-      data: { document },
-    });
+    // Auto-process image files (PNG, JPG)
+    // PDFs would require background processing with pdf.js or similar
+    const isImage = uploadMeta.mimeType.startsWith('image/');
+    if (isImage) {
+      await updatePIDDocumentStatus(document.id, {
+        status: 'processed',
+        processedAt: new Date(),
+      });
+      // Refresh document to get updated status
+      const processedDoc = await findPIDDocumentById(document.id);
+      res.status(201).json({
+        success: true,
+        data: { document: processedDoc || document },
+      });
+    } else {
+      res.status(201).json({
+        success: true,
+        data: { document },
+      });
+    }
   } catch (error) {
     log.error('Upload document error:', { error: error instanceof Error ? error.message : String(error) });
 
