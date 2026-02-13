@@ -14,7 +14,10 @@
     "lint": "nx run-many -t lint",
     "typecheck": "nx run-many -t typecheck",
     "format": "prettier --write \"apps/**/*.{ts,tsx,js,jsx,json}\" \"packages/**/*.{ts,tsx,js,jsx,json}\"",
-    "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,jsx,json}\" \"packages/**/*.{ts,tsx,js,jsx,json}\""
+    "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,jsx,json}\" \"packages/**/*.{ts,tsx,js,jsx,json}\"",
+    "db:migrate": "npm run migrate -w @hazop/api",
+    "db:migrate:status": "npm run migrate:status -w @hazop/api",
+    "db:migrate:dry-run": "npm run migrate:dry-run -w @hazop/api"
   },
   "dependencies": {
     "multer": "^1.4.5-lts.1"
