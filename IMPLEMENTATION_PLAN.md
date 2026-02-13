@@ -5,9 +5,9 @@
 ## Current Status
 
 **Phase**: 11 - Polish & Deployment
-**Progress**: Phase 11 IN PROGRESS - 8/15 tasks done
-**Last Completed**: OPS-03 - Set up Winston structured logging
-**Next Task**: OPS-04 - Configure Loki log aggregation
+**Progress**: Phase 11 IN PROGRESS - 9/15 tasks done
+**Last Completed**: OPS-04 - Configure Loki log aggregation
+**Next Task**: DEPLOY-01 - Create production Docker Compose configuration
 
 ---
 
@@ -384,7 +384,7 @@ This is a **greenfield project** - no existing implementation. The HazOp Assista
 - [x] OPS-01: Set up Prometheus metrics collection (cfc3ae6)
 - [x] OPS-02: Configure Grafana dashboards (868dbaa)
 - [x] OPS-03: Set up Winston structured logging (3083251)
-- [ ] OPS-04: Configure Loki log aggregation
+- [x] OPS-04: Configure Loki log aggregation (6fdd3a1)
 
 ### Docker & Deployment
 - [ ] DEPLOY-01: Create production Docker Compose configuration
@@ -626,3 +626,4 @@ _No blockers currently._
 | OPS-01: Set up Prometheus metrics collection | cfc3ae6 | 2026-02-12 |
 | OPS-02: Configure Grafana dashboards | 868dbaa | 2026-02-12 |
 | OPS-03: Set up Winston structured logging | 3083251 | 2026-02-12 |
+| OPS-04: Configure Loki log aggregation | 6fdd3a1 | 2026-02-13 |
