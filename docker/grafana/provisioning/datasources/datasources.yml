@@ -1,5 +1,5 @@
 # Grafana datasource provisioning for HazOp Assistant
-# This configuration automatically provisions Prometheus as the default datasource
+# This configuration automatically provisions Prometheus and Loki as datasources
 
 apiVersion: 1
 
@@ -15,3 +15,22 @@ datasources:
       timeInterval: "10s"
       httpMethod: POST
       exemplarTraceIdDestinations: []
+
+  # Loki datasource - log aggregation backend
+  - name: Loki
+    type: loki
+    uid: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        # Extract request ID for correlation with traces
+        - name: requestId
+          matcherRegex: '"requestId":"([^"]+)"'
+          url: ""
+        # Extract user ID for filtering
+        - name: userId
+          matcherRegex: '"userId":"([^"]+)"'
+          url: ""

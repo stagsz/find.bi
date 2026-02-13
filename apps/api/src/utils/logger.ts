@@ -7,9 +7,11 @@
  * - Log levels: error, warn, info, http, debug
  * - Automatic timestamp and metadata enrichment
  * - Child loggers for service-specific context
+ * - Optional Loki integration for log aggregation
  */
 
 import winston from 'winston';
+import http from 'http';
 
 const { combine, timestamp, printf, colorize, errors, json } = winston.format;
 
@@ -78,11 +80,144 @@ const prodFormat = combine(
 );
 
 /**
+ * Loki transport configuration.
+ * Pushes logs directly to Loki HTTP API when LOKI_HOST is configured.
+ */
+interface LokiConfig {
+  host: string;
+  labels: Record<string, string>;
+  batchSize: number;
+  batchInterval: number;
+}
+
+interface LokiTransportOptions extends winston.transport.TransportStreamOptions {
+  lokiConfig: LokiConfig;
+}
+
+/**
+ * Custom Loki transport for Winston.
+ * Batches logs and pushes them to Loki's HTTP push API.
+ */
+class LokiTransport extends winston.Transport {
+  private config: LokiConfig;
+  private batch: Array<{ timestamp: string; line: string }> = [];
+  private timer: ReturnType<typeof setTimeout> | null = null;
+
+  constructor(options: LokiTransportOptions) {
+    super(options);
+    this.config = options.lokiConfig;
+  }
+
+  log(info: winston.Logform.TransformableInfo, callback: () => void): void {
+    // Format log entry for Loki
+    const timestamp = (Date.now() * 1000000).toString(); // Nanoseconds
+    const line = JSON.stringify({
+      level: info.level,
+      message: info.message,
+      ...info,
+    });
+
+    this.batch.push({ timestamp, line });
+
+    // Schedule batch flush
+    if (!this.timer) {
+      this.timer = setTimeout(() => this.flush(), this.config.batchInterval);
+    }
+
+    // Flush if batch is full
+    if (this.batch.length >= this.config.batchSize) {
+      this.flush();
+    }
+
+    callback();
+  }
+
+  private flush(): void {
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+
+    if (this.batch.length === 0) {
+      return;
+    }
+
+    const entries = this.batch.splice(0, this.batch.length);
+    const payload = JSON.stringify({
+      streams: [
+        {
+          stream: this.config.labels,
+          values: entries.map((e) => [e.timestamp, e.line]),
+        },
+      ],
+    });
+
+    // Parse Loki URL
+    const url = new URL(this.config.host);
+    const options: http.RequestOptions = {
+      hostname: url.hostname,
+      port: url.port || (url.protocol === 'https:' ? 443 : 80),
+      path: '/loki/api/v1/push',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+      },
+    };
+
+    const req = http.request(options, (res) => {
+      if (res.statusCode && res.statusCode >= 400) {
+        // Log to stderr to avoid infinite loop
+        process.stderr.write(`Loki push failed: ${res.statusCode}\n`);
+      }
+    });
+
+    req.on('error', (err) => {
+      // Log to stderr to avoid infinite loop
+      process.stderr.write(`Loki push error: ${err.message}\n`);
+    });
+
+    req.write(payload);
+    req.end();
+  }
+
+  close(): void {
+    this.flush();
+  }
+}
+
+/**
  * Determine which format to use based on environment.
  */
 function getFormat() {
   const env = process.env.NODE_ENV || 'development';
   return env === 'production' ? prodFormat : devFormat;
+}
+
+/**
+ * Build transports array based on configuration.
+ */
+function buildTransports(): winston.transport[] {
+  const transports: winston.transport[] = [new winston.transports.Console()];
+
+  // Add Loki transport if configured
+  const lokiHost = process.env.LOKI_HOST;
+  if (lokiHost) {
+    const lokiTransport = new LokiTransport({
+      lokiConfig: {
+        host: lokiHost,
+        labels: {
+          app: 'hazop-api',
+          env: process.env.NODE_ENV || 'development',
+        },
+        batchSize: parseInt(process.env.LOKI_BATCH_SIZE || '10', 10),
+        batchInterval: parseInt(process.env.LOKI_BATCH_INTERVAL || '1000', 10),
+      },
+    });
+    transports.push(lokiTransport);
+  }
+
+  return transports;
 }
 
 /**
@@ -93,7 +228,7 @@ const logger = winston.createLogger({
   levels,
   format: getFormat(),
   defaultMeta: { service: 'hazop-api' },
-  transports: [new winston.transports.Console()],
+  transports: buildTransports(),
   exitOnError: false,
 });
 
