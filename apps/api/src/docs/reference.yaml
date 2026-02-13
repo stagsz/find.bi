@@ -1,0 +1,478 @@
+# Reference Data Endpoints Documentation
+# Guide Words and Prepared Answer Menus
+
+paths:
+  /guide-words:
+    get:
+      tags:
+        - Guide Words
+      summary: List all guide words
+      description: Get all standard HazOps guide words with definitions
+      security: []
+      responses:
+        '200':
+          description: Guide words retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GuideWordDefinition'
+
+  /guide-words/parameters:
+    get:
+      tags:
+        - Guide Words
+      summary: List all parameters
+      description: Get all process parameters (flow, pressure, temperature, etc.)
+      security: []
+      responses:
+        '200':
+          description: Parameters retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+
+  /guide-words/by-parameter/{parameter}:
+    get:
+      tags:
+        - Guide Words
+      summary: Get guide words for parameter
+      description: Get applicable guide words for a specific process parameter
+      security: []
+      parameters:
+        - name: parameter
+          in: path
+          required: true
+          description: Process parameter name
+          schema:
+            type: string
+            example: flow
+      responses:
+        '200':
+          description: Guide words retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GuideWordDefinition'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /guide-words/{id}:
+    get:
+      tags:
+        - Guide Words
+      summary: Get guide word by ID
+      description: Get a single guide word definition
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Guide word ID
+          schema:
+            type: string
+            enum: [no, more, less, reverse, early, late, other_than]
+      responses:
+        '200':
+          description: Guide word retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/GuideWordDefinition'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /prepared-causes:
+    get:
+      tags:
+        - Prepared Answers
+      summary: List prepared causes
+      description: List all prepared cause suggestions for HazOps analysis
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - name: category
+          in: query
+          description: Filter by category
+          schema:
+            type: string
+        - name: equipmentType
+          in: query
+          description: Filter by equipment type
+          schema:
+            $ref: '#/components/schemas/EquipmentType'
+        - name: guideWord
+          in: query
+          description: Filter by applicable guide word
+          schema:
+            $ref: '#/components/schemas/GuideWord'
+      responses:
+        '200':
+          description: Causes retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PreparedCause'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /prepared-causes/common:
+    get:
+      tags:
+        - Prepared Answers
+      summary: Get common causes
+      description: Get most frequently used causes across analyses
+      security: []
+      parameters:
+        - name: limit
+          in: query
+          description: Number of results
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Common causes retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PreparedCause'
+
+  /prepared-causes/search:
+    get:
+      tags:
+        - Prepared Answers
+      summary: Search causes
+      description: Full-text search across prepared causes
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/limitParam'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PreparedCause'
+
+  /prepared-causes/context:
+    get:
+      tags:
+        - Prepared Answers
+      summary: Get causes by context
+      description: Get causes relevant to a specific equipment type and guide word
+      security: []
+      parameters:
+        - name: equipmentType
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/EquipmentType'
+        - name: guideWord
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/GuideWord'
+        - $ref: '#/components/parameters/limitParam'
+      responses:
+        '200':
+          description: Contextual causes retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PreparedCause'
+
+  /prepared-consequences:
+    get:
+      tags:
+        - Prepared Answers
+      summary: List prepared consequences
+      description: List all prepared consequence suggestions
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - name: category
+          in: query
+          description: Filter by category
+          schema:
+            type: string
+        - name: severity
+          in: query
+          description: Filter by severity
+          schema:
+            type: string
+            enum: [low, medium, high]
+        - name: equipmentType
+          in: query
+          schema:
+            $ref: '#/components/schemas/EquipmentType'
+      responses:
+        '200':
+          description: Consequences retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PreparedConsequence'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /prepared-consequences/search:
+    get:
+      tags:
+        - Prepared Answers
+      summary: Search consequences
+      description: Full-text search across prepared consequences
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/limitParam'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PreparedConsequence'
+
+  /prepared-safeguards:
+    get:
+      tags:
+        - Prepared Answers
+      summary: List prepared safeguards
+      description: List all prepared safeguard suggestions
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - name: category
+          in: query
+          description: Filter by category
+          schema:
+            type: string
+        - name: effectiveness
+          in: query
+          description: Filter by effectiveness rating
+          schema:
+            type: string
+            enum: [low, medium, high]
+        - name: equipmentType
+          in: query
+          schema:
+            $ref: '#/components/schemas/EquipmentType'
+      responses:
+        '200':
+          description: Safeguards retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PreparedSafeguard'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /prepared-safeguards/search:
+    get:
+      tags:
+        - Prepared Answers
+      summary: Search safeguards
+      description: Full-text search across prepared safeguards
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/limitParam'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PreparedSafeguard'
+
+  /prepared-recommendations:
+    get:
+      tags:
+        - Prepared Answers
+      summary: List prepared recommendations
+      description: List all prepared recommendation suggestions
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - name: category
+          in: query
+          description: Filter by category
+          schema:
+            type: string
+        - name: priority
+          in: query
+          description: Filter by priority
+          schema:
+            type: string
+            enum: [low, medium, high]
+        - name: equipmentType
+          in: query
+          schema:
+            $ref: '#/components/schemas/EquipmentType'
+      responses:
+        '200':
+          description: Recommendations retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PreparedRecommendation'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /prepared-recommendations/search:
+    get:
+      tags:
+        - Prepared Answers
+      summary: Search recommendations
+      description: Full-text search across prepared recommendations
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/limitParam'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PreparedRecommendation'

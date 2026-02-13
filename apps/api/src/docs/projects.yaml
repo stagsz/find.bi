@@ -1,0 +1,527 @@
+# Project Endpoints Documentation
+
+paths:
+  /projects:
+    get:
+      tags:
+        - Projects
+      summary: List user's projects
+      description: |
+        List projects where the authenticated user is the creator or a team member.
+        Supports search, filtering, and pagination.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - name: sortBy
+          in: query
+          description: Field to sort by
+          schema:
+            type: string
+            enum: [created_at, updated_at, name, status]
+            default: created_at
+        - $ref: '#/components/parameters/sortOrderParam'
+        - $ref: '#/components/parameters/searchParam'
+        - name: status
+          in: query
+          description: Filter by project status
+          schema:
+            $ref: '#/components/schemas/ProjectStatus'
+        - name: organization
+          in: query
+          description: Filter by organization
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Projects retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProjectWithCreator'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Projects
+      summary: Create a new project
+      description: |
+        Create a new HazOps project. The authenticated user becomes the project owner.
+        Organization is automatically set from the user's profile.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Project name
+                  example: Ethylene Plant HazOps Study
+                description:
+                  type: string
+                  description: Project description
+                  example: Comprehensive HazOps analysis of the ethylene production facility
+      responses:
+        '201':
+          description: Project created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ProjectWithCreator'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /projects/{id}:
+    get:
+      tags:
+        - Projects
+      summary: Get project details
+      description: |
+        Get project details by ID. Only accessible to project members.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      responses:
+        '200':
+          description: Project retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/ProjectWithCreator'
+                      - type: object
+                        properties:
+                          userRole:
+                            $ref: '#/components/schemas/ProjectMemberRole'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags:
+        - Projects
+      summary: Update project
+      description: |
+        Update project details. Only project owners and leads can update projects.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Updated Project Name
+                description:
+                  type: string
+                  example: Updated project description
+                status:
+                  $ref: '#/components/schemas/ProjectStatus'
+      responses:
+        '200':
+          description: Project updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ProjectWithCreator'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Projects
+      summary: Archive project
+      description: |
+        Archive a project (sets status to 'archived'). Projects are not permanently deleted.
+        Only project owners and leads can archive projects.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      responses:
+        '200':
+          description: Project archived successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ProjectWithCreator'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /projects/{id}/members:
+    get:
+      tags:
+        - Projects
+      summary: List project members
+      description: List all members of a project with their roles
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      responses:
+        '200':
+          description: Members retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProjectMember'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Projects
+      summary: Add project member
+      description: |
+        Add a user to the project as a member. Only project owners and leads
+        can add members.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+                  description: User UUID to add
+                role:
+                  $ref: '#/components/schemas/ProjectMemberRole'
+                  description: Member role (defaults to 'member')
+      responses:
+        '201':
+          description: Member added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ProjectMember'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: User is already a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /projects/{id}/members/{userId}:
+    delete:
+      tags:
+        - Projects
+      summary: Remove project member
+      description: |
+        Remove a user from the project. Only project owners and leads can remove members.
+        Project owners cannot remove themselves.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - name: userId
+          in: path
+          required: true
+          description: User UUID to remove
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Member removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: Member removed successfully
+        '400':
+          description: Cannot remove project owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /projects/{id}/risk-dashboard:
+    get:
+      tags:
+        - Projects
+      summary: Get project risk dashboard
+      description: |
+        Get comprehensive risk metrics aggregated across all analyses in the project.
+        Includes statistics, distributions, per-analysis summaries, and top risk entries.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      responses:
+        '200':
+          description: Risk dashboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      projectId:
+                        type: string
+                        format: uuid
+                      projectName:
+                        type: string
+                      statistics:
+                        type: object
+                        properties:
+                          totalAnalyses:
+                            type: integer
+                          totalEntries:
+                            type: integer
+                          assessedEntries:
+                            type: integer
+                          highRiskCount:
+                            type: integer
+                          mediumRiskCount:
+                            type: integer
+                          lowRiskCount:
+                            type: integer
+                          averageRiskScore:
+                            type: number
+                            nullable: true
+                          maxRiskScore:
+                            type: number
+                            nullable: true
+                      distribution:
+                        type: object
+                        nullable: true
+                        properties:
+                          low:
+                            type: number
+                          medium:
+                            type: number
+                          high:
+                            type: number
+                      analysisSummaries:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            analysisId:
+                              type: string
+                            analysisName:
+                              type: string
+                            status:
+                              $ref: '#/components/schemas/AnalysisStatus'
+                            highRiskCount:
+                              type: integer
+                            mediumRiskCount:
+                              type: integer
+                            lowRiskCount:
+                              type: integer
+                      highestRiskEntries:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            entryId:
+                              type: string
+                            analysisName:
+                              type: string
+                            nodeIdentifier:
+                              type: string
+                            guideWord:
+                              $ref: '#/components/schemas/GuideWord'
+                            parameter:
+                              type: string
+                            riskRanking:
+                              $ref: '#/components/schemas/RiskRanking'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /projects/{id}/compliance:
+    get:
+      tags:
+        - Projects
+      summary: Get project compliance status
+      description: |
+        Get compliance status validated against regulatory standards.
+        Returns compliance summary for each applicable standard.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - name: standards
+          in: query
+          description: |
+            Comma-separated list of regulatory standard IDs.
+            Defaults to all standards if not specified.
+          schema:
+            type: string
+            example: IEC_61511,ISO_31000,OSHA_PSM
+      responses:
+        '200':
+          description: Compliance status retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      projectId:
+                        type: string
+                        format: uuid
+                      overallStatus:
+                        $ref: '#/components/schemas/ComplianceStatus'
+                      overallPercentage:
+                        type: number
+                      standards:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ComplianceSummary'
+                      entryCount:
+                        type: integer
+                      lopaCount:
+                        type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'

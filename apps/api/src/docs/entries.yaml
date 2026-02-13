@@ -1,0 +1,363 @@
+# Entry Endpoints Documentation
+
+paths:
+  /entries/{id}:
+    put:
+      tags:
+        - Entries
+      summary: Update analysis entry
+      description: Update an existing analysis entry (deviation, causes, consequences, etc.)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/entryIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                parameter:
+                  type: string
+                  example: pressure
+                deviation:
+                  type: string
+                  example: Updated deviation description
+                causes:
+                  type: array
+                  items:
+                    type: string
+                consequences:
+                  type: array
+                  items:
+                    type: string
+                safeguards:
+                  type: array
+                  items:
+                    type: string
+                recommendations:
+                  type: array
+                  items:
+                    type: string
+                notes:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Entry updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/AnalysisEntryWithNode'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Entries
+      summary: Delete analysis entry
+      description: Delete an analysis entry
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/entryIdParam'
+      responses:
+        '200':
+          description: Entry deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: Entry deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /entries/{id}/risk:
+    put:
+      tags:
+        - Entries
+      summary: Update risk ranking
+      description: |
+        Update the risk ranking (severity, likelihood, detectability) for an entry.
+        Risk score and level are automatically calculated.
+
+        Risk Score = Severity × Likelihood × Detectability (range 1-125)
+
+        Risk Levels:
+        - Low: 1-20
+        - Medium: 21-60
+        - High: 61-125
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/entryIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - severity
+                - likelihood
+                - detectability
+              properties:
+                severity:
+                  $ref: '#/components/schemas/SeverityLevel'
+                likelihood:
+                  $ref: '#/components/schemas/LikelihoodLevel'
+                detectability:
+                  $ref: '#/components/schemas/DetectabilityLevel'
+      responses:
+        '200':
+          description: Risk ranking updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/AnalysisEntryWithNode'
+                      - type: object
+                        properties:
+                          riskRanking:
+                            $ref: '#/components/schemas/RiskRanking'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /entries/{id}/lopa:
+    get:
+      tags:
+        - Entries
+      summary: Get LOPA analysis
+      description: |
+        Get the LOPA (Layers of Protection Analysis) results for an entry.
+        LOPA validates whether existing safeguards provide adequate risk reduction.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/entryIdParam'
+      responses:
+        '200':
+          description: LOPA analysis retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/LOPAAnalysis'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Entries
+      summary: Create LOPA analysis
+      description: |
+        Create or update LOPA analysis for an entry. Calculates risk reduction
+        and identifies if additional protection layers are needed.
+
+        LOPA determines:
+        - Whether target mitigated frequency is achieved
+        - Required SIL (Safety Integrity Level) for additional protection
+        - Risk reduction factor of existing IPLs
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/entryIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - initiatingEventFrequency
+                - targetMitigatedFrequency
+              properties:
+                initiatingEventFrequency:
+                  type: number
+                  description: Frequency of initiating event per year
+                  example: 0.1
+                targetMitigatedFrequency:
+                  type: number
+                  description: Target frequency per year after mitigation
+                  example: 0.0001
+                ipls:
+                  type: array
+                  description: Independent Protection Layers
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - type
+                      - pfd
+                    properties:
+                      name:
+                        type: string
+                        description: IPL name
+                        example: High pressure shutdown
+                      type:
+                        $ref: '#/components/schemas/IPLType'
+                      pfd:
+                        type: number
+                        description: Probability of Failure on Demand
+                        example: 0.1
+                      isIndependent:
+                        type: boolean
+                        description: Whether IPL is truly independent
+                        default: true
+      responses:
+        '201':
+          description: LOPA analysis created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/LOPAAnalysis'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Entries
+      summary: Delete LOPA analysis
+      description: Delete the LOPA analysis for an entry
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/entryIdParam'
+      responses:
+        '200':
+          description: LOPA analysis deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: LOPA analysis deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{id}/join:
+    post:
+      tags:
+        - Collaboration
+      summary: Join collaboration session
+      description: Join an existing real-time collaboration session
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Collaboration session UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Joined session successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/CollaborationSession'
+                      - type: object
+                        properties:
+                          websocketUrl:
+                            type: string
+                            description: WebSocket URL to connect
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'

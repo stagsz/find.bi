@@ -1,0 +1,676 @@
+# Analysis Endpoints Documentation
+
+paths:
+  /projects/{id}/analyses:
+    get:
+      tags:
+        - Analyses
+      summary: List project analyses
+      description: List HazOps analysis sessions for a project
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - name: sortBy
+          in: query
+          description: Field to sort by
+          schema:
+            type: string
+            enum: [created_at, updated_at, name, status]
+            default: created_at
+        - $ref: '#/components/parameters/sortOrderParam'
+        - $ref: '#/components/parameters/searchParam'
+        - name: status
+          in: query
+          description: Filter by analysis status
+          schema:
+            $ref: '#/components/schemas/AnalysisStatus'
+        - name: leadAnalystId
+          in: query
+          description: Filter by lead analyst UUID
+          schema:
+            type: string
+            format: uuid
+        - name: documentId
+          in: query
+          description: Filter by document UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Analyses retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HazopsAnalysisWithDetails'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Analyses
+      summary: Create analysis session
+      description: Create a new HazOps analysis session for a project
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - documentId
+                - name
+              properties:
+                documentId:
+                  type: string
+                  format: uuid
+                  description: P&ID document to analyze
+                name:
+                  type: string
+                  description: Analysis session name
+                  example: Feed Section Analysis
+                description:
+                  type: string
+                  description: Analysis description
+                  example: HazOps analysis of the feed section equipment
+                leadAnalystId:
+                  type: string
+                  format: uuid
+                  description: Lead analyst (defaults to creator)
+      responses:
+        '201':
+          description: Analysis created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/HazopsAnalysisWithDetails'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /analyses/{id}:
+    get:
+      tags:
+        - Analyses
+      summary: Get analysis details
+      description: Get detailed information about an analysis session
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/analysisIdParam'
+      responses:
+        '200':
+          description: Analysis retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/HazopsAnalysisWithDetails'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags:
+        - Analyses
+      summary: Update analysis
+      description: Update analysis session details
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/analysisIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Updated Analysis Name
+                description:
+                  type: string
+                  nullable: true
+                leadAnalystId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Analysis updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/HazopsAnalysisWithDetails'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /analyses/{id}/entries:
+    get:
+      tags:
+        - Entries
+      summary: List analysis entries
+      description: |
+        List all analysis entries for an analysis session with filtering options.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/analysisIdParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - name: sortBy
+          in: query
+          description: Field to sort by
+          schema:
+            type: string
+            enum: [created_at, updated_at, risk_score]
+            default: created_at
+        - $ref: '#/components/parameters/sortOrderParam'
+        - name: nodeId
+          in: query
+          description: Filter by node UUID
+          schema:
+            type: string
+            format: uuid
+        - name: guideWord
+          in: query
+          description: Filter by guide word
+          schema:
+            $ref: '#/components/schemas/GuideWord'
+        - name: riskLevel
+          in: query
+          description: Filter by risk level
+          schema:
+            type: string
+            enum: [low, medium, high, not_assessed]
+      responses:
+        '200':
+          description: Entries retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AnalysisEntryWithNode'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Entries
+      summary: Create analysis entry
+      description: |
+        Create a new analysis entry for a node/guide word combination.
+        This is the core data entry for HazOps methodology.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/analysisIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - nodeId
+                - guideWord
+                - parameter
+                - deviation
+              properties:
+                nodeId:
+                  type: string
+                  format: uuid
+                  description: Analysis node UUID
+                guideWord:
+                  $ref: '#/components/schemas/GuideWord'
+                parameter:
+                  type: string
+                  description: Process parameter (e.g., flow, pressure, temperature)
+                  example: flow
+                deviation:
+                  type: string
+                  description: Description of the deviation
+                  example: No flow through the main feed line
+                causes:
+                  type: array
+                  items:
+                    type: string
+                  example: ['Pump failure', 'Blocked line', 'Valve closed in error']
+                consequences:
+                  type: array
+                  items:
+                    type: string
+                  example: ['Production shutdown', 'Downstream equipment damage']
+                safeguards:
+                  type: array
+                  items:
+                    type: string
+                  example: ['Low flow alarm', 'Backup pump']
+                recommendations:
+                  type: array
+                  items:
+                    type: string
+                  example: ['Install redundant flow transmitter']
+                notes:
+                  type: string
+                  description: Additional notes
+      responses:
+        '201':
+          description: Entry created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/AnalysisEntryWithNode'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /analyses/{id}/complete:
+    post:
+      tags:
+        - Analyses
+      summary: Complete analysis
+      description: |
+        Submit the analysis for review. Changes status from 'draft' to 'in_review'.
+        Only the lead analyst can complete an analysis.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/analysisIdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reviewNotes:
+                  type: string
+                  description: Optional notes for reviewer
+      responses:
+        '200':
+          description: Analysis submitted for review
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/HazopsAnalysisWithDetails'
+        '400':
+          description: Analysis cannot be completed (already completed or no entries)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /analyses/{id}/risk-summary:
+    get:
+      tags:
+        - Analyses
+      summary: Get analysis risk summary
+      description: |
+        Get aggregated risk metrics for an analysis session including
+        distribution, top risks, and breakdown by node and guide word.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/analysisIdParam'
+      responses:
+        '200':
+          description: Risk summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      analysisId:
+                        type: string
+                        format: uuid
+                      analysisName:
+                        type: string
+                      statistics:
+                        type: object
+                        properties:
+                          totalEntries:
+                            type: integer
+                          assessedEntries:
+                            type: integer
+                          highRiskCount:
+                            type: integer
+                          mediumRiskCount:
+                            type: integer
+                          lowRiskCount:
+                            type: integer
+                          averageRiskScore:
+                            type: number
+                            nullable: true
+                      distribution:
+                        type: object
+                        nullable: true
+                        properties:
+                          low:
+                            type: number
+                          medium:
+                            type: number
+                          high:
+                            type: number
+                      byNode:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            nodeId:
+                              type: string
+                            nodeIdentifier:
+                              type: string
+                            highRiskCount:
+                              type: integer
+                      byGuideWord:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            guideWord:
+                              $ref: '#/components/schemas/GuideWord'
+                            entryCount:
+                              type: integer
+                            highRiskCount:
+                              type: integer
+                      highestRiskEntries:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            entryId:
+                              type: string
+                            nodeIdentifier:
+                              type: string
+                            guideWord:
+                              $ref: '#/components/schemas/GuideWord'
+                            riskRanking:
+                              $ref: '#/components/schemas/RiskRanking'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /analyses/{id}/compliance:
+    get:
+      tags:
+        - Analyses
+      summary: Get analysis compliance report
+      description: Get compliance status for a specific analysis session
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/analysisIdParam'
+        - name: standards
+          in: query
+          description: Comma-separated list of standard IDs
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Compliance report retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      analysisId:
+                        type: string
+                        format: uuid
+                      overallStatus:
+                        $ref: '#/components/schemas/ComplianceStatus'
+                      standards:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ComplianceSummary'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /analyses/{id}/collaborate:
+    get:
+      tags:
+        - Collaboration
+      summary: Get active collaboration sessions
+      description: Get active collaboration sessions for an analysis
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/analysisIdParam'
+      responses:
+        '200':
+          description: Collaboration sessions retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CollaborationSession'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Collaboration
+      summary: Start collaboration session
+      description: Start a new real-time collaboration session for an analysis
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/analysisIdParam'
+      responses:
+        '201':
+          description: Collaboration session started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/CollaborationSession'
+                      - type: object
+                        properties:
+                          websocketUrl:
+                            type: string
+                            description: WebSocket URL to join the session
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /analyses/{id}/invite:
+    post:
+      tags:
+        - Collaboration
+      summary: Invite user to collaboration
+      description: Send an invitation to collaborate on an analysis
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/analysisIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+                  description: User UUID to invite
+                message:
+                  type: string
+                  description: Optional invitation message
+      responses:
+        '200':
+          description: Invitation sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: Invitation sent successfully
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'

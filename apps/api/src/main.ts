@@ -24,6 +24,7 @@ import { configurePassport, initializePassport } from './config/passport.config.
 import { getWebSocketService } from './services/websocket.service.js';
 import { metricsMiddleware, getMetrics, getMetricsContentType, requestLogger } from './middleware/index.js';
 import { performHealthCheck, checkReadiness, checkLiveness } from './services/health.service.js';
+import { setupSwagger } from './config/swagger.config.js';
 import log from './utils/logger.js';
 
 // Load .env from project root (two levels up from this file)
@@ -130,6 +131,9 @@ app.get('/metrics', async (_req, res) => {
 app.get('/', (_req, res) => {
   res.json({ message: 'HazOp Assistant API' });
 });
+
+// Swagger API documentation
+setupSwagger(app);
 
 // Authentication routes
 app.use('/auth', authRoutes);

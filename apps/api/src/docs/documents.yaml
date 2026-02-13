@@ -1,0 +1,502 @@
+# Document Endpoints Documentation
+
+paths:
+  /projects/{id}/documents:
+    get:
+      tags:
+        - Documents
+      summary: List project documents
+      description: |
+        List P&ID documents for a project with pagination, sorting, and filtering.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - name: sortBy
+          in: query
+          description: Field to sort by
+          schema:
+            type: string
+            enum: [created_at, uploaded_at, filename, status, file_size]
+            default: created_at
+        - $ref: '#/components/parameters/sortOrderParam'
+        - $ref: '#/components/parameters/searchParam'
+        - name: status
+          in: query
+          description: Filter by processing status
+          schema:
+            $ref: '#/components/schemas/PIDDocumentStatus'
+      responses:
+        '200':
+          description: Documents retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/PIDDocument'
+                        - type: object
+                          properties:
+                            uploadedByName:
+                              type: string
+                            uploadedByEmail:
+                              type: string
+                              format: email
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Documents
+      summary: Upload P&ID document
+      description: |
+        Upload a P&ID document to a project. Supported formats: PDF, PNG, JPG, DWG.
+        Maximum file size: 50MB. Only project members (not viewers) can upload.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The P&ID document file (PDF, PNG, JPG, or DWG)
+      responses:
+        '201':
+          description: Document uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/PIDDocument'
+                      - type: object
+                        properties:
+                          uploadedByName:
+                            type: string
+                          uploadedByEmail:
+                            type: string
+                            format: email
+        '400':
+          description: Invalid file type or size
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidType:
+                  summary: Invalid file type
+                  value:
+                    success: false
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid file type. Allowed types are PDF, PNG, JPG, DWG
+                tooLarge:
+                  summary: File too large
+                  value:
+                    success: false
+                    error:
+                      code: VALIDATION_ERROR
+                      message: File size exceeds 50MB limit
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /documents/{id}:
+    get:
+      tags:
+        - Documents
+      summary: Get document details
+      description: Get detailed information about a P&ID document
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/documentIdParam'
+      responses:
+        '200':
+          description: Document retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/PIDDocument'
+                      - type: object
+                        properties:
+                          uploadedByName:
+                            type: string
+                          uploadedByEmail:
+                            type: string
+                            format: email
+                          nodeCount:
+                            type: integer
+                            description: Number of analysis nodes on this document
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Documents
+      summary: Delete document
+      description: |
+        Delete a P&ID document and its associated nodes. Cannot delete if document
+        has active analyses. Only project owners and leads can delete documents.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/documentIdParam'
+      responses:
+        '200':
+          description: Document deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: Document deleted successfully
+        '400':
+          description: Cannot delete document with active analyses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /documents/{id}/download:
+    get:
+      tags:
+        - Documents
+      summary: Download original document
+      description: |
+        Get a signed URL to download the original P&ID document file.
+        The URL is valid for 1 hour.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/documentIdParam'
+      responses:
+        '200':
+          description: Download URL generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                        format: uri
+                        description: Signed download URL
+                      expiresAt:
+                        type: string
+                        format: date-time
+                        description: URL expiration time
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /documents/{id}/nodes:
+    get:
+      tags:
+        - Nodes
+      summary: List document nodes
+      description: List all analysis nodes defined on a P&ID document
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/documentIdParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - name: sortBy
+          in: query
+          description: Field to sort by
+          schema:
+            type: string
+            enum: [created_at, node_identifier, equipment_type]
+            default: node_identifier
+        - $ref: '#/components/parameters/sortOrderParam'
+        - $ref: '#/components/parameters/searchParam'
+        - name: equipmentType
+          in: query
+          description: Filter by equipment type
+          schema:
+            $ref: '#/components/schemas/EquipmentType'
+      responses:
+        '200':
+          description: Nodes retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AnalysisNode'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Nodes
+      summary: Create analysis node
+      description: |
+        Create a new analysis node on a P&ID document. Nodes represent equipment
+        or process elements to be analyzed in HazOps studies.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/documentIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - nodeIdentifier
+                - equipmentType
+                - positionX
+                - positionY
+              properties:
+                nodeIdentifier:
+                  type: string
+                  description: User-defined identifier (e.g., P-101)
+                  example: P-101
+                description:
+                  type: string
+                  description: Node description
+                  example: Main feed pump
+                equipmentType:
+                  $ref: '#/components/schemas/EquipmentType'
+                positionX:
+                  type: number
+                  description: X coordinate on P&ID (0-1 normalized)
+                  example: 0.25
+                positionY:
+                  type: number
+                  description: Y coordinate on P&ID (0-1 normalized)
+                  example: 0.5
+                width:
+                  type: number
+                  description: Node width (0-1 normalized)
+                  default: 0.05
+                height:
+                  type: number
+                  description: Node height (0-1 normalized)
+                  default: 0.05
+                metadata:
+                  type: object
+                  description: Additional metadata
+      responses:
+        '201':
+          description: Node created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/AnalysisNode'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: Node identifier already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /nodes/{id}:
+    put:
+      tags:
+        - Nodes
+      summary: Update analysis node
+      description: Update an existing analysis node
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/nodeIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nodeIdentifier:
+                  type: string
+                  example: P-101A
+                description:
+                  type: string
+                  example: Updated pump description
+                equipmentType:
+                  $ref: '#/components/schemas/EquipmentType'
+                positionX:
+                  type: number
+                positionY:
+                  type: number
+                width:
+                  type: number
+                height:
+                  type: number
+                metadata:
+                  type: object
+      responses:
+        '200':
+          description: Node updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/AnalysisNode'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Nodes
+      summary: Delete analysis node
+      description: |
+        Delete an analysis node. Cannot delete if node has analysis entries.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/nodeIdParam'
+      responses:
+        '200':
+          description: Node deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: Node deleted successfully
+        '400':
+          description: Cannot delete node with analysis entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
