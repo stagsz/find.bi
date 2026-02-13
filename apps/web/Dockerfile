@@ -42,16 +42,20 @@ FROM nginx:1.25-alpine AS runtime
 # Copy custom nginx configuration
 COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY docker/nginx/ssl.conf /etc/nginx/ssl.conf
+# SSL template for reference (not used by default, copy when enabling HTTPS)
+COPY docker/nginx/default-ssl.conf.template /etc/nginx/templates/default-ssl.conf.template
 
 # Copy built static files from builder stage
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 
 # Create nginx cache and temp directories with proper permissions
-RUN mkdir -p /var/cache/nginx /var/run && \
-    chown -R nginx:nginx /var/cache/nginx /var/run /usr/share/nginx/html
+# Create SSL directory for future certificate mounting
+RUN mkdir -p /var/cache/nginx /var/run /etc/nginx/ssl && \
+    chown -R nginx:nginx /var/cache/nginx /var/run /usr/share/nginx/html /etc/nginx/ssl
 
-# Expose HTTP port
-EXPOSE 80
+# Expose HTTP and HTTPS ports
+EXPOSE 80 443
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

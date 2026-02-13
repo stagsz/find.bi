@@ -1,39 +1,69 @@
-# HazOp Assistant - Nginx Server Configuration
-# Production reverse proxy for API and static file serving for frontend
-# Configured for industrial safety application with compliance requirements
+# HazOp Assistant - Nginx HTTPS Server Configuration
+# Production reverse proxy with SSL/TLS enabled
+# Copy this file to default.conf when SSL certificates are available
+#
+# Prerequisites:
+# 1. Mount SSL certificates in Docker Compose:
+#    volumes:
+#      - ./certs/fullchain.pem:/etc/nginx/ssl/fullchain.pem:ro
+#      - ./certs/privkey.pem:/etc/nginx/ssl/privkey.pem:ro
+# 2. Expose port 443 in Docker Compose:
+#    ports:
+#      - "443:443"
+#      - "80:80"
 
 upstream api_backend {
     server api:4000;
     keepalive 32;
 }
 
+# HTTP to HTTPS redirect
 server {
     listen 80;
     server_name _;
+
+    # Allow health checks on HTTP
+    location = /health {
+        access_log off;
+        return 200 "OK\n";
+        add_header Content-Type text/plain;
+    }
+
+    # Redirect all other traffic to HTTPS
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# HTTPS Server
+server {
+    listen 443 ssl http2;
+    server_name _;
     root /usr/share/nginx/html;
     index index.html;
+
+    # SSL Configuration
+    ssl_certificate /etc/nginx/ssl/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+    include /etc/nginx/ssl.conf;
 
     # Connection limits
     limit_conn conn_limit 50;
 
     # ==========================================================================
-    # Security Headers
+    # Security Headers (Enhanced for HTTPS)
     # ==========================================================================
-    # Prevent clickjacking
     add_header X-Frame-Options "SAMEORIGIN" always;
-    # Prevent MIME type sniffing
     add_header X-Content-Type-Options "nosniff" always;
-    # XSS protection (legacy browsers)
     add_header X-XSS-Protection "1; mode=block" always;
-    # Referrer policy for privacy
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    # Permissions policy (restrict browser features)
     add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
-    # Content Security Policy - adjust as needed for your deployment
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'self';" always;
+    # HSTS - Enable only when confident with HTTPS setup (uncomment for production)
+    # add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss:; frame-ancestors 'self'; upgrade-insecure-requests;" always;
 
     # ==========================================================================
-    # Health Check Endpoint (for load balancer/orchestrator)
+    # Health Check Endpoint
     # ==========================================================================
     location = /health {
         access_log off;
@@ -45,7 +75,6 @@ server {
     # API Proxy - General Endpoints
     # ==========================================================================
     location /api/ {
-        # Rate limiting
         limit_req zone=api_limit burst=50 nodelay;
         limit_req_status 429;
 
@@ -59,17 +88,14 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Request-ID $request_id;
 
-        # Timeouts for standard API requests
         proxy_connect_timeout 30s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
 
-        # Buffer settings
         proxy_buffering on;
         proxy_buffer_size 8k;
         proxy_buffers 8 8k;
 
-        # Error handling
         proxy_intercept_errors off;
     }
 
@@ -77,7 +103,6 @@ server {
     # API Proxy - Authentication Endpoints (stricter rate limiting)
     # ==========================================================================
     location /api/auth/ {
-        # Stricter rate limiting for auth endpoints (brute force protection)
         limit_req zone=auth_limit burst=10 nodelay;
         limit_req_status 429;
 
@@ -95,10 +120,9 @@ server {
     }
 
     # ==========================================================================
-    # API Proxy - Document Upload Endpoints (relaxed timeouts, rate limited)
+    # API Proxy - Document Upload Endpoints
     # ==========================================================================
     location ~ ^/api/projects/[^/]+/documents$ {
-        # Rate limiting for uploads
         limit_req zone=upload_limit burst=5 nodelay;
         limit_req_status 429;
 
@@ -110,22 +134,19 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Request-ID $request_id;
 
-        # Extended timeouts for large file uploads
         proxy_connect_timeout 60s;
         proxy_send_timeout 300s;
         proxy_read_timeout 300s;
 
-        # Disable buffering for uploads
         proxy_request_buffering off;
         proxy_buffering off;
 
-        # Client body settings
         client_max_body_size 50M;
         client_body_timeout 300s;
     }
 
     # ==========================================================================
-    # API Proxy - Report Download Endpoints (streaming support)
+    # API Proxy - Report Download Endpoints
     # ==========================================================================
     location ~ ^/api/reports/[^/]+/download$ {
         proxy_pass http://api_backend;
@@ -136,17 +157,15 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Request-ID $request_id;
 
-        # Extended timeouts for large report generation
         proxy_connect_timeout 60s;
         proxy_send_timeout 120s;
         proxy_read_timeout 120s;
 
-        # Disable buffering for streaming downloads
         proxy_buffering off;
     }
 
     # ==========================================================================
-    # WebSocket Support - Real-time Collaboration
+    # WebSocket Support - Real-time Collaboration (Secure WebSocket)
     # ==========================================================================
     location /socket.io/ {
         proxy_pass http://api_backend/socket.io/;
@@ -158,30 +177,23 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # WebSocket-specific extended timeouts (1 hour for long-lived connections)
         proxy_connect_timeout 60s;
         proxy_send_timeout 3600s;
         proxy_read_timeout 3600s;
 
-        # Disable buffering for WebSocket
         proxy_buffering off;
     }
 
     # ==========================================================================
-    # Static Assets with Aggressive Caching
+    # Static Assets
     # ==========================================================================
     location /assets/ {
         expires max;
         add_header Cache-Control "public, immutable";
         access_log off;
-
-        # Enable gzip for assets if not already compressed
         gzip_static on;
     }
 
-    # ==========================================================================
-    # Font Files with CORS
-    # ==========================================================================
     location ~* \.(woff2?|ttf|otf|eot)$ {
         expires max;
         add_header Cache-Control "public, immutable";
@@ -189,9 +201,6 @@ server {
         access_log off;
     }
 
-    # ==========================================================================
-    # Favicon and Robots
-    # ==========================================================================
     location = /favicon.ico {
         expires max;
         log_not_found off;
@@ -205,12 +214,11 @@ server {
     }
 
     # ==========================================================================
-    # React Router - Client-Side Routing Support
+    # React Router - Client-Side Routing
     # ==========================================================================
     location / {
         try_files $uri $uri/ /index.html;
 
-        # Disable caching for index.html (ensures latest app version)
         location = /index.html {
             expires -1;
             add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate";
@@ -219,16 +227,14 @@ server {
     }
 
     # ==========================================================================
-    # Security - Block Access to Hidden Files and Sensitive Paths
+    # Security - Block Sensitive Files
     # ==========================================================================
-    # Deny access to hidden files (dotfiles)
     location ~ /\. {
         deny all;
         access_log off;
         log_not_found off;
     }
 
-    # Deny access to backup files
     location ~* \.(bak|config|sql|fla|psd|ini|log|sh|inc|swp|dist)$ {
         deny all;
         access_log off;
@@ -236,7 +242,7 @@ server {
     }
 
     # ==========================================================================
-    # Custom Error Pages
+    # Error Pages
     # ==========================================================================
     error_page 429 /error-429.html;
     error_page 500 502 503 504 /error-50x.html;
