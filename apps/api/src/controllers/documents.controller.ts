@@ -386,26 +386,18 @@ export async function uploadDocument(req: Request, res: Response): Promise<void>
       uploadedById: userId,
     });
 
-    // Auto-process image files (PNG, JPG)
-    // PDFs would require background processing with pdf.js or similar
-    const isImage = uploadMeta.mimeType.startsWith('image/');
-    if (isImage) {
-      await updatePIDDocumentStatus(document.id, {
-        status: 'processed',
-        processedAt: new Date(),
-      });
-      // Refresh document to get updated status
-      const processedDoc = await findPIDDocumentById(document.id);
-      res.status(201).json({
-        success: true,
-        data: { document: processedDoc || document },
-      });
-    } else {
-      res.status(201).json({
-        success: true,
-        data: { document },
-      });
-    }
+    // Auto-mark all uploaded documents as processed.
+    // Images (PNG, JPG) and PDFs are accepted as-is; nodes are added manually by the analyst.
+    await updatePIDDocumentStatus(document.id, {
+      status: 'processed',
+      processedAt: new Date(),
+    });
+    // Refresh document to get updated status
+    const processedDoc = await findPIDDocumentById(document.id);
+    res.status(201).json({
+      success: true,
+      data: { document: processedDoc || document },
+    });
   } catch (error) {
     log.error('Upload document error:', { error: error instanceof Error ? error.message : String(error) });
 
@@ -783,7 +775,7 @@ export async function downloadDocument(req: Request, res: Response): Promise<voi
     res.status(200).json({
       success: true,
       data: {
-        downloadUrl,
+        url: downloadUrl,
         filename: document.filename,
         mimeType: document.mimeType,
         fileSize: document.fileSize,

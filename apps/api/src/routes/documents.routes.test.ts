@@ -300,7 +300,7 @@ describe('Document Routes API Tests', () => {
 
         expect(response.status).toBe(200);
         expect(response.body.success).toBe(true);
-        expect(response.body.data.downloadUrl).toBe(mockUrl);
+        expect(response.body.data.url).toBe(mockUrl);
         expect(response.body.data.filename).toBe('test-pid.pdf');
         expect(response.body.data.mimeType).toBe('application/pdf');
       });

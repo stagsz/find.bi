@@ -3,6 +3,7 @@ import { Button, TextInput, Select, Table, Alert, Pagination, Modal } from '@man
 import { documentsService } from '../../services/documents.service';
 import type { PIDDocumentWithUploader, PIDDocumentStatus, ApiError } from '@hazop/types';
 import { TableRowSkeleton } from '../skeletons';
+import { DocumentNodesModal } from './DocumentNodesModal';
 
 /**
  * Document status display labels.
@@ -191,6 +192,9 @@ export function DocumentList({
 
   // Download state
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  // Manage Nodes modal state
+  const [nodesModalDocument, setNodesModalDocument] = useState<PIDDocumentWithUploader | null>(null);
 
   /**
    * Debounce search query.
@@ -550,14 +554,19 @@ export function DocumentList({
                         <Button
                           variant="subtle"
                           size="xs"
+                          color="indigo"
+                          onClick={() => setNodesModalDocument(doc)}
+                          styles={{ root: { borderRadius: '4px' } }}
+                        >
+                          Manage Nodes
+                        </Button>
+                        <Button
+                          variant="subtle"
+                          size="xs"
                           color="blue"
                           onClick={() => handleDownload(doc)}
                           loading={downloadingId === doc.id}
-                          styles={{
-                            root: {
-                              borderRadius: '4px',
-                            },
-                          }}
+                          styles={{ root: { borderRadius: '4px' } }}
                         >
                           Download
                         </Button>
@@ -567,11 +576,7 @@ export function DocumentList({
                             size="xs"
                             color="red"
                             onClick={() => handleDeleteClick(doc)}
-                            styles={{
-                              root: {
-                                borderRadius: '4px',
-                              },
-                            }}
+                            styles={{ root: { borderRadius: '4px' } }}
                           >
                             Delete
                           </Button>
@@ -609,6 +614,15 @@ export function DocumentList({
             </div>
           )}
         </div>
+      )}
+
+      {/* Manage Nodes Modal */}
+      {nodesModalDocument && (
+        <DocumentNodesModal
+          isOpen={!!nodesModalDocument}
+          onClose={() => setNodesModalDocument(null)}
+          document={nodesModalDocument}
+        />
       )}
 
       {/* Delete Confirmation Modal */}
