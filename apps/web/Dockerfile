@@ -37,7 +37,7 @@ WORKDIR /app/apps/web
 RUN npm run build
 
 # Stage 2: Production runtime with Nginx
-FROM nginx:1.25-alpine AS runtime
+FROM nginx:1.29-alpine AS runtime
 
 # Copy custom nginx configuration
 COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
