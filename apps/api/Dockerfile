@@ -2,7 +2,7 @@
 # Multi-stage build for optimized image size
 
 # Stage 1: Build
-FROM node:20-alpine AS builder
+FROM node:25-alpine AS builder
 
 WORKDIR /app
 
@@ -33,7 +33,7 @@ WORKDIR /app/apps/api
 RUN npm run build
 
 # Stage 2: Production runtime
-FROM node:20-alpine AS runtime
+FROM node:25-alpine AS runtime
 
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init
