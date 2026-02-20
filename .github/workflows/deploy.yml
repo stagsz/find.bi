@@ -38,7 +38,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Determine version
         id: version
@@ -118,7 +118,7 @@ jobs:
       url: ${{ secrets.STAGING_URL }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Deploy to staging server
         uses: appleboy/ssh-action@v1.0.3
@@ -161,7 +161,7 @@ jobs:
       url: ${{ secrets.PRODUCTION_URL }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Deploy to production server
         uses: appleboy/ssh-action@v1.0.3
