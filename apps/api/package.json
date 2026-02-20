@@ -33,7 +33,7 @@
     "pg": "^8.11.3",
     "pptxgenjs": "^3.12.0",
     "prom-client": "^15.1.0",
-    "sharp": "^0.33.5",
+    "sharp": "^0.34.5",
     "socket.io": "^4.7.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
