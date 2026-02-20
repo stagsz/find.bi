@@ -16,7 +16,7 @@ import {
   findProjectById as findProjectByIdService,
 } from '../services/project.service.js';
 import { createPIDDocument, listProjectDocuments, findPIDDocumentById, deletePIDDocument, updatePIDDocumentStatus, createAnalysisNode, nodeIdExistsForDocument, listDocumentNodes, findAnalysisNodeById, updateAnalysisNode, nodeIdExistsForDocumentExcluding, deleteAnalysisNode } from '../services/pid-document.service.js';
-import { uploadFile, generateStoragePath, deleteFile, getSignedDownloadUrl } from '../services/storage.service.js';
+import { uploadFile, generateStoragePath, deleteFile, getSignedViewUrl } from '../services/storage.service.js';
 import { getUploadedFileBuffer, getUploadMeta } from '../middleware/upload.middleware.js';
 import { PID_DOCUMENT_STATUSES, EQUIPMENT_TYPES } from '@hazop/types';
 import type { PIDDocumentStatus, EquipmentType } from '@hazop/types';
@@ -765,8 +765,8 @@ export async function downloadDocument(req: Request, res: Response): Promise<voi
       return;
     }
 
-    // Generate signed download URL
-    const downloadUrl = await getSignedDownloadUrl(
+    // Generate signed URL with inline disposition so browsers render images directly
+    const downloadUrl = await getSignedViewUrl(
       document.storagePath,
       document.filename,
       expiresIn

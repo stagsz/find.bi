@@ -32,7 +32,7 @@ let mockGetUserProjectRole: jest.Mock<() => Promise<ProjectMemberRole | null>>;
 let mockFindProjectById: jest.Mock<() => Promise<ProjectWithCreator | null>>;
 
 let mockDeleteFile: jest.Mock<() => Promise<void>>;
-let mockGetSignedDownloadUrl: jest.Mock<() => Promise<string>>;
+let mockGetSignedViewUrl: jest.Mock<() => Promise<string>>;
 
 // Current authenticated user for tests
 let mockCurrentUser: { id: string; email: string; role: UserRole; organization: string } | null =
@@ -80,11 +80,11 @@ jest.unstable_mockModule('../services/project.service.js', () => {
 
 jest.unstable_mockModule('../services/storage.service.js', () => {
   mockDeleteFile = jest.fn<() => Promise<void>>();
-  mockGetSignedDownloadUrl = jest.fn<() => Promise<string>>();
+  mockGetSignedViewUrl = jest.fn<() => Promise<string>>();
 
   return {
     deleteFile: mockDeleteFile,
-    getSignedDownloadUrl: mockGetSignedDownloadUrl,
+    getSignedViewUrl: mockGetSignedViewUrl,
     uploadFile: jest.fn(),
     generateStoragePath: jest.fn(),
   };
@@ -294,7 +294,7 @@ describe('Document Routes API Tests', () => {
 
         mockFindPIDDocumentById.mockResolvedValue(mockDocument);
         mockUserHasProjectAccess.mockResolvedValue(true);
-        mockGetSignedDownloadUrl.mockResolvedValue(mockUrl);
+        mockGetSignedViewUrl.mockResolvedValue(mockUrl);
 
         const response = await request(app).get(`/documents/${validDocumentId}/download`);
 
@@ -310,7 +310,7 @@ describe('Document Routes API Tests', () => {
 
         mockFindPIDDocumentById.mockResolvedValue(mockDocument);
         mockUserHasProjectAccess.mockResolvedValue(true);
-        mockGetSignedDownloadUrl.mockResolvedValue('https://example.com/url');
+        mockGetSignedViewUrl.mockResolvedValue('https://example.com/url');
 
         const response = await request(app).get(`/documents/${validDocumentId}/download`);
 
@@ -322,7 +322,7 @@ describe('Document Routes API Tests', () => {
       it('should respect custom expiresIn parameter', async () => {
         mockFindPIDDocumentById.mockResolvedValue(createMockDocument());
         mockUserHasProjectAccess.mockResolvedValue(true);
-        mockGetSignedDownloadUrl.mockResolvedValue('https://example.com/url');
+        mockGetSignedViewUrl.mockResolvedValue('https://example.com/url');
 
         const response = await request(app)
           .get(`/documents/${validDocumentId}/download`)
@@ -330,7 +330,7 @@ describe('Document Routes API Tests', () => {
 
         expect(response.status).toBe(200);
         expect(response.body.data.expiresIn).toBe(7200);
-        expect(mockGetSignedDownloadUrl).toHaveBeenCalledWith(
+        expect(mockGetSignedViewUrl).toHaveBeenCalledWith(
           expect.any(String),
           expect.any(String),
           7200
