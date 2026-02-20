@@ -10,6 +10,7 @@ export default {
       'ts-jest',
       {
         useESM: true,
+        diagnostics: false,
         tsconfig: {
           rootDir: '../../',
           noUnusedLocals: false,

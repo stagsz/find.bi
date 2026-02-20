@@ -63,6 +63,7 @@ jest.unstable_mockModule('../services/pid-document.service.js', () => {
     // Additional exports required by documents.routes.ts
     createPIDDocument: jest.fn(),
     listProjectDocuments: jest.fn(),
+    updatePIDDocumentStatus: jest.fn(),
   };
 });
 

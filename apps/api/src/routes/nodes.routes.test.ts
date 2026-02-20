@@ -50,6 +50,7 @@ jest.unstable_mockModule('../services/pid-document.service.js', () => {
     createAnalysisNode: jest.fn(),
     listDocumentNodes: jest.fn(),
     nodeIdExistsForDocument: jest.fn(),
+    updatePIDDocumentStatus: jest.fn(),
   };
 });
 
@@ -68,6 +69,8 @@ jest.unstable_mockModule('../services/project.service.js', () => {
 jest.unstable_mockModule('../services/storage.service.js', () => ({
   deleteFile: jest.fn(),
   getSignedDownloadUrl: jest.fn(),
+  getSignedViewUrl: jest.fn(),
+  getSignedUrl: jest.fn(),
   uploadFile: jest.fn(),
   generateStoragePath: jest.fn(),
 }));

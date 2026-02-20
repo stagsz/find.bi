@@ -46,6 +46,7 @@ jest.unstable_mockModule('../services/pid-document.service.js', () => {
     updateAnalysisNode: jest.fn(),
     deleteAnalysisNode: jest.fn(),
     findAnalysisNodeById: jest.fn(),
+    updatePIDDocumentStatus: jest.fn(),
   };
 });
 
@@ -74,7 +75,9 @@ jest.unstable_mockModule('../services/storage.service.js', () => ({
   uploadFile: jest.fn(),
   generateStoragePath: jest.fn(),
   deleteFile: jest.fn(),
+  getSignedViewUrl: jest.fn(),
   getSignedDownloadUrl: jest.fn(),
+  getSignedUrl: jest.fn(),
   fileExists: jest.fn(),
 }));
 
@@ -100,6 +103,36 @@ jest.unstable_mockModule('../middleware/auth.middleware.js', () => ({
     }
     next();
   },
+}));
+
+// Mock project-compliance service (loaded transitively via projects/analyses controllers)
+jest.unstable_mockModule('../services/project-compliance.service.js', () => ({
+  getProjectComplianceStatus: jest.fn(),
+  getAnalysisComplianceStatus: jest.fn(),
+}));
+
+// Mock controllers loaded by projects.routes (not under test here)
+jest.unstable_mockModule('../controllers/analyses.controller.js', () => ({
+  createAnalysis: jest.fn(),
+  listAnalyses: jest.fn(),
+}));
+
+jest.unstable_mockModule('../controllers/reports.controller.js', () => ({
+  createReport: jest.fn(),
+  listReports: jest.fn(),
+}));
+
+jest.unstable_mockModule('../controllers/projects.controller.js', () => ({
+  listProjects: jest.fn(),
+  createProject: jest.fn(),
+  getProjectById: jest.fn(),
+  updateProject: jest.fn(),
+  deleteProject: jest.fn(),
+  addMember: jest.fn(),
+  removeMember: jest.fn(),
+  listMembers: jest.fn(),
+  getProjectRiskDashboardController: jest.fn(),
+  getProjectComplianceController: jest.fn(),
 }));
 
 // Mock upload middleware - not testing upload here, just list documents
