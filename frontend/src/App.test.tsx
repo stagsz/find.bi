@@ -100,9 +100,7 @@ describe("App", () => {
 
       const nav = screen.getByRole("navigation");
       await user.click(within(nav).getByText("SQL Editor"));
-      expect(
-        screen.getByText("Write and execute SQL queries"),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("editor-page")).toBeInTheDocument();
     });
 
     it("navigates to Upload page when link is clicked", async () => {
