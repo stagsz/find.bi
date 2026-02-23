@@ -5,11 +5,11 @@
 ## Current Status
 
 **Phase**: 1 - Foundation
-**Progress**: 10 / 100 tasks
-**Last Completed**: API-02
+**Progress**: 11 / 100 tasks
+**Last Completed**: API-03
 **Last Reviewed**: 2026-02-23
 **Blockers**: None
-**Code state**: Docker Compose configured. `.env.example` provides template for all environment variables. Backend and frontend Dockerfiles ready. Nginx reverse proxy configured with API proxy, WebSocket upgrade for voice, and SPA fallback. GitHub Actions CI workflow added with backend (pytest+ruff+mypy) and frontend (vitest+eslint+typecheck) jobs. Backend scaffolded: FastAPI app with CORS, health endpoint, pyproject.toml for tooling, conftest.py with test client fixture, httpx added for TestClient. CI backend gate now activates (pyproject.toml exists). SQLAlchemy engine + sessionmaker configured in db.py with get_db FastAPI dependency. Alembic initialized with env.py reading DATABASE_URL from environment, migration template ready, versions directory created. Alembic directory excluded from mypy/ruff. Ready for API-03 (base model classes) and UI-01 (frontend scaffold).
+**Code state**: Docker Compose configured. `.env.example` provides template for all environment variables. Backend and frontend Dockerfiles ready. Nginx reverse proxy configured with API proxy, WebSocket upgrade for voice, and SPA fallback. GitHub Actions CI workflow added with backend (pytest+ruff+mypy) and frontend (vitest+eslint+typecheck) jobs. Backend scaffolded: FastAPI app with CORS, health endpoint, pyproject.toml for tooling, conftest.py with test client fixture, httpx added for TestClient. CI backend gate now activates (pyproject.toml exists). SQLAlchemy engine + sessionmaker configured in db.py with get_db FastAPI dependency. Alembic initialized with env.py reading DATABASE_URL from environment, migration template ready, versions directory created. Alembic directory excluded from mypy/ruff. Base declarative model class created with UUID primary key, created_at, updated_at columns. Alembic target_metadata wired to Base.metadata. Ready for AUTH-01 (User model) and UI-01 (frontend scaffold).
 
 ---
 
@@ -54,7 +54,7 @@
 
 - [x] API-01: Scaffold FastAPI backend — `backend/main.py` with CORS, health endpoint (`GET /api/health`). Add `requirements.txt` with fastapi, uvicorn, sqlalchemy, alembic, psycopg2-binary, python-jose, bcrypt, python-multipart. Add `backend/pyproject.toml` with ruff and mypy config. Add `backend/conftest.py` with test client fixture. *(635b434)*
 - [x] API-02: Configure SQLAlchemy + Alembic — `backend/db.py` with async engine and session. `backend/alembic.ini` and `backend/alembic/env.py`. Verify connection to PostgreSQL in Docker. *(a088785)*
-- [ ] API-03: Create base model classes — `backend/models/base.py` with Base declarative class, id (UUID), created_at, updated_at columns. Add `backend/models/__init__.py`.
+- [x] API-03: Create base model classes — `backend/models/base.py` with Base declarative class, id (UUID), created_at, updated_at columns. Add `backend/models/__init__.py`. *(9576126)*
 
 ### 1.3 Frontend Scaffold (F001)
 
@@ -344,3 +344,4 @@ CLEANUP-01 → SETUP-01 → SETUP-02..07 (parallel)
 | SETUP-07 | 357fe2a | 2026-02-23 |
 | API-01 | 635b434 | 2026-02-23 |
 | API-02 | a088785 | 2026-02-23 |
+| API-03 | 9576126 | 2026-02-23 |
