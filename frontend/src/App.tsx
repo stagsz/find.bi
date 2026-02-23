@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { DuckDBProvider } from "@/hooks/useDuckDB";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
@@ -15,24 +16,26 @@ function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((c) => !c)}
-      />
-      <div className="flex flex-col flex-1 min-w-0">
-        <TopBar />
-        <main className="flex-1 overflow-auto">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/dashboard/:id" element={<DashboardPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/editor" element={<EditorPage />} />
-            <Route path="/upload" element={<UploadPage />} />
-          </Routes>
-        </main>
+    <DuckDBProvider>
+      <div className="flex h-screen bg-gray-50">
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed((c) => !c)}
+        />
+        <div className="flex flex-col flex-1 min-w-0">
+          <TopBar />
+          <main className="flex-1 overflow-auto">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/dashboard/:id" element={<DashboardPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/editor" element={<EditorPage />} />
+              <Route path="/upload" element={<UploadPage />} />
+            </Routes>
+          </main>
+        </div>
       </div>
-    </div>
+    </DuckDBProvider>
   );
 }
 
