@@ -5,11 +5,11 @@
 ## Current Status
 
 **Phase**: 1 - Foundation
-**Progress**: 1 / 100 tasks
-**Last Completed**: CLEANUP-01
+**Progress**: 2 / 100 tasks
+**Last Completed**: SETUP-01
 **Last Reviewed**: 2026-02-23
 **Blockers**: None
-**Code state**: Clean slate. All legacy HazOp code removed (358 files across 8 directories). All 48 conflict markers resolved in 6 files. `.gitignore` updated for find.bi. No find.bi source code exists yet — `frontend/` and `backend/` directories not yet created. Ready for SETUP-01.
+**Code state**: Directory structure created. `frontend/`, `backend/`, `docker/`, `.github/workflows/`, `scripts/` directories with placeholder READMEs. Ready for SETUP-02 (Docker Compose) and parallel scaffolding tasks.
 
 ---
 
@@ -42,7 +42,7 @@
 
 ### 1.1 Project Setup & Docker Stack (F001)
 
-- [ ] SETUP-01: Create directory structure — `frontend/`, `backend/`, `docker/`, `.github/workflows/`, `scripts/`. Add placeholder READMEs in each.
+- [x] SETUP-01: Create directory structure — `frontend/`, `backend/`, `docker/`, `.github/workflows/`, `scripts/`. Add placeholder READMEs in each.
 - [ ] SETUP-02: Create `docker-compose.yml` for find.bi — PostgreSQL 15 (ralph/ralph) only. Create `docker-compose.dev.yml` adding FastAPI + React dev containers with hot reload and volume mounts.
 - [ ] SETUP-03: Create `.env.example` for find.bi — DATABASE_URL, JWT_SECRET, DUCKDB_PATH, ANTHROPIC_API_KEY, OPENAI_API_KEY, VITE_API_URL. Clean environment file with no HazOp references.
 - [ ] SETUP-04: Create `docker/Dockerfile.backend` — Python 3.12 slim, install dependencies from requirements.txt, uvicorn entrypoint on port 8000.
@@ -335,3 +335,4 @@ CLEANUP-01 → SETUP-01 → SETUP-02..07 (parallel)
 | Task | Commit | Date |
 |------|--------|------|
 | CLEANUP-01 | c8de093 + 783b7a9 | 2026-02-23 |
+| SETUP-01 | pending | 2026-02-23 |
