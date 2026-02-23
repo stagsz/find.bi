@@ -5,11 +5,11 @@
 ## Current Status
 
 **Phase**: 1 - Foundation
-**Progress**: 0 / 100 tasks
-**Last Completed**: None
-**Last Reviewed**: 2026-02-23 (gap analysis confirmed)
-**Blockers**: Legacy HazOp code (358 files across 8 directories) and 48 conflict markers in 6 committed files must be cleaned up before build work. CLEANUP-01 is the first task.
-**Code state**: No find.bi source code exists. `frontend/` and `backend/` directories not yet created. Merge commit `cc358a4` completed but conflict markers (`<<<<<<<`) persist in 6 committed files (setup_project.ps1 has 21 markers/7 blocks — most severe). Legacy HazOp code in `apps/` (288 files), `packages/` (20), `migrations/` (16), `e2e/` (10), `docs/` (2), `docker/` (14 — grafana/loki/prometheus configs), `scripts/` (7) — all to be deleted. `docker-compose.yml` runs 7 HazOp services (Redis, MinIO, RabbitMQ, Prometheus, Loki, Grafana + PostgreSQL). `.env.example` has HazOp vars (`DB_NAME=hazop`). Auto-generated `ralph_log_*` files at root should be gitignored.
+**Progress**: 1 / 100 tasks
+**Last Completed**: CLEANUP-01
+**Last Reviewed**: 2026-02-23
+**Blockers**: None
+**Code state**: Clean slate. All legacy HazOp code removed (358 files across 8 directories). All 48 conflict markers resolved in 6 files. `.gitignore` updated for find.bi. No find.bi source code exists yet — `frontend/` and `backend/` directories not yet created. Ready for SETUP-01.
 
 ---
 
@@ -20,7 +20,7 @@
 
 ### 1.0 Legacy Cleanup (prerequisite)
 
-- [ ] CLEANUP-01: Remove old HazOp project code and resolve all conflict markers.
+- [x] CLEANUP-01: Remove old HazOp project code and resolve all conflict markers.
   **Context**: Merge commit `cc358a4` completed the git merge, but conflict markers (`<<<<<<<`) were committed into several files. The git index is clean — no UU/AA status — but the file contents need fixing.
   **Delete directories (entire trees):** `apps/`, `packages/`, `migrations/`, `e2e/`, `test-results/`, `docs/`, `scripts/` (recreated in SETUP-01), `docker/grafana/`, `docker/loki/`, `docker/prometheus/`, `docker/nginx/` (recreated in SETUP-06), `.github/` (recreated in SETUP-07).
   **Delete root files:** `architecture.md`, `docker-compose.prod.yml`, `nx.json`, `package.json` (recreated for frontend), `tsconfig.base.json`, `RalphTemplate.code-workspace`, `UI_DESCRIPTION.md`, `private.pem`, `public.pem`, `.eslintrc.json`, `.prettierrc.json`, `.prettierignore`, `.dockerignore`, `.env.production.example`.
@@ -305,7 +305,7 @@ CLEANUP-01 → SETUP-01 → SETUP-02..07 (parallel)
 
 ## Blockers
 
-- **Legacy HazOp code + conflict markers** in committed files must be cleaned up before any build work. CLEANUP-01 is the first task. No git merge conflicts exist (merge is done), but 6 files have `<<<<<<<` markers in their committed content (`setup_project.ps1` has 7 blocks — the most of any file).
+- None currently.
 
 ---
 
@@ -334,4 +334,4 @@ CLEANUP-01 → SETUP-01 → SETUP-02..07 (parallel)
 
 | Task | Commit | Date |
 |------|--------|------|
-| - | - | - |
+| CLEANUP-01 | (pending) | 2026-02-23 |
