@@ -13,6 +13,19 @@ param(
 $ErrorActionPreference = "Continue"
 Set-Location $PSScriptRoot
 
+# Fix console encoding so UTF-8 characters (em dash, etc.) survive piping
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
+# UTF-8 (no BOM) log helper — PS 5.1 Tee-Object has no -Encoding param
+function Write-Log {
+    param([string]$Message, [string]$Path)
+    Write-Host $Message
+    $sw = [System.IO.StreamWriter]::new($Path, $true, [System.Text.UTF8Encoding]::new($false))
+    $sw.WriteLine($Message)
+    $sw.Close()
+}
+
 # Configuration
 $DEFAULT_MODEL = "opus"
 $Iteration = 0
@@ -76,20 +89,29 @@ while ($true) {
     $LOG_FILE = "ralph_log_$(Get-Date -Format 'yyyyMMdd').md"    
     $timestamp = Get-Date -Format 'HH:mm:ss'
 
-    "Starting Claude at $timestamp..." | Tee-Object -FilePath $LOG_FILE -Append -Encoding UTF8
+    Write-Log "Starting Claude at $timestamp..." $LOG_FILE
 
-    # Run Claude with the prompt
+    # Run Claude with the prompt — stream output to console and log file (UTF-8, no BOM)
     try {
         $promptContent = Get-Content $PROMPT_FILE -Raw
-        $promptContent | claude -p --dangerously-skip-permissions --model $DEFAULT_MODEL --verbose 2>&1 | Tee-Object -FilePath $LOG_FILE -Append -Encoding UTF8
-        $EXIT_CODE = $LASTEXITCODE
+        $sw = [System.IO.StreamWriter]::new($LOG_FILE, $true, [System.Text.UTF8Encoding]::new($false))
+        try {
+            $promptContent | claude -p --dangerously-skip-permissions --model $DEFAULT_MODEL --verbose 2>&1 | ForEach-Object {
+                Write-Host $_
+                $sw.WriteLine($_)
+            }
+            $EXIT_CODE = $LASTEXITCODE
+        } finally {
+            $sw.Flush()
+            $sw.Close()
+        }
     } catch {
         $EXIT_CODE = 1
         Write-Host "Error running Claude: $_" -ForegroundColor Red
     }
 
     $timestamp = Get-Date -Format 'HH:mm:ss'
-    "Claude finished at $timestamp with exit code $EXIT_CODE" | Tee-Object -FilePath $LOG_FILE -Append -Encoding UTF8
+    Write-Log "Claude finished at $timestamp with exit code $EXIT_CODE" $LOG_FILE
 
     if ($EXIT_CODE -ne 0) {
         Write-Host "Claude exited with code $EXIT_CODE" -ForegroundColor Red
