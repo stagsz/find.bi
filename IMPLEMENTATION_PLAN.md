@@ -121,7 +121,7 @@
 
 - [x] FILTER-01: Create filter components — `frontend/src/components/dashboard/filters/`: `DateRangeFilter.tsx` (date picker), `DropdownFilter.tsx` (single select), `MultiSelectFilter.tsx` (checkbox list), `SearchFilter.tsx` (text input). Each emits filter value change. Write tests. *(db1d2d4)*
 - [x] FILTER-02: Create filter bar and context — `frontend/src/components/dashboard/FilterBar.tsx`. Horizontal bar above dashboard grid. Add/remove filters. `useFilters` hook with React context providing current filter values to all cards. *(1ebb414)*
-- [ ] FILTER-03: Wire filters to chart queries — Each dashboard card's SQL query supports `WHERE` clause injection from active filters. Parameterized queries (no SQL injection). Charts re-render when filters change.
+- [x] FILTER-03: Wire filters to chart queries — Each dashboard card's SQL query supports `WHERE` clause injection from active filters. Parameterized queries (no SQL injection). Charts re-render when filters change. *(d6d1df9)*
 
 ### 1.12 Dashboard Persistence (F009)
 
