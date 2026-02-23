@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
   { to: "/", label: "Home", icon: HomeIcon },
-  { to: "/dashboard", label: "Dashboards", icon: DashboardIcon },
+  { to: "/dashboards", label: "Dashboards", icon: DashboardIcon },
   { to: "/editor", label: "SQL Editor", icon: EditorIcon },
   { to: "/upload", label: "Upload", icon: UploadIcon },
 ];

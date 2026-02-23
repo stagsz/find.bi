@@ -38,6 +38,13 @@ const mocks = vi.hoisted(() => ({
   dialogCloseCallback: null as (() => void) | null,
   dialogOpen: false,
   dialogInitialConfig: undefined as unknown,
+  // Persistence mock state
+  persistDashboard: null as { name: string } | null,
+  persistLoading: false,
+  persistError: null as string | null,
+  persistDirty: false,
+  persistSaving: false,
+  persistSave: vi.fn(),
 }));
 
 vi.mock("@/hooks/useDashboardCards", () => ({
@@ -50,6 +57,30 @@ vi.mock("@/hooks/useDashboardCards", () => ({
     onLayoutChange: mocks.onLayoutChange,
     setCards: mocks.setCards,
     setLayout: mocks.setLayout,
+  }),
+}));
+
+vi.mock("@/hooks/useDashboardPersistence", () => ({
+  default: () => ({
+    dashboard: mocks.persistDashboard,
+    loading: mocks.persistLoading,
+    error: mocks.persistError,
+    dirty: mocks.persistDirty,
+    saving: mocks.persistSaving,
+    save: mocks.persistSave,
+  }),
+}));
+
+vi.mock("@/hooks/useFilters", () => ({
+  FiltersProvider: ({ children }: { children: React.ReactNode }) => children,
+  useFiltersOptional: () => ({
+    filters: [],
+    values: {},
+    addFilter: () => "",
+    removeFilter: () => {},
+    updateFilterValue: () => {},
+    clearAllValues: () => {},
+    removeAllFilters: () => {},
   }),
 }));
 
@@ -162,12 +193,17 @@ vi.mock("@/components/dashboard/ChartConfigDialog", () => ({
   },
 }));
 
-function renderDashboard(path = "/dashboard") {
+// Mock FilterBar
+vi.mock("@/components/dashboard/FilterBar", () => ({
+  default: () => <div data-testid="filter-bar" />,
+}));
+
+function renderDashboard(path = "/dashboards") {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/dashboard/:id" element={<DashboardPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/dashboards/:id" element={<DashboardPage />} />
+        <Route path="/dashboards" element={<DashboardPage />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -204,7 +240,29 @@ describe("DashboardPage", () => {
     mocks.dialogCloseCallback = null;
     mocks.dialogOpen = false;
     mocks.dialogInitialConfig = undefined;
+    mocks.persistDashboard = null;
+    mocks.persistLoading = false;
+    mocks.persistError = null;
+    mocks.persistDirty = false;
+    mocks.persistSaving = false;
     capturedGridProps = {};
+  });
+
+  // --- Loading state ---
+
+  it("shows loading state when persistence is loading", () => {
+    mocks.persistLoading = true;
+    renderDashboard("/dashboards/abc-123");
+    expect(screen.getByTestId("dashboard-loading")).toBeInTheDocument();
+  });
+
+  // --- Error state ---
+
+  it("shows error state when persistence has error and no dashboard", () => {
+    mocks.persistError = "Not found";
+    renderDashboard("/dashboards/abc-123");
+    expect(screen.getByTestId("dashboard-error")).toBeInTheDocument();
+    expect(screen.getByText("Not found")).toBeInTheDocument();
   });
 
   // --- Rendering ---
@@ -220,26 +278,27 @@ describe("DashboardPage", () => {
   });
 
   it("shows 'New Dashboard' title when no ID in URL", () => {
-    renderDashboard("/dashboard");
+    renderDashboard("/dashboards");
     expect(screen.getByTestId("dashboard-title")).toHaveTextContent(
       "New Dashboard",
     );
   });
 
-  it("shows 'Dashboard' title when ID is in URL", () => {
-    renderDashboard("/dashboard/abc-123");
+  it("shows dashboard name from persistence when loaded", () => {
+    mocks.persistDashboard = { name: "Sales Overview" } as never;
+    renderDashboard("/dashboards/abc-123");
     expect(screen.getByTestId("dashboard-title")).toHaveTextContent(
-      "Dashboard",
+      "Sales Overview",
     );
   });
 
   it("shows dashboard ID below title when ID is in URL", () => {
-    renderDashboard("/dashboard/abc-123");
+    renderDashboard("/dashboards/abc-123");
     expect(screen.getByTestId("dashboard-id")).toHaveTextContent("abc-123");
   });
 
   it("does not show dashboard ID when no ID in URL", () => {
-    renderDashboard("/dashboard");
+    renderDashboard("/dashboards");
     expect(screen.queryByTestId("dashboard-id")).not.toBeInTheDocument();
   });
 
@@ -247,6 +306,63 @@ describe("DashboardPage", () => {
     renderDashboard();
     expect(screen.getByTestId("edit-mode-toggle")).toBeInTheDocument();
     expect(screen.getByTestId("edit-mode-toggle")).toHaveTextContent("Edit");
+  });
+
+  // --- Save status ---
+
+  it("shows 'Saved' when not dirty and has ID", () => {
+    mocks.persistDashboard = { name: "Test" } as never;
+    renderDashboard("/dashboards/abc-123");
+    expect(screen.getByTestId("save-status")).toHaveTextContent("Saved");
+  });
+
+  it("shows 'Unsaved changes' when dirty", () => {
+    mocks.persistDashboard = { name: "Test" } as never;
+    mocks.persistDirty = true;
+    renderDashboard("/dashboards/abc-123");
+    expect(screen.getByTestId("save-status")).toHaveTextContent(
+      "Unsaved changes",
+    );
+  });
+
+  it("shows 'Saving...' when saving", () => {
+    mocks.persistDashboard = { name: "Test" } as never;
+    mocks.persistSaving = true;
+    renderDashboard("/dashboards/abc-123");
+    expect(screen.getByTestId("save-status")).toHaveTextContent("Saving...");
+  });
+
+  it("shows Save button when dirty", () => {
+    mocks.persistDashboard = { name: "Test" } as never;
+    mocks.persistDirty = true;
+    renderDashboard("/dashboards/abc-123");
+    expect(screen.getByTestId("save-button")).toBeInTheDocument();
+  });
+
+  it("does not show Save button when not dirty", () => {
+    mocks.persistDashboard = { name: "Test" } as never;
+    renderDashboard("/dashboards/abc-123");
+    expect(screen.queryByTestId("save-button")).not.toBeInTheDocument();
+  });
+
+  it("calls save when Save button is clicked", async () => {
+    mocks.persistDashboard = { name: "Test" } as never;
+    mocks.persistDirty = true;
+    renderDashboard("/dashboards/abc-123");
+    const user = userEvent.setup();
+
+    await user.click(screen.getByTestId("save-button"));
+    expect(mocks.persistSave).toHaveBeenCalled();
+  });
+
+  // --- Error banner ---
+
+  it("shows error banner when there is an error but dashboard exists", () => {
+    mocks.persistDashboard = { name: "Test" } as never;
+    mocks.persistError = "Save failed";
+    renderDashboard("/dashboards/abc-123");
+    expect(screen.getByTestId("dashboard-save-error")).toBeInTheDocument();
+    expect(screen.getByText("Save failed")).toBeInTheDocument();
   });
 
   // --- Empty state ---
@@ -578,7 +694,7 @@ describe("DashboardPage", () => {
   // --- URL parameter handling ---
 
   it("renders correctly with UUID-style dashboard ID", () => {
-    renderDashboard("/dashboard/550e8400-e29b-41d4-a716-446655440000");
+    renderDashboard("/dashboards/550e8400-e29b-41d4-a716-446655440000");
     expect(screen.getByTestId("dashboard-id")).toHaveTextContent(
       "550e8400-e29b-41d4-a716-446655440000",
     );
