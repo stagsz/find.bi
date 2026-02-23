@@ -76,12 +76,12 @@ while ($true) {
     $LOG_FILE = "ralph_log_$(Get-Date -Format 'yyyyMMdd').md"    
     $timestamp = Get-Date -Format 'HH:mm:ss'
 
-    "Starting Claude at $timestamp..." | Tee-Object -FilePath $LOG_FILE -Append
+    "Starting Claude at $timestamp..." | Tee-Object -FilePath $LOG_FILE -Append -Encoding UTF8
 
     # Run Claude with the prompt
     try {
         $promptContent = Get-Content $PROMPT_FILE -Raw
-        $promptContent | claude -p --dangerously-skip-permissions --model $DEFAULT_MODEL --verbose 2>&1 | Tee-Object -FilePath $LOG_FILE -Append
+        $promptContent | claude -p --dangerously-skip-permissions --model $DEFAULT_MODEL --verbose 2>&1 | Tee-Object -FilePath $LOG_FILE -Append -Encoding UTF8
         $EXIT_CODE = $LASTEXITCODE
     } catch {
         $EXIT_CODE = 1
@@ -89,7 +89,7 @@ while ($true) {
     }
 
     $timestamp = Get-Date -Format 'HH:mm:ss'
-    "Claude finished at $timestamp with exit code $EXIT_CODE" | Tee-Object -FilePath $LOG_FILE -Append
+    "Claude finished at $timestamp with exit code $EXIT_CODE" | Tee-Object -FilePath $LOG_FILE -Append -Encoding UTF8
 
     if ($EXIT_CODE -ne 0) {
         Write-Host "Claude exited with code $EXIT_CODE" -ForegroundColor Red

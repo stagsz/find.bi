@@ -10,6 +10,16 @@ You are building **find.bi** — a self-hosted, local-first Business Intelligenc
 
 ---
 
+## ALWAYS DO FIRST
+
+**Before writing any frontend code — every session, no exceptions:**
+
+> Invoke the `frontend-design` skill.
+
+This applies to every React component, page, layout, or style change. The skill enforces the find.bi aesthetic (retro-futuristic editorial, amber-on-dark, distinctive typography). Skipping it produces generic UI that violates the design spec in `PRD.json`.
+
+---
+
 ## Your Role
 
 You are the autonomous builder in the Ralph Wiggum Loop. You:

@@ -331,6 +331,80 @@
     "api_key_storage": "encrypted in PostgreSQL, never exposed to frontend"
   },
 
+  "frontend_design": {
+    "skill": "frontend-design",
+    "instruction": "When building any frontend component or page, invoke the frontend-design skill and follow all aesthetic guidelines below. Never produce generic AI-slop UI.",
+    "aesthetic_direction": "Retro-futuristic editorial — a local intelligence terminal with warmth and personality. Think Springfield meets mission control: amber-on-dark, monospace precision, occasional irreverent charm. Data-dense but never cold.",
+    "theme": "dark",
+    "memorable_trait": "Every screen feels like a personal war-room built by someone who actually loves their data. Nothing looks like a SaaS dashboard.",
+    "typography": {
+      "display_font": "DM Serif Display or Playfair Display — for headings, dashboard titles, insight card headlines",
+      "body_font": "IBM Plex Sans — clean, technical, slightly editorial",
+      "monospace_font": "JetBrains Mono or Fira Code — for SQL editor, query results, schema explorer, all numbers",
+      "forbidden": ["Inter", "Roboto", "Arial", "system-ui", "Space Grotesk", "Helvetica"],
+      "sizing": "Generous scale contrast — large display titles (3–5rem) paired with tight data labels (0.7rem)"
+    },
+    "color_palette": {
+      "background": "#0D0D0D — near-black, not pure black",
+      "surface": "#141414 — card backgrounds, panels",
+      "surface_elevated": "#1C1C1C — modals, dropdowns",
+      "primary_accent": "#F5A623 — warm amber, Ralph's Springfield gold",
+      "secondary_accent": "#E84393 — hot pink for alerts, anomalies, voice active state",
+      "text_primary": "#F0EDE4 — warm off-white, never pure white",
+      "text_muted": "#6B6860 — labels, placeholders",
+      "success": "#4ADE80",
+      "border": "#2A2A2A — subtle, dark",
+      "forbidden": ["purple gradients on white", "blue/teal SaaS palette", "flat Material Design colors"]
+    },
+    "motion": {
+      "philosophy": "Purposeful, not decorative. Data loading feels like a machine waking up. Transitions are crisp, not floaty.",
+      "page_load": "Staggered fade-up reveals with animation-delay increments (0ms, 80ms, 160ms...). Header locks in first, then content panels cascade.",
+      "charts": "ECharts built-in enter animations enabled. Bar charts grow from baseline. Line charts draw left-to-right.",
+      "hover_states": "Subtle amber glow on interactive cards. Border color shifts to accent on focus.",
+      "voice_active": "Pulsing ring animation on Ralph avatar when listening. Pink secondary accent.",
+      "library": "Use Motion (Framer Motion) for React page transitions and complex sequences. CSS keyframes for simple states."
+    },
+    "layout": {
+      "philosophy": "Asymmetric density. Left sidebar for navigation/schema is tight and utilitarian. Main canvas is open. Right panels (AI chat, filters) slide in as overlays.",
+      "grid": "12-column CSS Grid at macro level. react-grid-layout handles dashboard card placement.",
+      "sidebar_width": "240px collapsed-capable nav. Collapses to 48px icon rail.",
+      "spacing_scale": "4px base unit. Use 4, 8, 12, 16, 24, 32, 48, 64, 96px — nothing in between.",
+      "borders": "1px solid #2A2A2A for structure. No rounded corners on data-dense components (tables, editors). Subtle radius (6px) on cards and buttons only."
+    },
+    "backgrounds_and_texture": {
+      "app_background": "Near-black #0D0D0D with a very subtle noise texture overlay (opacity 0.03) for warmth",
+      "dashboard_canvas": "Slightly lighter surface with a faint dot-grid pattern at 24px spacing, color #1A1A1A",
+      "insight_cards": "Dark surface with a 1px amber left-border accent strip",
+      "sql_editor": "Full black with green-tinted syntax highlighting (not default Monaco blue theme)"
+    },
+    "components": {
+      "ralph_avatar": "Persistent small circular avatar in bottom-left or nav — shows Ralph's mood (idle/listening/thinking/responding). Animated.",
+      "kpi_cards": "Large number in display font, amber color. Trend indicator (arrow + percentage) in smaller monospace below. Dark card with subtle top-border glow.",
+      "chart_cards": "Minimal chrome — title in IBM Plex Sans, chart fills card. Hover reveals action icons (edit, fullscreen, export). No decorative padding.",
+      "sql_editor": "Full Monaco editor, dark theme with amber cursor, custom dark background matching app palette.",
+      "upload_zone": "Animated dashed border that becomes solid amber on drag-over. Subtle scanline animation while processing.",
+      "voice_button": "Large circular push-to-talk button — glows pink when active, amber ring when processing"
+    },
+    "ralph_personality_ui": {
+      "idle_message": "My cat's breath smells like cat food",
+      "loading_phrases": ["Calculating with my brain...", "I found a leprechaun!", "The numbers are doing things"],
+      "404": "I'm in danger",
+      "low_confidence": "I don't know what's happening but I can feel it",
+      "success_deck": "I made something with my brain!",
+      "placement": "These appear as toast notifications, loading states, and empty state copy — never as blocking UI"
+    },
+    "forbidden_patterns": [
+      "Purple or blue gradient hero sections",
+      "White or light-mode default (dark only)",
+      "Rounded pill buttons with drop shadows",
+      "Generic card grid with equal padding everywhere",
+      "Flat icon sets (Material Icons, Heroicons defaults)",
+      "Skeleton loaders that look like Facebook/LinkedIn",
+      "Centered layout with max-width 800px and white background",
+      "Cookie-cutter SaaS navbar with logo left + CTA right"
+    ]
+  },
+
   "success_criteria": {
     "phase_1": "Upload CSV, build 3-chart dashboard, save it — under 5 minutes",
     "phase_2": "Ask 'What are my top 5 customers by revenue?' and get a correct chart",
