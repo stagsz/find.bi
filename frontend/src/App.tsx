@@ -6,6 +6,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import HomePage from "@/pages/HomePage";
+import DashboardListPage from "@/pages/DashboardListPage";
 import DashboardPage from "@/pages/DashboardPage";
 import EditorPage from "@/pages/EditorPage";
 import UploadPage from "@/pages/UploadPage";
@@ -27,8 +28,8 @@ function AppLayout() {
           <main className="flex-1 overflow-auto">
             <Routes>
               <Route path="/" element={<HomePage />} />
-              <Route path="/dashboard/:id" element={<DashboardPage />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/dashboards/:id" element={<DashboardPage />} />
+              <Route path="/dashboards" element={<DashboardListPage />} />
               <Route path="/editor" element={<EditorPage />} />
               <Route path="/upload" element={<UploadPage />} />
             </Routes>

@@ -6,8 +6,9 @@ import DashboardCard from "@/components/dashboard/DashboardCard";
 import CardRenderer from "@/components/dashboard/CardRenderer";
 import ChartConfigDialog from "@/components/dashboard/ChartConfigDialog";
 import FilterBar from "@/components/dashboard/FilterBar";
-import { FiltersProvider } from "@/hooks/useFilters";
+import { FiltersProvider, useFiltersOptional } from "@/hooks/useFilters";
 import useDashboardCards from "@/hooks/useDashboardCards";
+import useDashboardPersistence from "@/hooks/useDashboardPersistence";
 
 function DashboardPageInner() {
   const { id } = useParams<{ id: string }>();
@@ -19,7 +20,28 @@ function DashboardPageInner() {
     updateCard,
     removeCard,
     onLayoutChange,
+    setCards,
+    setLayout,
   } = useDashboardCards();
+
+  const { filters, values } = useFiltersOptional();
+
+  const {
+    dashboard,
+    loading,
+    error,
+    dirty,
+    saving,
+    save,
+  } = useDashboardPersistence(
+    id,
+    cards,
+    layout,
+    filters,
+    values,
+    setCards,
+    setLayout,
+  );
 
   const [editMode, setEditMode] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -76,6 +98,30 @@ function DashboardPageInner() {
     [editMode, handleEditCard, handleRemoveCard],
   );
 
+  if (loading) {
+    return (
+      <div
+        data-testid="dashboard-loading"
+        className="flex h-full items-center justify-center"
+      >
+        <p className="text-sm text-gray-500">Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  if (error && !dashboard) {
+    return (
+      <div
+        data-testid="dashboard-error"
+        className="flex h-full items-center justify-center"
+      >
+        <p className="text-sm text-red-600">{error}</p>
+      </div>
+    );
+  }
+
+  const dashboardName = dashboard?.name ?? "New Dashboard";
+
   return (
     <div data-testid="dashboard-page" className="flex h-full flex-col">
       {/* Header */}
@@ -88,7 +134,7 @@ function DashboardPageInner() {
             data-testid="dashboard-title"
             className="text-lg font-semibold text-gray-900"
           >
-            {id ? `Dashboard` : "New Dashboard"}
+            {dashboardName}
           </h1>
           {id && (
             <p
@@ -100,6 +146,31 @@ function DashboardPageInner() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {/* Save status indicator */}
+          {id && (
+            <span
+              data-testid="save-status"
+              className="text-xs text-gray-400"
+            >
+              {saving
+                ? "Saving..."
+                : dirty
+                  ? "Unsaved changes"
+                  : "Saved"}
+            </span>
+          )}
+          {/* Immediate save button */}
+          {id && dirty && (
+            <button
+              data-testid="save-button"
+              type="button"
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              disabled={saving}
+              onClick={() => void save()}
+            >
+              Save
+            </button>
+          )}
           {editMode && (
             <button
               data-testid="add-card-button"
@@ -132,6 +203,16 @@ function DashboardPageInner() {
           </button>
         </div>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div
+          data-testid="dashboard-save-error"
+          className="border-b border-red-200 bg-red-50 px-6 py-2 text-sm text-red-700"
+        >
+          {error}
+        </div>
+      )}
 
       {/* Filter bar */}
       <FilterBar editMode={editMode} />
