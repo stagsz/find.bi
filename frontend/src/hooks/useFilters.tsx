@@ -161,4 +161,23 @@ export function useFilters(): FiltersContextValue {
   return ctx;
 }
 
+const EMPTY_FILTERS: FiltersContextValue = {
+  filters: [],
+  values: {},
+  addFilter: () => "",
+  removeFilter: () => {},
+  updateFilterValue: () => {},
+  clearAllValues: () => {},
+  removeAllFilters: () => {},
+};
+
+/**
+ * Like useFilters, but returns empty defaults when not inside a FiltersProvider.
+ * Used by CardRenderer so it works both with and without a filter context.
+ */
+export function useFiltersOptional(): FiltersContextValue {
+  const ctx = useContext(FiltersContext);
+  return ctx ?? EMPTY_FILTERS;
+}
+
 export { generateFilterId };

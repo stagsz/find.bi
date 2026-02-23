@@ -6,6 +6,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   isReady: true,
+  filters: [] as import("@/hooks/useFilters").FilterConfig[],
+  filterValues: {} as Record<string, import("@/hooks/useFilters").FilterValue>,
 }));
 
 vi.mock("@/hooks/useDuckDB", () => ({
@@ -16,6 +18,18 @@ vi.mock("@/hooks/useDuckDB", () => ({
     error: null,
     isReady: mocks.isReady,
     initError: null,
+  }),
+}));
+
+vi.mock("@/hooks/useFilters", () => ({
+  useFiltersOptional: () => ({
+    filters: mocks.filters,
+    values: mocks.filterValues,
+    addFilter: () => "",
+    removeFilter: () => {},
+    updateFilterValue: () => {},
+    clearAllValues: () => {},
+    removeAllFilters: () => {},
   }),
 }));
 
@@ -98,6 +112,8 @@ describe("CardRenderer", () => {
   beforeEach(() => {
     mocks.query.mockReset();
     mocks.isReady = true;
+    mocks.filters = [];
+    mocks.filterValues = {};
   });
 
   afterEach(() => {
@@ -428,6 +444,89 @@ describe("CardRenderer", () => {
   it("does not execute query for empty query string", () => {
     const config = makeConfig({ query: "   " });
     render(<CardRenderer config={config} />);
+    expect(mocks.query).not.toHaveBeenCalled();
+  });
+
+  // --- Filter integration ---
+
+  it("executes filtered query when a search filter is active", async () => {
+    mocks.filters = [
+      { id: "f1", type: "search", label: "Name", column: "region" },
+    ];
+    mocks.filterValues = { f1: "North" };
+    mocks.query.mockResolvedValue(queryResultFixture);
+
+    render(<CardRenderer config={makeConfig()} />);
+
+    await waitFor(() => {
+      expect(mocks.query).toHaveBeenCalledWith(
+        `SELECT * FROM (SELECT region, revenue FROM sales) AS _filtered WHERE CAST("region" AS VARCHAR) ILIKE '%North%'`,
+      );
+    });
+  });
+
+  it("executes filtered query when a dropdown filter is active", async () => {
+    mocks.filters = [
+      { id: "f1", type: "dropdown", label: "Region", column: "region" },
+    ];
+    mocks.filterValues = { f1: "South" };
+    mocks.query.mockResolvedValue(queryResultFixture);
+
+    render(<CardRenderer config={makeConfig()} />);
+
+    await waitFor(() => {
+      expect(mocks.query).toHaveBeenCalledWith(
+        `SELECT * FROM (SELECT region, revenue FROM sales) AS _filtered WHERE "region" = 'South'`,
+      );
+    });
+  });
+
+  it("executes filtered query with multiple active filters", async () => {
+    mocks.filters = [
+      { id: "f1", type: "search", label: "Name", column: "region" },
+      { id: "f2", type: "dropdown", label: "Status", column: "status" },
+    ];
+    mocks.filterValues = { f1: "test", f2: "active" };
+    mocks.query.mockResolvedValue(queryResultFixture);
+
+    render(<CardRenderer config={makeConfig()} />);
+
+    await waitFor(() => {
+      const calledWith = mocks.query.mock.calls[0][0] as string;
+      expect(calledWith).toContain("ILIKE '%test%'");
+      expect(calledWith).toContain(`"status" = 'active'`);
+      expect(calledWith).toContain(" AND ");
+    });
+  });
+
+  it("executes unmodified query when filters have no active values", async () => {
+    mocks.filters = [
+      { id: "f1", type: "search", label: "Name", column: "region" },
+    ];
+    mocks.filterValues = { f1: "" };
+    mocks.query.mockResolvedValue(queryResultFixture);
+
+    render(<CardRenderer config={makeConfig()} />);
+
+    await waitFor(() => {
+      expect(mocks.query).toHaveBeenCalledWith("SELECT region, revenue FROM sales");
+    });
+  });
+
+  it("does not apply filters to text cards", () => {
+    mocks.filters = [
+      { id: "f1", type: "search", label: "Name", column: "region" },
+    ];
+    mocks.filterValues = { f1: "test" };
+
+    const config = makeConfig({
+      type: "text",
+      query: "",
+      columnMappings: { content: "Hello" },
+    });
+    render(<CardRenderer config={config} />);
+
+    expect(screen.getByTestId("card-renderer-text")).toBeInTheDocument();
     expect(mocks.query).not.toHaveBeenCalled();
   });
 });

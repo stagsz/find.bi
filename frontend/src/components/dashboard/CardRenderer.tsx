@@ -3,6 +3,8 @@ import { useDuckDB } from "@/hooks/useDuckDB";
 import type { QueryResult } from "@/hooks/useDuckDB";
 import type { DashboardCardConfig } from "./DashboardGrid";
 import { toRecords } from "@/components/editor/QueryResult";
+import { useFiltersOptional } from "@/hooks/useFilters";
+import { buildFilteredQuery } from "@/utils/filterQuery";
 import BarChart from "@/components/charts/BarChart";
 import LineChart from "@/components/charts/LineChart";
 import AreaChart from "@/components/charts/AreaChart";
@@ -21,17 +23,23 @@ export interface CardRendererProps {
 
 function CardRenderer({ config, className, style }: CardRendererProps) {
   const { query, isReady } = useDuckDB();
+  const { filters, values } = useFiltersOptional();
 
   const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const filteredSQL = useMemo(
+    () => buildFilteredQuery(config.query, filters, values),
+    [config.query, filters, values],
+  );
 
   const executeQuery = useCallback(async () => {
     if (!config.query.trim() || !isReady) return;
     setLoading(true);
     setError(null);
     try {
-      const result = await query(config.query);
+      const result = await query(filteredSQL);
       setQueryResult(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -39,7 +47,7 @@ function CardRenderer({ config, className, style }: CardRendererProps) {
     } finally {
       setLoading(false);
     }
-  }, [config.query, query, isReady]);
+  }, [config.query, filteredSQL, query, isReady]);
 
   // Execute query on mount and when query changes
   useEffect(() => {
