@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import HomePage from "@/pages/HomePage";
@@ -42,7 +43,9 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="/*" element={<AppLayout />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/*" element={<AppLayout />} />
+          </Route>
         </Routes>
       </AuthProvider>
     </BrowserRouter>

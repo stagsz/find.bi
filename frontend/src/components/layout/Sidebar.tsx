@@ -1,4 +1,5 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
   { to: "/", label: "Home", icon: HomeIcon },
@@ -13,6 +14,14 @@ interface SidebarProps {
 }
 
 function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    logout();
+    navigate("/login");
+  }
+
   return (
     <aside
       className={`flex flex-col bg-gray-900 text-gray-100 transition-[width] duration-200 ${
@@ -52,6 +61,22 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </NavLink>
         ))}
       </nav>
+
+      <div className="border-t border-gray-700 p-2">
+        {!collapsed && user && (
+          <p className="px-3 py-1 text-xs text-gray-400 truncate">
+            {user.display_name}
+          </p>
+        )}
+        <button
+          onClick={handleLogout}
+          title={collapsed ? "Log out" : undefined}
+          className="flex items-center gap-3 px-3 py-2 mx-0 w-full rounded text-sm text-gray-400 hover:bg-gray-800 hover:text-gray-100 transition-colors"
+        >
+          <LogoutIcon className="w-5 h-5 shrink-0" />
+          {!collapsed && <span>Log out</span>}
+        </button>
+      </div>
     </aside>
   );
 }
@@ -141,6 +166,24 @@ function UploadIcon({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"
+      />
+    </svg>
+  );
+}
+
+function LogoutIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
       />
     </svg>
   );

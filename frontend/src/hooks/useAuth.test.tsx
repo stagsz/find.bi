@@ -1,5 +1,5 @@
 import { renderHook, act } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ReactNode } from "react";
 
 const mocks = vi.hoisted(() => ({
@@ -25,10 +25,14 @@ function wrapper({ children }: { children: ReactNode }) {
 describe("useAuth", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("throws when used outside AuthProvider", () => {
-    // Suppress React error boundary console output
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => renderHook(() => useAuth())).toThrow(
       "useAuth must be used within an AuthProvider",
@@ -45,7 +49,7 @@ describe("useAuth", () => {
   describe("login", () => {
     it("sets user on successful login", async () => {
       mocks.post.mockResolvedValueOnce({
-        data: { access_token: "jwt-123" },
+        data: { access_token: "jwt-123", token_type: "bearer", expires_in: 3600 },
       });
       mocks.get.mockResolvedValueOnce({
         data: { id: "1", email: "test@test.com", display_name: "Test" },
@@ -92,6 +96,60 @@ describe("useAuth", () => {
       expect(result.current.user).toBeNull();
       expect(result.current.loading).toBe(false);
     });
+
+    it("schedules token refresh after login", async () => {
+      mocks.post.mockResolvedValueOnce({
+        data: { access_token: "jwt-123", token_type: "bearer", expires_in: 3600 },
+      });
+      mocks.get.mockResolvedValueOnce({
+        data: { id: "1", email: "test@test.com", display_name: "Test" },
+      });
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await act(async () => {
+        await result.current.login("test@test.com", "password");
+      });
+
+      // Refresh should be scheduled for expires_in - 120 = 3480 seconds
+      mocks.post.mockResolvedValueOnce({
+        data: { access_token: "jwt-refreshed", token_type: "bearer", expires_in: 3600 },
+      });
+
+      await act(async () => {
+        vi.advanceTimersByTime(3480 * 1000);
+      });
+
+      expect(mocks.post).toHaveBeenCalledWith("/api/auth/refresh");
+      expect(mocks.setAccessToken).toHaveBeenCalledWith("jwt-refreshed");
+    });
+
+    it("logs out user when token refresh fails", async () => {
+      mocks.post.mockResolvedValueOnce({
+        data: { access_token: "jwt-123", token_type: "bearer", expires_in: 3600 },
+      });
+      mocks.get.mockResolvedValueOnce({
+        data: { id: "1", email: "test@test.com", display_name: "Test" },
+      });
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await act(async () => {
+        await result.current.login("test@test.com", "password");
+      });
+
+      expect(result.current.user).not.toBeNull();
+
+      // Refresh fails
+      mocks.post.mockRejectedValueOnce(new Error("Token expired"));
+
+      await act(async () => {
+        vi.advanceTimersByTime(3480 * 1000);
+      });
+
+      expect(mocks.clearAccessToken).toHaveBeenCalled();
+      expect(result.current.user).toBeNull();
+    });
   });
 
   describe("register", () => {
@@ -101,7 +159,7 @@ describe("useAuth", () => {
           data: { id: "1", email: "new@test.com", display_name: "New" },
         })
         .mockResolvedValueOnce({
-          data: { access_token: "jwt-456" },
+          data: { access_token: "jwt-456", token_type: "bearer", expires_in: 3600 },
         });
       mocks.get.mockResolvedValueOnce({
         data: { id: "1", email: "new@test.com", display_name: "New" },
@@ -153,9 +211,9 @@ describe("useAuth", () => {
   });
 
   describe("logout", () => {
-    it("clears user and token", async () => {
+    it("clears user, token, and refresh timer", async () => {
       mocks.post.mockResolvedValueOnce({
-        data: { access_token: "jwt-123" },
+        data: { access_token: "jwt-123", token_type: "bearer", expires_in: 3600 },
       });
       mocks.get.mockResolvedValueOnce({
         data: { id: "1", email: "test@test.com", display_name: "Test" },
@@ -174,6 +232,13 @@ describe("useAuth", () => {
 
       expect(mocks.clearAccessToken).toHaveBeenCalled();
       expect(result.current.user).toBeNull();
+
+      // Advance past where refresh would have fired — should NOT trigger
+      mocks.post.mockClear();
+      await act(async () => {
+        vi.advanceTimersByTime(3600 * 1000);
+      });
+      expect(mocks.post).not.toHaveBeenCalled();
     });
   });
 });

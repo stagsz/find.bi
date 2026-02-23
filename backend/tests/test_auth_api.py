@@ -1,4 +1,4 @@
-"""Tests for auth API routes: POST /register, POST /login, GET /me."""
+"""Tests for auth API routes: POST /register, POST /login, POST /refresh, GET /me."""
 
 from collections.abc import Generator
 
@@ -146,6 +146,9 @@ def test_login_success(client: TestClient) -> None:
     data = resp.json()
     assert "access_token" in data
     assert data["token_type"] == "bearer"
+    assert "expires_in" in data
+    assert isinstance(data["expires_in"], int)
+    assert data["expires_in"] > 0
 
 
 def test_login_wrong_password(client: TestClient) -> None:
@@ -222,3 +225,49 @@ def test_me_does_not_return_password(client: TestClient) -> None:
     data = resp.json()
     assert "password" not in data
     assert "password_hash" not in data
+
+
+# --- POST /api/auth/refresh ---
+
+
+def test_refresh_success(client: TestClient) -> None:
+    token = _login(client, "refresh@example.com")
+    resp = client.post(
+        "/api/auth/refresh",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+    assert "expires_in" in data
+    assert data["expires_in"] > 0
+
+
+def test_refresh_new_token_is_valid(client: TestClient) -> None:
+    token = _login(client, "refresh2@example.com")
+    resp = client.post(
+        "/api/auth/refresh",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    new_token = resp.json()["access_token"]
+    # Use the refreshed token to access /me
+    me_resp = client.get(
+        "/api/auth/me",
+        headers={"Authorization": f"Bearer {new_token}"},
+    )
+    assert me_resp.status_code == 200
+    assert me_resp.json()["email"] == "refresh2@example.com"
+
+
+def test_refresh_invalid_token(client: TestClient) -> None:
+    resp = client.post(
+        "/api/auth/refresh",
+        headers={"Authorization": "Bearer invalid.jwt.token"},
+    )
+    assert resp.status_code == 401
+
+
+def test_refresh_no_auth_header(client: TestClient) -> None:
+    resp = client.post("/api/auth/refresh")
+    assert resp.status_code == 422

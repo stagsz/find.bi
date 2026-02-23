@@ -2,6 +2,26 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
+
+const mocks = vi.hoisted(() => ({
+  logout: vi.fn(),
+  user: { id: "1", email: "ralph@test.com", display_name: "Ralph" } as {
+    id: string;
+    email: string;
+    display_name: string;
+  } | null,
+}));
+
+vi.mock("@/hooks/useAuth", () => ({
+  useAuth: () => ({
+    user: mocks.user,
+    loading: false,
+    login: vi.fn(),
+    register: vi.fn(),
+    logout: mocks.logout,
+  }),
+}));
+
 import Sidebar from "./Sidebar";
 
 function renderSidebar(collapsed = false, onToggle = vi.fn()) {
@@ -10,7 +30,7 @@ function renderSidebar(collapsed = false, onToggle = vi.fn()) {
     ...render(
       <MemoryRouter>
         <Sidebar collapsed={collapsed} onToggle={onToggle} />
-      </MemoryRouter>
+      </MemoryRouter>,
     ),
   };
 }
@@ -53,5 +73,30 @@ describe("Sidebar", () => {
   it("shows expand label when collapsed", () => {
     renderSidebar(true);
     expect(screen.getByLabelText("Expand sidebar")).toBeInTheDocument();
+  });
+
+  it("renders logout button when expanded", () => {
+    renderSidebar(false);
+    expect(screen.getByText("Log out")).toBeInTheDocument();
+  });
+
+  it("hides logout label when collapsed but shows title", () => {
+    renderSidebar(true);
+    expect(screen.queryByText("Log out")).not.toBeInTheDocument();
+    expect(screen.getByTitle("Log out")).toBeInTheDocument();
+  });
+
+  it("shows user display name when expanded", () => {
+    mocks.user = { id: "1", email: "ralph@test.com", display_name: "Ralph W" };
+    renderSidebar(false);
+    expect(screen.getByText("Ralph W")).toBeInTheDocument();
+  });
+
+  it("calls logout when logout button is clicked", async () => {
+    const user = userEvent.setup();
+    renderSidebar(false);
+
+    await user.click(screen.getByText("Log out"));
+    expect(mocks.logout).toHaveBeenCalledOnce();
   });
 });

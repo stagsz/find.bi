@@ -1,4 +1,4 @@
-"""Auth API routes: register, login, get current user."""
+"""Auth API routes: register, login, refresh, get current user."""
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, EmailStr
@@ -6,7 +6,13 @@ from sqlalchemy.orm import Session
 
 from db import get_db
 from models.user import User
-from services.auth_service import authenticate_user, get_current_user, register_user
+from services.auth_service import (
+    JWT_EXPIRY_MINUTES,
+    authenticate_user,
+    create_access_token,
+    get_current_user,
+    register_user,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -33,6 +39,7 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    expires_in: int = JWT_EXPIRY_MINUTES * 60
 
 
 def get_authenticated_user(
@@ -72,6 +79,12 @@ def login(body: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
         token = authenticate_user(body.email, body.password, db)
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
+    return TokenResponse(access_token=token)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh(user: User = Depends(get_authenticated_user)) -> TokenResponse:
+    token = create_access_token(user.id)
     return TokenResponse(access_token=token)
 
 
