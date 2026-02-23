@@ -97,7 +97,9 @@ def test_upload_csv_success(client: TestClient) -> None:
 
     resp = client.post(
         "/api/data/upload",
-        files={"file": ("sales.csv", b"region,revenue\nNorth,100\nSouth,200", "text/csv")},
+        files={
+            "file": ("sales.csv", b"region,revenue\nNorth,100\nSouth,200", "text/csv"),
+        },
         data={"workspace_id": ws_id},
         headers=_auth_headers(token),
     )
@@ -134,7 +136,9 @@ def test_upload_parquet_success(client: TestClient) -> None:
 
     resp = client.post(
         "/api/data/upload",
-        files={"file": ("data.parquet", b"\x00\x01\x02\x03", "application/octet-stream")},
+        files={
+            "file": ("data.parquet", b"\x00\x01\x02\x03", "application/octet-stream"),
+        },
         data={"workspace_id": ws_id},
         headers=_auth_headers(token),
     )
@@ -149,7 +153,13 @@ def test_upload_xlsx_success(client: TestClient) -> None:
 
     resp = client.post(
         "/api/data/upload",
-        files={"file": ("report.xlsx", b"\x00\x01\x02\x03", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        files={
+            "file": (
+                "report.xlsx",
+                b"\x00\x01\x02\x03",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
+        },
         data={"workspace_id": ws_id},
         headers=_auth_headers(token),
     )

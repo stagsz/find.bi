@@ -1,3 +1,4 @@
+import { describe, it, expect, afterEach } from "vitest";
 import { AxiosHeaders } from "axios";
 import api, {
   setAccessToken,
@@ -40,7 +41,7 @@ describe("api service", () => {
   describe("request interceptor", () => {
     it("attaches Authorization header when token is set", async () => {
       setAccessToken("my-jwt");
-      const config = await api.interceptors.request.handlers[0].fulfilled!({
+      const config = await api.interceptors.request.handlers![0].fulfilled!({
         headers: new AxiosHeaders(),
       } as never);
 
@@ -48,7 +49,7 @@ describe("api service", () => {
     });
 
     it("does not attach Authorization header when no token", async () => {
-      const config = await api.interceptors.request.handlers[0].fulfilled!({
+      const config = await api.interceptors.request.handlers![0].fulfilled!({
         headers: new AxiosHeaders(),
       } as never);
 
@@ -60,7 +61,7 @@ describe("api service", () => {
     it("clears token on 401 response", async () => {
       setAccessToken("my-jwt");
 
-      const handler = api.interceptors.response.handlers[0].rejected!;
+      const handler = api.interceptors.response.handlers![0].rejected!;
       const error = {
         response: { status: 401 },
         isAxiosError: true,
@@ -73,7 +74,7 @@ describe("api service", () => {
     it("does not clear token on other errors", async () => {
       setAccessToken("my-jwt");
 
-      const handler = api.interceptors.response.handlers[0].rejected!;
+      const handler = api.interceptors.response.handlers![0].rejected!;
       const error = {
         response: { status: 500 },
         isAxiosError: true,
