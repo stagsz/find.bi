@@ -72,7 +72,7 @@
 
 ### 1.5 Workspace Model (F008, F009)
 
-- [x] DB-01: Create Workspace model — `backend/models/workspace.py` with id (UUID), name, owner_id (FK to user), duckdb_path, created_at. Create Alembic migration. Each user gets a default workspace on registration.
+- [x] DB-01: Create Workspace model — `backend/models/workspace.py` with id (UUID), name, owner_id (FK to user), duckdb_path, created_at. Create Alembic migration. Each user gets a default workspace on registration. *(577f103)*
 - [ ] DB-02: Create Workspace API routes — `backend/api/workspaces.py` with `GET /api/workspaces`, `POST /api/workspaces`, `DELETE /api/workspaces/:id`. Scoped to authenticated user. Write pytest tests.
 
 ### 1.6 File Ingestion (F002)
@@ -353,3 +353,4 @@ CLEANUP-01 → SETUP-01 → SETUP-02..07 (parallel)
 | AUTH-03 | e5e38a4 | 2026-02-23 |
 | AUTH-04 | ab0c56a | 2026-02-23 |
 | AUTH-05 | f9f66b3 | 2026-02-23 |
+| DB-01 | 577f103 | 2026-02-23 |
