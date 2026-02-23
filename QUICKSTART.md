@@ -47,11 +47,7 @@
 ### Step 1: Copy This Template
 
 ```powershell
-<<<<<<< HEAD
 cp -r C:\Users\staff\find.bi C:\Users\staff\MyNewProject
-=======
-cp -r C:\Users\staff\RalphTemplate C:\Users\staff\MyNewProject
->>>>>>> fd0cfc54ecd6140dbe09febd524261d7fa94570e
 cd C:\Users\staff\MyNewProject
 ```
 

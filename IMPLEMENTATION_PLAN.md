@@ -1,410 +1,332 @@
-# Implementation Plan - HazOp Assistant
+# Implementation Plan
 
 > **Ralph Workflow**: Do tasks in order. One at a time. Update this file after each commit.
 
 ## Current Status
 
-**Phase**: 11 - Polish & Deployment
-**Progress**: Phase 11 COMPLETE - All documentation tasks finished (4/4 done)
-**Last Completed**: DOCS-04 - Create user guide for HazOps analysis workflow
-**Next Task**: None - All implementation tasks complete!
+**Phase**: 1 - Foundation
+**Progress**: 0 / 100 tasks
+**Last Completed**: None
+**Last Reviewed**: 2026-02-23 (gap analysis confirmed)
+**Blockers**: Legacy HazOp code (358 files across 8 directories) and 48 conflict markers in 6 committed files must be cleaned up before build work. CLEANUP-01 is the first task.
+**Code state**: No find.bi source code exists. `frontend/` and `backend/` directories not yet created. Merge commit `cc358a4` completed but conflict markers (`<<<<<<<`) persist in 6 committed files (setup_project.ps1 has 21 markers/7 blocks — most severe). Legacy HazOp code in `apps/` (288 files), `packages/` (20), `migrations/` (16), `e2e/` (10), `docs/` (2), `docker/` (14 — grafana/loki/prometheus configs), `scripts/` (7) — all to be deleted. `docker-compose.yml` runs 7 HazOp services (Redis, MinIO, RabbitMQ, Prometheus, Loki, Grafana + PostgreSQL). `.env.example` has HazOp vars (`DB_NAME=hazop`). Auto-generated `ralph_log_*` files at root should be gitignored.
 
 ---
 
-## Gap Analysis Summary
+## Phase 1: Foundation
 
-This is a **greenfield project** - no existing implementation. The HazOp Assistant needs to be built from scratch based on:
-- **PRD.json**: Product requirements for industrial HazOps methodology automation
-- **architecture.md**: Technical architecture with Docker Compose, React/TypeScript frontend, Node.js/Express backend, PostgreSQL database
+> **Goal**: Working local BI tool — file upload, charts, SQL editor, dashboard builder, auth
+> **Features**: F001, F002, F003, F004, F005, F006, F007, F008, F009
 
-**Key Deliverables:**
-1. P&ID document upload and processing system
-2. Guided HazOps analysis workflow with guide words
-3. Risk assessment with severity × likelihood × detectability matrices
-4. LOPA (Layers of Protection Analysis) validation
-5. Regulatory compliance validation (IEC 61511, ISO 31000, OSHA PSM, etc.)
-6. Professional report generation (Word, PDF, Excel, PowerPoint)
+### 1.0 Legacy Cleanup (prerequisite)
 
-**PRD Functional Requirements Coverage:**
-| Requirement | Description | Phase | Tasks |
-|-------------|-------------|-------|-------|
-| FR1 | P&ID interpretation and analysis | Phase 4 | PID-01 to PID-21 |
-| FR2 | Guide word analysis workflow | Phase 5 | HAZOP-01 to HAZOP-30 |
-| FR3 | Prepared answer menus | Phase 5 | HAZOP-03 to HAZOP-06 |
-| FR4 | Auto-populate analysis tables | Phase 5 | HAZOP-27 |
-| FR5 | Risk ranking methodology | Phase 6 | RISK-01 to RISK-16 |
-| FR6 | LOPA validation | Phase 7 | LOPA-01 to LOPA-04 |
-| FR7 | Regulatory compliance | Phase 7 | COMP-01 to COMP-19 |
-| FR8 | Report generation (Word/PDF/Excel/PPT) | Phase 9 | REPORT-01 to REPORT-21 |
-| FR9 | Structured workflow | Phases 5-7 | Integrated across phases |
+- [ ] CLEANUP-01: Remove old HazOp project code and resolve all conflict markers.
+  **Context**: Merge commit `cc358a4` completed the git merge, but conflict markers (`<<<<<<<`) were committed into several files. The git index is clean — no UU/AA status — but the file contents need fixing.
+  **Delete directories (entire trees):** `apps/`, `packages/`, `migrations/`, `e2e/`, `test-results/`, `docs/`, `scripts/` (recreated in SETUP-01), `docker/grafana/`, `docker/loki/`, `docker/prometheus/`, `docker/nginx/` (recreated in SETUP-06), `.github/` (recreated in SETUP-07).
+  **Delete root files:** `architecture.md`, `docker-compose.prod.yml`, `nx.json`, `package.json` (recreated for frontend), `tsconfig.base.json`, `RalphTemplate.code-workspace`, `UI_DESCRIPTION.md`, `private.pem`, `public.pem`, `.eslintrc.json`, `.prettierrc.json`, `.prettierignore`, `.dockerignore`, `.env.production.example`.
+  **Delete HazOp scripts:** `check-schema.js`, `check-user.js`, `fix-minio-cors.js`, `mark-docs-processed.js`, `mark-documents-processed.sql`, `test-create-analysis.js`, `test-db.sql`, `test-minio.js`, `setup-schema.sql`.
+  **Delete docker configs:** `docker/migrate-entrypoint.sh`.
+  **Keep (do NOT delete):** `CLAUDE.md`, `IMPLEMENTATION_PLAN.md`, `AGENTS.md`, `findbi.code-workspace`, `hooks/`, `loop.ps1`, `loop.sh`, `loop.bat`, `evaluate_loop.ps1`, `check_prompt_injection.ps1`, `PROMPT_Build.md`, `PROMPT_Plan.md`, `specs/`, `setup_project.ps1`, `setup_project.sh`, `.claude/`.
+  **Remove conflict markers** from these 6 committed files (keep find.bi content, discard HazOp content in each):
+  - `README.md` (2 conflict blocks)
+  - `QUICKSTART.md` (1 conflict block)
+  - `PROMPT_Build.md` (2 conflict blocks)
+  - `setup_project.sh` (3 conflict blocks)
+  - `setup_project.ps1` (7 conflict blocks)
+  - `.claude/settings.local.json` (1 conflict block) — also add to `.gitignore`
+  **Already clean (no action needed):** `PRD.json`, `CLAUDE.md` — these have no conflict markers.
+  **Replace** `docker-compose.yml` (currently HazOp services: Redis, MinIO, RabbitMQ, Prometheus, Loki, Grafana) — will be recreated in SETUP-02.
+  **Replace** `.env.example` (currently HazOp config) — will be recreated in SETUP-03.
+  **Update** `.gitignore` for find.bi project structure (remove "CRM runtime" references, add `backend/`, `frontend/`, DuckDB paths, `.claude/settings.local.json`, `ralph_log_*`).
+  Commit clean slate.
 
-**Architecture Alignment:**
-- ✅ Monorepo: Nx with apps/web, apps/api, packages/types, packages/utils
-- ✅ Frontend: React 18 + TypeScript + Vite + Tailwind + Mantine
-- ✅ Backend: Node.js 20.x + Express.js + TypeScript
-- ✅ Database: PostgreSQL 15+ with Redis cache
-- ✅ Storage: MinIO (S3-compatible) for P&ID documents
-- ✅ Real-time: Socket.io for collaboration
-- ✅ Queue: RabbitMQ for async report generation
-- ✅ Testing: Vitest (FE), Jest (BE), Playwright (E2E)
+### 1.1 Project Setup & Docker Stack (F001)
 
----
+- [ ] SETUP-01: Create directory structure — `frontend/`, `backend/`, `docker/`, `.github/workflows/`, `scripts/`. Add placeholder READMEs in each.
+- [ ] SETUP-02: Create `docker-compose.yml` for find.bi — PostgreSQL 15 (ralph/ralph) only. Create `docker-compose.dev.yml` adding FastAPI + React dev containers with hot reload and volume mounts.
+- [ ] SETUP-03: Create `.env.example` for find.bi — DATABASE_URL, JWT_SECRET, DUCKDB_PATH, ANTHROPIC_API_KEY, OPENAI_API_KEY, VITE_API_URL. Clean environment file with no HazOp references.
+- [ ] SETUP-04: Create `docker/Dockerfile.backend` — Python 3.12 slim, install dependencies from requirements.txt, uvicorn entrypoint on port 8000.
+- [ ] SETUP-05: Create `docker/Dockerfile.frontend` — Node 20 alpine, npm install, Vite build, serve with nginx. Multi-stage build.
+- [ ] SETUP-06: Create `docker/nginx.conf` — Reverse proxy: `/api` to backend:8000, `/` to frontend static files. WebSocket upgrade support for voice.
+- [ ] SETUP-07: Create `.github/workflows/ci.yml` — On push/PR: run backend pytest + ruff + mypy, run frontend vitest + eslint + typecheck.
 
-## Phase 1: Foundation & Infrastructure
+### 1.2 Backend Scaffold (F001)
 
-### Project Setup
-- [x] SETUP-01: Initialize Nx monorepo with apps (web, api) and shared packages (types, utils)
-- [x] SETUP-02: Configure Docker Compose for development (PostgreSQL, Redis, MinIO, RabbitMQ)
-- [x] SETUP-03: Set up React 18 + TypeScript + Vite in web app (dc838a8 - included in SETUP-01)
-- [x] SETUP-04: Set up Express.js + TypeScript in api app (dc838a8 - included in SETUP-01)
-- [x] SETUP-05: Configure Tailwind CSS and Mantine UI component library (8ffe440)
-- [x] SETUP-06: Set up Vitest for frontend testing (03ed071)
-- [x] SETUP-07: Set up Jest + Supertest for API testing (4c15fcf)
-- [x] SETUP-08: Configure Playwright for E2E testing (15a2d04)
-- [x] SETUP-09: Set up ESLint + Prettier for code quality (e2a674a)
+- [ ] API-01: Scaffold FastAPI backend — `backend/main.py` with CORS, health endpoint (`GET /api/health`). Add `requirements.txt` with fastapi, uvicorn, sqlalchemy, alembic, psycopg2-binary, python-jose, bcrypt, python-multipart. Add `backend/pyproject.toml` with ruff and mypy config. Add `backend/conftest.py` with test client fixture.
+- [ ] API-02: Configure SQLAlchemy + Alembic — `backend/db.py` with async engine and session. `backend/alembic.ini` and `backend/alembic/env.py`. Verify connection to PostgreSQL in Docker.
+- [ ] API-03: Create base model classes — `backend/models/base.py` with Base declarative class, id (UUID), created_at, updated_at columns. Add `backend/models/__init__.py`.
 
-### Shared Types Package
-- [x] TYPES-01: Create User, UserRole type definitions (a77cd57)
-- [x] TYPES-02: Create Project, ProjectStatus type definitions (bcf10dc)
-- [x] TYPES-03: Create PIDDocument type definitions (4f1c83e)
-- [x] TYPES-04: Create AnalysisNode, EquipmentType type definitions (8fde62f)
-- [x] TYPES-05: Create HazopsAnalysis, GuideWord, RiskRanking type definitions (0f10b5c)
-- [x] TYPES-06: Create Report, ReportRequest type definitions (fb99a7d)
-- [x] TYPES-07: Create API request/response type definitions (eeb81c5)
+### 1.3 Frontend Scaffold (F001)
 
-### Database Setup
-- [x] DB-01: Create PostgreSQL schema with custom enum types (user_role, project_status, etc.) (977df3c)
-- [x] DB-02: Create users table with password_hash, role, organization (14437cf)
-- [x] DB-03: Create projects and project_members tables (3d517f7)
-- [x] DB-04: Create pid_documents table with processing_status (5aa6df5)
-- [x] DB-05: Create analysis_nodes table with equipment_type and coordinates (288e8a9)
-- [x] DB-06: Create hazop_analyses and analysis_entries tables (138ddb4)
-- [x] DB-07: Create collaboration_sessions and session_participants tables (bae521e)
-- [x] DB-08: Create audit_log table for change tracking (ee49495)
-- [x] DB-09: Create reports and report_templates tables (b9de3bd)
-- [x] DB-10: Add performance indexes for all tables (b3ca5da)
-- [x] DB-11: Create database triggers for updated_at timestamps (4cae1e7)
+- [ ] UI-01: Scaffold React + Vite + TypeScript frontend — `npm create vite@latest frontend -- --template react-ts`. Add Tailwind CSS v4. Configure path aliases (`@/`). Add `.eslintrc.cjs` and `tsconfig.json`. Verify `npm run dev` starts.
+- [ ] UI-02: Create app shell layout — `App.tsx` with sidebar navigation (collapsible), top bar, and main content area using Tailwind. Add React Router v6 with routes: `/`, `/dashboard/:id`, `/editor`, `/upload`. Create placeholder page components.
+- [ ] UI-03: Add API client service — `frontend/src/services/api.ts` with axios instance, base URL from `VITE_API_URL`, request/response interceptors for JWT token, error handling.
 
----
+### 1.4 User Authentication (F008)
 
-## Phase 2: Authentication & User Management
+- [ ] AUTH-01: Create User model — `backend/models/user.py` with id (UUID), email (unique), password_hash, display_name, created_at. Create Alembic migration. Write model test.
+- [ ] AUTH-02: Create auth service — `backend/services/auth_service.py` with register (bcrypt hash), login (verify + generate JWT), get_current_user (decode JWT). JWT with HS256, configurable expiry.
+- [ ] AUTH-03: Create auth API routes — `backend/api/auth.py` with `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`. Add auth dependency for protected routes. Write pytest tests for all 3 endpoints.
+- [ ] AUTH-04: Create login/register UI — `frontend/src/pages/LoginPage.tsx` and `RegisterPage.tsx`. Email + password form with validation. Store JWT in memory (not localStorage). Add `useAuth` hook with context provider. Redirect to dashboard on success.
+- [ ] AUTH-05: Add auth guards — Protected route wrapper component. Redirect to `/login` if no token. Auto-refresh token before expiry. Add logout button to sidebar.
 
-### Backend Auth
-- [x] AUTH-01: Implement JWT token generation with RS256 (access + refresh tokens) (ace7d5e)
-- [x] AUTH-02: Create Passport.js authentication strategy (c1e04c2)
-- [x] AUTH-03: Create POST /auth/register endpoint (3b648bc)
-- [x] AUTH-04: Create POST /auth/login endpoint (bd0f7ae)
-- [x] AUTH-05: Create POST /auth/refresh endpoint (1d12302)
-- [x] AUTH-06: Create POST /auth/logout endpoint (da49b35)
-- [x] AUTH-07: Create auth middleware for protected routes (325d01c)
-- [x] AUTH-08: Implement role-based access control (admin, lead_analyst, analyst, viewer) (af11d4f)
+### 1.5 Workspace Model (F008, F009)
 
-### Frontend Auth
-- [x] AUTH-09: Create auth store with Zustand (user state, tokens) (de6fb38)
-- [x] AUTH-10: Create login page with email/password form (bf0aa75)
-- [x] AUTH-11: Create registration page with role selection (615cb4e)
-- [x] AUTH-12: Create password reset flow (forgot password page) (041b7f5)
-- [x] AUTH-13: Implement auth guards for protected routes (7c9e7c4)
-- [x] AUTH-14: Create user profile page with edit functionality (1a1e187)
+- [ ] DB-01: Create Workspace model — `backend/models/workspace.py` with id (UUID), name, owner_id (FK to user), duckdb_path, created_at. Create Alembic migration. Each user gets a default workspace on registration.
+- [ ] DB-02: Create Workspace API routes — `backend/api/workspaces.py` with `GET /api/workspaces`, `POST /api/workspaces`, `DELETE /api/workspaces/:id`. Scoped to authenticated user. Write pytest tests.
 
-### Auth Testing
-- [x] AUTH-15: Add unit tests for JWT token generation/validation (fac9c60)
-- [x] AUTH-16: Add API tests for auth endpoints (5f48429)
-- [x] AUTH-17: Add E2E tests for login/logout flow (b5a233d)
+### 1.6 File Ingestion (F002)
 
-### Admin User Management (Administrator Role Only)
-- [x] ADMIN-01: Create GET /admin/users endpoint (list all users with search/filter) (31b1001)
-- [x] ADMIN-02: Create PUT /admin/users/:id/role endpoint (change user role) (1d9e2fd)
-- [x] ADMIN-03: Create PUT /admin/users/:id/status endpoint (activate/deactivate user) (da37825)
-- [x] ADMIN-04: Create admin user management page with data table (e06d280)
-- [x] ADMIN-05: Create user role editor modal (e352dad)
-- [x] ADMIN-06: Add admin route guard (restrict to administrator role) (bb1c50c)
-- [x] ADMIN-07: Add API tests for admin endpoints (7d3c1af)
+- [ ] DATA-01: Create file upload API — `backend/api/data.py` with `POST /api/data/upload` accepting multipart file (CSV, JSON, Parquet, Excel). Validate file type and size (max 500MB). Save to workspace data directory. Write tests with sample files.
+- [ ] DATA-02: Create schema detection service — `backend/services/schema_service.py`. Use DuckDB (server-side) to sniff column names, types, row count from uploaded file. Return schema as JSON. Support CSV, JSON, Parquet, Excel. Write tests.
+- [ ] DATA-03: Create DuckDB ingestion service — `backend/services/duckdb_service.py`. Load uploaded file into workspace DuckDB database as a named table. Handle duplicate table names. Return table metadata. Write tests.
+- [ ] DATA-04: Create data source list API — `backend/api/data.py` add `GET /api/data/sources` returning all tables in workspace DuckDB with schema info. Add `DELETE /api/data/sources/:name` to drop table. Write tests.
+- [ ] DATA-05: Create upload UI — `frontend/src/pages/UploadPage.tsx` with drag-and-drop zone (or click to browse). Show upload progress. On success, display detected schema (column names, types, row count). Allow renaming table before confirming. Use Tailwind styling.
 
----
+### 1.7 DuckDB-WASM Query Engine (F003)
 
-## Phase 3: Project Management
+- [ ] DUCK-01: Set up DuckDB-WASM — `frontend/src/services/duckdb.ts`. Initialize DuckDB-WASM with Web Worker. Configure OPFS or IndexedDB for persistence. Handle initialization errors gracefully. Write initialization test.
+- [ ] DUCK-02: Create `useDuckDB` hook — `frontend/src/hooks/useDuckDB.ts`. Provides `query(sql)` function returning `{ columns, rows, duration }`. Handles loading state, errors. Manages single shared DuckDB instance via React context.
+- [ ] DUCK-03: Create data loading bridge — After file upload, fetch the file from backend and register it in DuckDB-WASM so client-side SQL works. Support loading Parquet directly, CSV via `read_csv_auto`. Add `loadTable(tableName, fileUrl)` to DuckDB service.
+- [ ] DUCK-04: Write query execution tests — Test SQL queries against mock data loaded into DuckDB-WASM. Test SELECT, GROUP BY, aggregations, JOINs. Verify result shape matches expectations.
 
-### Backend API
-- [x] PROJ-01: Create GET /projects endpoint (list user projects with pagination) (045b495)
-- [x] PROJ-02: Create POST /projects endpoint (create new project) (fd5de9a)
-- [x] PROJ-03: Create GET /projects/:id endpoint (project details) (c5a9f6f)
-- [x] PROJ-04: Create PUT /projects/:id endpoint (update project) (ceda9af)
-- [x] PROJ-05: Create DELETE /projects/:id endpoint (archive project) (28765eb)
-- [x] PROJ-06: Create POST /projects/:id/members endpoint (invite team member) (01f8bb8)
-- [x] PROJ-07: Create DELETE /projects/:id/members/:userId endpoint (remove member) (9947b15)
+### 1.8 Chart Library — Apache ECharts (F004)
 
-### Frontend UI
-- [x] PROJ-08: Create projects list page with status filters (cee074e)
-- [x] PROJ-09: Create project card component with status badge (8ec4869)
-- [x] PROJ-10: Create new project form modal (128ac57)
-- [x] PROJ-11: Create project detail page with tabs (Overview, Documents, Analysis, Team) (766041b)
-- [x] PROJ-12: Create team management panel (add/remove members) (becc836)
-- [x] PROJ-13: Create project settings form (name, description, status) (81d529d)
+- [ ] CHART-01: Install ECharts and create base wrapper — `npm install echarts`. Create `frontend/src/components/charts/EChart.tsx` — a generic wrapper that takes an ECharts option object, manages resize, dispose lifecycle. Support Canvas and SVG rendering modes. Write render test.
+- [ ] CHART-02: Create Bar chart component — `frontend/src/components/charts/BarChart.tsx`. Props: data (array), xField, yField, title. Generates ECharts bar option. Supports horizontal/vertical. Write test with mock data.
+- [ ] CHART-03: Create Line and Area chart components — `LineChart.tsx` and `AreaChart.tsx`. Props: data, xField, yField, series (for multi-line). Support smooth lines, gradient fills for area. Write tests.
+- [ ] CHART-04: Create Scatter chart component — `ScatterChart.tsx`. Props: data, xField, yField, sizeField (optional), colorField (optional). Support tooltips showing all fields. Write test.
+- [ ] CHART-05: Create Pie/Donut chart component — `PieChart.tsx`. Props: data, nameField, valueField, donut (boolean). Support legend, percentage labels. Write test.
+- [ ] CHART-06: Create Radar chart component — `RadarChart.tsx`. Props: data (array of series), indicators (array of dimension names + max values), title. ECharts radar option with area fill. Write test.
+- [ ] CHART-07: Create KPI card component — `KPICard.tsx`. Props: title, value, unit, trend (up/down/flat), comparison text. Large number display with trend indicator. Pure Tailwind, no ECharts needed. Write test.
+- [ ] CHART-08: Create Data Table component — `DataTable.tsx`. Props: columns, rows, sortable, pageSize. Pagination, column sorting, column resize. Tailwind-styled. Virtual scrolling for large datasets. Write test.
 
-### Project Testing
-- [x] PROJ-14: Add API tests for project CRUD endpoints (ea3f410)
-- [x] PROJ-15: Add E2E tests for project creation workflow (7ba79cd)
+### 1.9 SQL Editor (F006)
+
+- [ ] EDITOR-01: Install Monaco and create SQL editor — `npm install @monaco-editor/react`. Create `frontend/src/components/editor/SQLEditor.tsx` with SQL syntax highlighting, auto-completion for SQL keywords. Run button, keyboard shortcut (Ctrl+Enter). Write render test.
+- [ ] EDITOR-02: Create schema explorer sidebar — `frontend/src/components/editor/SchemaExplorer.tsx`. Tree view showing: workspace tables and columns (with types). Click column name to insert into editor. Fetch schema from `GET /api/data/sources`.
+- [ ] EDITOR-03: Create query result panel — `frontend/src/components/editor/QueryResult.tsx`. Tabs: Table view (using DataTable component) and Chart view (auto-suggest chart type from result shape). Show row count, query duration.
+- [ ] EDITOR-04: Create SQL Editor page — `frontend/src/pages/EditorPage.tsx`. Layout: schema explorer (left sidebar), editor (top), results (bottom). Resizable panes. Execute query via `useDuckDB` hook.
+- [ ] EDITOR-05: Add query history — Store last 50 queries in localStorage (queries only, no sensitive data). Show history dropdown in editor. Click to reload query. Timestamp each entry.
+
+### 1.10 Dashboard Builder (F005)
+
+- [ ] DASH-01: Install react-grid-layout and create dashboard grid — `npm install react-grid-layout`. Create `frontend/src/components/dashboard/DashboardGrid.tsx`. Drag-and-drop card placement. Responsive breakpoints. Save layout as JSON. Write render test.
+- [ ] DASH-02: Create dashboard card wrapper — `frontend/src/components/dashboard/DashboardCard.tsx`. Card chrome: title bar, settings icon, remove button, resize handle. Content area renders child chart component. Drag handle in title bar.
+- [ ] DASH-03: Create chart config dialog — `frontend/src/components/dashboard/ChartConfigDialog.tsx`. Modal for configuring a card: select chart type (bar, line, area, scatter, pie, radar, kpi, table), write/select SQL query, map columns to axes. Preview button.
+- [ ] DASH-04: Create add-card flow — "Add Card" button on dashboard opens ChartConfigDialog. On confirm, creates new card with chosen chart + query. Card executes SQL via DuckDB-WASM and renders result.
+- [ ] DASH-05: Create dashboard page — `frontend/src/pages/DashboardPage.tsx`. Load dashboard by ID from URL param. Render DashboardGrid with saved cards. Edit mode toggle (drag/resize enabled vs. view-only). Add card button in edit mode. Add text/markdown block option.
+
+### 1.11 Interactive Filters (F007)
+
+- [ ] FILTER-01: Create filter components — `frontend/src/components/dashboard/filters/`: `DateRangeFilter.tsx` (date picker), `DropdownFilter.tsx` (single select), `MultiSelectFilter.tsx` (checkbox list), `SearchFilter.tsx` (text input). Each emits filter value change. Write tests.
+- [ ] FILTER-02: Create filter bar and context — `frontend/src/components/dashboard/FilterBar.tsx`. Horizontal bar above dashboard grid. Add/remove filters. `useFilters` hook with React context providing current filter values to all cards.
+- [ ] FILTER-03: Wire filters to chart queries — Each dashboard card's SQL query supports `WHERE` clause injection from active filters. Parameterized queries (no SQL injection). Charts re-render when filters change.
+
+### 1.12 Dashboard Persistence (F009)
+
+- [ ] PERSIST-01: Create Dashboard model — `backend/models/dashboard.py` with id (UUID), workspace_id (FK), name, layout_json (JSONB for grid positions), cards_json (JSONB for chart configs + queries), filters_json (JSONB), created_at, updated_at. Create Alembic migration. Write model test.
+- [ ] PERSIST-02: Create Dashboard API routes — `backend/api/dashboards.py` with `GET /api/dashboards` (list), `POST /api/dashboards` (create), `GET /api/dashboards/:id`, `PUT /api/dashboards/:id` (update layout/cards), `DELETE /api/dashboards/:id`. Scoped to workspace. Write pytest tests.
+- [ ] PERSIST-03: Wire frontend save/load — Dashboard page loads from API on mount. Auto-save on layout change (debounced 2s). Save button for immediate save. Dashboard list page showing all dashboards with create/rename/delete.
+- [ ] PERSIST-04: Dashboard export/import — `POST /api/dashboards/import` and `GET /api/dashboards/:id/export`. Export returns portable JSON file (layout + card configs, no data). Import creates new dashboard from JSON. Add export/import buttons in UI.
 
 ---
 
-## Phase 4: P&ID Document Management
+## Phase 2: Intelligence
 
-### File Storage Service
-- [x] PID-01: Configure MinIO client for S3-compatible storage (fb07e54)
-- [x] PID-02: Create file upload middleware with validation (PDF, PNG, JPG, DWG) (e453f86)
-- [x] PID-03: Create file retrieval service with signed URLs (a800aa7)
+> **Goal**: AI analysis, natural language to SQL, insight engine, deck generator, geo-visualization
+> **Features**: F010, F010B, F011, F012, F013, F014, F014B, F014C, F014D
 
-### Backend API
-- [x] PID-04: Create POST /projects/:id/documents endpoint (upload P&ID) (d93a7ef)
-- [x] PID-05: Create GET /projects/:id/documents endpoint (list documents) (007f17e)
-- [x] PID-06: Create GET /documents/:id endpoint (document details) (eb9e7d9)
-- [x] PID-07: Create DELETE /documents/:id endpoint (delete document) (f8025b2)
-- [x] PID-08: Create GET /documents/:id/download endpoint (download original) (d2c5105)
+### 2.1 AI Text-to-SQL (F010)
 
-### P&ID Processing Service
-- [x] PID-09: Create basic P&ID metadata extraction (dimensions, file info) (a55163a)
-- [x] PID-10: Create manual node creation endpoint POST /documents/:id/nodes (526790c)
-- [x] PID-11: Create node listing endpoint GET /documents/:id/nodes (164260b)
-- [x] PID-12: Create node update endpoint PUT /nodes/:id (28edd5e)
-- [x] PID-13: Create node delete endpoint DELETE /nodes/:id (2244ab1)
+- [ ] AI-01: Create AI service backend — `backend/services/ai_service.py`. Claude API client. `text_to_sql(question, schema, sample_rows)` method. Send schema + 50 sample rows as context. Return generated SQL. Write test with mocked API.
+- [ ] AI-02: Create AI API routes — `backend/api/ai.py` with `POST /api/ai/text-to-sql` accepting question + workspace_id. Fetches schema from DuckDB, calls AI service, returns SQL + explanation. Write pytest tests.
+- [ ] AI-03: Create natural language query input — `frontend/src/components/ai/NLQueryInput.tsx`. Text input with "Ask a question about your data..." placeholder. Submit sends to `/api/ai/text-to-sql`. Display generated SQL, allow editing before execution. Run via DuckDB-WASM.
 
-### Frontend UI
-- [x] PID-14: Create P&ID upload component with drag-and-drop (d12702e)
-- [x] PID-15: Create document list view with thumbnails (edb28dc)
-- [x] PID-16: Create P&ID viewer component (zoom, pan functionality) (f0a1d95)
-- [x] PID-17: Create node overlay component (clickable markers on P&ID) (ad9d78c)
-- [x] PID-18: Create node creation form (node ID, description, equipment type) (4bab101)
-- [x] PID-19: Create node editing modal (b3f9a29)
+### 2.2 Observable Plot — AI Exploratory Charts (F010B)
 
-### P&ID Testing
-- [x] PID-20: Add API tests for document upload/retrieval (e4489ea)
-- [x] PID-21: Add E2E tests for P&ID upload workflow (beac65c)
+- [ ] PLOT-01: Install Observable Plot and create renderer — `npm install @observablehq/plot`. Create `frontend/src/components/explore/PlotRenderer.tsx`. Takes a Plot spec (JSON-serializable mark definitions) and renders using Plot.plot(). Write render test.
+- [ ] PLOT-02: Create Plot spec generator on backend — Extend `ai_service.py` with `generate_plot_spec(question, query_result)`. Claude generates Observable Plot mark spec as JSON. Validate spec structure before returning. Write test.
+- [ ] PLOT-03: Create "promote to dashboard" flow — Button on Plot charts to convert to ECharts dashboard card. Map Plot mark types to ECharts equivalents (barY to bar, dot to scatter, line to line). Add to dashboard grid.
 
----
+### 2.3 AI Insight Engine (F011)
 
-## Phase 5: Core HazOps Analysis Workflow (Epic 2)
+- [ ] INSIGHT-01: Create insight generation service — Extend `ai_service.py` with `generate_insights(schema, sample_data)`. Claude analyzes schema + sample to produce insight cards: trends, anomalies, correlations, outliers. Return as structured JSON array. Write test.
+- [ ] INSIGHT-02: Create insight cards UI — `frontend/src/components/ai/InsightCard.tsx`. Card with title, description, severity (info/warning/important), optional mini-chart (Plot). `InsightPanel.tsx` lists all insights for current dataset.
+- [ ] INSIGHT-03: Auto-generate insights on upload — After file upload + ingestion, trigger insight generation in background. Show loading spinner in insight panel. Cache results per table.
 
-### Analysis Engine Service
-- [x] HAZOP-01: Create HazOps analysis session service (0ff9a18)
-- [x] HAZOP-02: Implement guide word definitions (No, More, Less, Reverse, Early, Late, Other than) (edc343c)
-- [x] HAZOP-03: Create prepared answer menus for causes (configurable templates) (963a496)
-- [x] HAZOP-04: Create prepared answer menus for consequences (c71ee6b)
-- [x] HAZOP-05: Create prepared answer menus for safeguards (31c61c8)
-- [x] HAZOP-06: Create prepared answer menus for recommendations (7cbe762)
+### 2.4 AI Chat Panel (F012)
 
-### Backend API
-- [x] HAZOP-07: Create POST /projects/:id/analyses endpoint (create analysis session) (57222f7)
-- [x] HAZOP-08: Create GET /projects/:id/analyses endpoint (list analysis sessions) (ba3a8fe)
-- [x] HAZOP-09: Create GET /analyses/:id endpoint (analysis session details) (b93623b)
-- [x] HAZOP-10: Create PUT /analyses/:id endpoint (update analysis metadata) (f9f6a50)
-- [x] HAZOP-11: Create POST /analyses/:id/entries endpoint (create analysis entry for node/guideword) (88cdc58)
-- [x] HAZOP-12: Create GET /analyses/:id/entries endpoint (list all entries) (cc8d79d)
-- [x] HAZOP-13: Create PUT /entries/:id endpoint (update analysis entry) (77ed7d0)
-- [x] HAZOP-14: Create DELETE /entries/:id endpoint (delete analysis entry) (b8da84e)
-- [x] HAZOP-15: Create POST /analyses/:id/complete endpoint (finalize analysis) (b4bca6f)
+- [ ] CHAT-01: Create chat API endpoint — `backend/api/ai.py` add `POST /api/ai/chat`. Accepts message + conversation history + workspace_id. Claude receives full schema context. Returns text + optional SQL + optional Plot spec. Write tests.
+- [ ] CHAT-02: Create chat panel UI — `frontend/src/components/ai/ChatPanel.tsx`. Right sidebar (collapsible). Message bubbles (user/ralph). Input field at bottom. Conversation maintained per session in state. Ralph avatar with personality.
+- [ ] CHAT-03: Render rich chat responses — Chat messages can contain: plain text, SQL code blocks (with "Run" button), Observable Plot charts (inline), data tables. Parse response structure and render appropriate components.
 
-### Frontend Analysis Workspace
-- [x] HAZOP-16: Create analysis session list page with status indicators (de417ea)
-- [x] HAZOP-17: Create new analysis session wizard (select P&ID, name, methodology) (2ea0778)
-- [x] HAZOP-18: Create analysis workspace layout (split-pane: P&ID viewer + analysis panel) (f30b08c)
-- [x] HAZOP-19: Create node selection component (click node on P&ID to select) (f30b08c)
-- [x] HAZOP-20: Create guide word selector (tab or dropdown navigation) (19b0c9a)
-- [x] HAZOP-21: Create deviation input form with autocomplete (cbc99b4)
-- [x] HAZOP-22: Create causes input with prepared answer menu (multi-select) (fed6243)
-- [x] HAZOP-23: Create consequences input with prepared answer menu (multi-select) (49ae70a)
-- [x] HAZOP-24: Create safeguards input with prepared answer menu (multi-select) (d3dbe46)
-- [x] HAZOP-25: Create recommendations input with prepared answer menu (multi-select) (74dff69)
-- [x] HAZOP-26: Create analysis progress tracker (nodes completed/total) (70a110a)
-- [x] HAZOP-27: Create analysis entry summary table (0237edc)
+### 2.5 Deck Generator (F013)
 
-### HazOps Testing
-- [x] HAZOP-28: Add unit tests for guide word validation logic (edc343c)
-- [x] HAZOP-29: Add API tests for analysis CRUD endpoints (07a45fc)
-- [x] HAZOP-30: Add E2E tests for complete analysis workflow (3f93986)
+- [ ] DECK-01: Create deck generation service — Extend `ai_service.py` with `generate_deck(schema, sample_data, user_goal)`. Claude produces a multi-slide analysis: title, key findings (each with chart spec + narrative), recommendations. Return structured JSON.
+- [ ] DECK-02: Create deck viewer UI — `frontend/src/components/ai/DeckViewer.tsx`. Slide-based presentation view. Each slide renders text + Plot chart. Navigation arrows, slide counter. Fullscreen mode.
+- [ ] DECK-03: Create one-click deck trigger — "Generate Analysis Deck" button on data source page and dashboard. Opens modal for optional focus prompt ("What should Ralph analyze?"). Shows generation progress. Opens DeckViewer on complete.
+
+### 2.6 Data Quality Scoring (F014)
+
+- [ ] QUALITY-01: Create data quality service — `backend/services/quality_service.py`. Scan table via DuckDB: null counts per column, duplicate rows, type consistency, outlier detection (IQR method). Return quality score (0-100) + issues list. Write tests.
+- [ ] QUALITY-02: Create quality score card UI — `frontend/src/components/ai/QualityScoreCard.tsx`. Circular score gauge, issues breakdown (missing values, duplicates, type mismatches, outliers). Actionable suggestions (e.g., "Column X has 15% nulls").
+
+### 2.7 Deck.gl Geo-Visualization (F014B, F014C, F014D)
+
+- [ ] GEO-01: Install Deck.gl + MapLibre and create base map — `npm install deck.gl @deck.gl/react maplibre-gl`. Create `frontend/src/components/geo/BaseMap.tsx`. MapLibre base tiles (free, no API key). Deck.gl overlay. Zoom/pan controls. Write render test.
+- [ ] GEO-02: Create ScatterplotLayer component — `frontend/src/components/geo/ScatterplotMap.tsx`. Props: data, latField, lonField, colorField, sizeField. Renders points on map. Tooltips on hover. Write test.
+- [ ] GEO-03: Create HexagonLayer and HeatmapLayer — `HexagonMap.tsx` and `HeatmapMap.tsx`. Aggregate point data into hex bins or heatmap intensity. Configurable radius, color scale. Write tests.
+- [ ] GEO-04: Create ArcLayer component — `ArcMap.tsx`. Props: data, originLat, originLon, destLat, destLon, colorField. Renders arcs between origin-destination pairs. Write test.
+- [ ] GEO-05: Create GeoJsonLayer component — `GeoJsonMap.tsx`. Props: geojsonData, fillField, strokeField. Renders polygon/boundary data. Color by data value. Write test.
+- [ ] GEO-06: Add map chart type to dashboard builder — Extend ChartConfigDialog with "Map" chart type. Sub-options: Scatterplot, Hexagon, Heatmap, Arc, GeoJson. Column mapping for lat/lon/value fields. Map card renders in dashboard grid.
+- [ ] GEO-07: AI geo-column detection — Extend `ai_service.py` with `detect_geo_columns(schema, sample_rows)`. Claude identifies lat/lon pairs, country names, region codes. Auto-suggest map chart type when geo columns found. Write test.
 
 ---
 
-## Phase 6: Risk Assessment (Epic 3 - Part 1)
+## Phase 3: Voice
 
-### Risk Calculation Engine
-- [x] RISK-01: Create severity × likelihood × detectability calculation service (328dd41)
-- [x] RISK-02: Implement 5x5 risk matrix logic (Low, Medium, High mapping) (da65554)
-- [x] RISK-03: Create risk level threshold configuration (4e33b9b)
-- [x] RISK-04: Implement risk score aggregation for analysis sessions (42b0668)
+> **Goal**: Hey Ralph voice assistant — push-to-talk, wake word, spoken responses
+> **Features**: F015, F016, F017, F018, F019
 
-### Backend API
-- [x] RISK-05: Create PUT /entries/:id/risk endpoint (update risk ranking) (2ad5107)
-- [x] RISK-06: Create GET /analyses/:id/risk-summary endpoint (aggregated risk view) (355c549)
-- [x] RISK-07: Create GET /projects/:id/risk-dashboard endpoint (project-level risk metrics) (5bd4aea)
+### 3.1 Voice Assistant Core (F015)
 
-### Frontend Risk Assessment
-- [x] RISK-08: Create severity dropdown selector (1-5 scale with descriptions) (fc2c543)
-- [x] RISK-09: Create likelihood dropdown selector (1-5 scale with descriptions) (0483327)
-- [x] RISK-10: Create detectability dropdown selector (1-5 scale with descriptions) (ba4efb6)
-- [x] RISK-11: Create risk score display component (color-coded badge) (2a5a12b)
-- [x] RISK-12: Create interactive 5x5 risk matrix visualization (bce10fe)
-- [x] RISK-13: Create risk dashboard page with charts and metrics (625c2f6)
-- [x] RISK-14: Add risk filtering to analysis entry table (dd38e31)
+- [ ] VOICE-01: Create voice WebSocket proxy — `backend/api/voice.py` with WebSocket endpoint `/ws/voice`. Proxies audio stream to OpenAI Realtime API. Handles authentication. Streams response audio back. Write connection test.
+- [ ] VOICE-02: Create `useVoice` hook — `frontend/src/hooks/useVoice.ts`. MediaStream API for microphone access. WebSocket connection to backend. Send audio chunks while recording. Receive and play response audio via Web Audio API.
+- [ ] VOICE-03: Create push-to-talk UI — `frontend/src/components/voice/PushToTalk.tsx`. Hold-to-record button (microphone icon). Visual indicator: idle, recording (pulsing), processing (spinner), playing (waveform). Transcript shown below.
 
-### Risk Testing
-- [x] RISK-15: Add unit tests for risk calculation logic (5db21bf)
-- [x] RISK-16: Add API tests for risk endpoints (b8f4374)
+### 3.2 Wake Word Detection (F016)
 
----
+- [ ] VOICE-04: Create wake word listener — `frontend/src/components/voice/WakeWordListener.tsx`. Uses Web Speech API for continuous speech recognition. Listens for "Hey Ralph" phrase. When detected, activates voice recording automatically. Toggle on/off setting.
+- [ ] VOICE-05: Create voice status indicator — Persistent UI element showing: wake word listening (ear icon), voice active (microphone icon), processing, speaking. Placed in top bar or floating corner.
 
-## Phase 7: LOPA & Compliance (Epic 3 - Part 2)
+### 3.3 Voice Command Routing (F017)
 
-### LOPA Analysis Service
-- [x] LOPA-01: Create LOPA calculation engine (target mitigated event likelihood) (bc63dfe)
-- [x] LOPA-02: Implement independent protection layer (IPL) validation (e74a385)
-- [x] LOPA-03: Create LOPA recommendation trigger (when risk exceeds threshold) (d65972b)
-- [x] LOPA-04: Implement risk reduction factor calculation (4ab299d)
+- [ ] VOICE-06: Create intent classifier — Extend `backend/services/ai_service.py` with `classify_voice_intent(transcript)`. Categories: query (data question), filter (change dashboard filter), export (download data), narrate (read dashboard aloud), navigate (go to page). Write tests.
+- [ ] VOICE-07: Wire voice to data queries — When intent=query: send transcript to text-to-SQL pipeline, execute SQL via DuckDB, render chart, speak summary of results. End-to-end integration.
 
-### Regulatory Compliance Service
-- [x] COMP-01: Create regulatory standards database (IEC 61511, ISO 31000, ISO 9001) (9da783a)
-- [x] COMP-02: Add ATEX/DSEAR compliance checks (3fcdb2a)
-- [x] COMP-03: Add PED (Pressure Equipment Directive) compliance checks (3272479)
-- [x] COMP-04: Add OSHA PSM compliance checks (5bd6749)
-- [x] COMP-05: Add EPA RMP compliance checks (7a55e24)
-- [x] COMP-06: Add SEVESO III directive compliance checks (9b6d7d1)
-- [x] COMP-07: Create compliance validation engine (cross-reference findings) (6dd6041)
+### 3.4 Dashboard Narration (F018)
 
-### Backend API
-- [x] COMP-08: Create POST /entries/:id/lopa endpoint (create LOPA analysis) (e75c4d1)
-- [x] COMP-09: Create GET /entries/:id/lopa endpoint (get LOPA results) (8ba89e3)
-- [x] COMP-10: Create GET /projects/:id/compliance endpoint (compliance status) (556a33d)
-- [x] COMP-11: Create GET /analyses/:id/compliance endpoint (analysis compliance report) (22b3966)
+- [ ] VOICE-08: Create narration service — Extend AI service with `narrate_dashboard(dashboard_config, query_results)`. Claude generates spoken narrative per chart: what it shows, key takeaways, recommendations. Return as text segments.
+- [ ] VOICE-09: Create narration playback — Use OpenAI TTS API (streaming) to convert narration text to speech. Play chart-by-chart with visual highlighting of current chart. Pause/resume controls.
 
-### Frontend Compliance UI
-- [x] COMP-12: Create LOPA input form (initiating event, IPLs, target frequency) (c406ade)
-- [x] COMP-13: Create LOPA results display (gap analysis, recommendations) (11c15a6)
-- [x] COMP-14: Create compliance validation screen with checklist view (776be22)
-- [x] COMP-15: Create compliance status badges for analyses (50ebe44)
-- [x] COMP-16: Create compliance dashboard with standard-by-standard breakdown (2d1a3ad)
+### 3.5 Voice Transcript Panel (F019)
 
-### Compliance Testing
-- [x] COMP-17: Add unit tests for LOPA calculations (e6fdba6)
-- [x] COMP-18: Add unit tests for compliance validation logic (48b7752)
-- [x] COMP-19: Add API tests for compliance endpoints (e3f5941)
+- [ ] VOICE-10: Create transcript panel — `frontend/src/components/voice/TranscriptPanel.tsx`. Rolling list of voice interactions: timestamp, user speech (transcribed), Ralph response. Click past query to re-run. Copy transcript. Search within history.
 
 ---
 
-## Phase 8: Real-time Collaboration
+## Phase 4: Connectivity
 
-### WebSocket Service
-- [x] COLLAB-01: Set up Socket.io server with authentication (d8af048)
-- [x] COLLAB-02: Create collaboration room management (create, join, leave) (5a01b5a)
-- [x] COLLAB-03: Implement real-time analysis entry updates broadcast (572822a)
-- [x] COLLAB-04: Implement cursor position sharing (5a01b5a - included in COLLAB-02)
-- [x] COLLAB-05: Create conflict detection for concurrent edits (3d3ae3b)
+> **Goal**: Live data sources, n8n pipelines, scheduled refresh, alerts, export
+> **Features**: F020, F021, F022, F023, F024
 
-### Backend API
-- [x] COLLAB-06: Create POST /analyses/:id/collaborate endpoint (start session) (732d1da)
-- [x] COLLAB-07: Create GET /analyses/:id/collaborate endpoint (get active sessions) (8171768)
-- [x] COLLAB-08: Create POST /analyses/:id/invite endpoint (send invitation) (6b0d2e1)
-- [x] COLLAB-09: Create POST /sessions/:id/join endpoint (join collaboration) (185b7fe)
+### 4.1 n8n Webhook Integration (F020)
 
-### Frontend Collaboration
-- [x] COLLAB-10: Create useWebSocket hook for real-time updates (ec225f5)
-- [x] COLLAB-11: Create collaboration status indicator (active users shown) (0737faf)
-- [x] COLLAB-12: Create user presence avatars on analysis workspace (5355a6d)
-- [x] COLLAB-13: Create real-time entry update animations (0786151)
-- [x] COLLAB-14: Create conflict resolution modal (2a38312)
+- [ ] WEBHOOK-01: Create webhook API — `backend/api/n8n.py` with `POST /api/webhooks/:workspace_id/ingest`. Accepts JSON payload, validates against expected schema, ingests into DuckDB table. API key auth (separate from JWT). Write tests.
+- [ ] WEBHOOK-02: Create webhook config UI — Settings page to view webhook URL, generate/rotate API key, configure target table mapping. Show recent webhook events with status.
 
-### Collaboration Testing
-- [x] COLLAB-15: Add unit tests for WebSocket event handlers (e1b408e)
-- [x] COLLAB-16: Add E2E tests for collaboration workflow (65891dc)
+### 4.2 Database Connectors (F021)
 
----
+- [ ] CONN-01: Create connection service — `backend/services/connection_service.py`. Connect to external PostgreSQL, MySQL, SQLite. Test connection. List tables. Execute read-only query. Store connection config encrypted in PostgreSQL. Write tests.
+- [ ] CONN-02: Create connection UI — Settings page for adding database connections. Connection form (type, host, port, user, password, database). Test connection button. Browse external tables. Import query results into workspace DuckDB.
 
-## Phase 9: Report Generation (Epic 4)
+### 4.3 Scheduled Refresh (F022)
 
-### Report Generation Service
-- [x] REPORT-01: Set up RabbitMQ for async report generation queue (cfed696)
-- [x] REPORT-02: Create Word document generator (docx format) (8ba7713)
-- [x] REPORT-03: Create PDF document generator (791b6eb)
-- [x] REPORT-04: Create Excel spreadsheet generator (analysis data tables) (6d28fad)
-- [x] REPORT-05: Create PowerPoint presentation generator (91fb804)
-- [x] REPORT-06: Create risk matrix image generator (fbdede2)
-- [x] REPORT-07: Create report template management service (5896ba2)
+- [ ] SCHED-01: Create scheduler service — `backend/services/scheduler_service.py`. APScheduler or similar. Define refresh jobs per data source (cron expression). Re-run webhook ingestion or database query on schedule. Store last refresh timestamp.
+- [ ] SCHED-02: Create schedule config UI — Per data source: enable/disable refresh, set cron schedule (presets: hourly, daily, weekly + custom). Show last refresh time and next scheduled run on dashboard.
 
-### Backend API
-- [x] REPORT-08: Create POST /projects/:id/reports endpoint (request report generation) (7c0e470)
-- [x] REPORT-09: Create GET /reports/:id/status endpoint (check generation status) (726cff3)
-- [x] REPORT-10: Create GET /reports/:id/download endpoint (download generated report) (33111ac)
-- [x] REPORT-11: Create GET /projects/:id/reports endpoint (list generated reports) (af2877c)
-- [x] REPORT-12: Create GET /templates endpoint (list available templates) (acab9ca)
+### 4.4 Alert Engine (F023)
 
-### Frontend Report UI
-- [x] REPORT-13: Create report generation center page (c78eb9c)
-- [x] REPORT-14: Create report request form (format, template, options) (7574785)
-- [x] REPORT-15: Create report generation progress indicator (098f987)
-- [x] REPORT-16: Create report preview component (32aecd9)
-- [x] REPORT-17: Create reports list with download links (244c02f)
-- [x] REPORT-18: Create template selector with preview (0913b58)
+- [ ] ALERT-01: Create Alert model and service — `backend/models/alert.py` with id, workspace_id, name, query (SQL), condition (gt/lt/eq), threshold, channel (browser/email/webhook). `backend/services/alert_service.py` evaluates alerts on schedule. Write tests.
+- [ ] ALERT-02: Create alert config UI — Alert management page. Create alert: name, SQL query, condition, threshold value, notification channel. List active alerts with status (OK/triggered). History of trigger events.
+- [ ] ALERT-03: Create alert notification delivery — Browser push notifications (Notification API). Email via SMTP (configurable). n8n webhook callback. Triggered alert updates status and logs event.
 
-### Report Testing
-- [x] REPORT-19: Add unit tests for each report format generator (196ee88)
-- [x] REPORT-20: Add API tests for report generation endpoints (69b1acd)
-- [x] REPORT-21: Add E2E tests for full report generation workflow (f01ff28)
+### 4.5 Export Engine (F024)
+- [ ] EXPORT-01: Create export service — `backend/services/export_service.py`. Export dashboard as PDF (using weasyprint or similar). Individual charts as PNG/SVG (ECharts built-in export). Data as CSV or Excel (openpyxl). Write tests.
+- [ ] EXPORT-02: Create export UI — Export button on dashboard: "Export as PDF", "Export data as CSV/Excel". Per-chart export menu: "Download as PNG", "Download as SVG". Download triggers backend export endpoint.
 
 ---
 
-## Phase 10: Dashboard & Navigation
+## Task Summary
 
-### Frontend Dashboard
-- [x] DASH-01: Create main dashboard page layout (39b854b)
-- [x] DASH-02: Create project summary cards (active, completed, draft) (d497c68)
-- [x] DASH-03: Create recent analyses widget (40fc2a2)
-- [x] DASH-04: Create risk overview chart (distribution across projects) (a22c298)
-- [x] DASH-05: Create pending actions widget (analyses needing review) (daf9873)
-- [x] DASH-06: Create activity timeline widget (eb0f05d)
-
-### Navigation & Layout
-- [x] NAV-01: Create main navigation sidebar with icons (672aace)
-- [x] NAV-02: Create breadcrumb navigation component (12064bf)
-- [x] NAV-03: Create responsive layout (desktop primary, tablet support) (d0b6f7f)
-- [x] NAV-04: Create dark mode toggle with theme persistence (d1e2691)
-- [x] NAV-05: Create user menu dropdown (profile, settings, logout) (1efdc7f)
-- [x] NAV-06: Create notification dropdown for system alerts (1bae2b2)
+| Phase | Section | Tasks |
+|-------|---------|-------|
+| 1 | 1.0 Legacy Cleanup | 1 |
+| 1 | 1.1 Project Setup & Docker | 7 |
+| 1 | 1.2 Backend Scaffold | 3 |
+| 1 | 1.3 Frontend Scaffold | 3 |
+| 1 | 1.4 User Authentication | 5 |
+| 1 | 1.5 Workspace Model | 2 |
+| 1 | 1.6 File Ingestion | 5 |
+| 1 | 1.7 DuckDB-WASM Query Engine | 4 |
+| 1 | 1.8 Chart Library | 8 |
+| 1 | 1.9 SQL Editor | 5 |
+| 1 | 1.10 Dashboard Builder | 5 |
+| 1 | 1.11 Interactive Filters | 3 |
+| 1 | 1.12 Dashboard Persistence | 4 |
+| **1 total** | | **55** |
+| 2 | 2.1 AI Text-to-SQL | 3 |
+| 2 | 2.2 Observable Plot | 3 |
+| 2 | 2.3 AI Insight Engine | 3 |
+| 2 | 2.4 AI Chat Panel | 3 |
+| 2 | 2.5 Deck Generator | 3 |
+| 2 | 2.6 Data Quality Scoring | 2 |
+| 2 | 2.7 Geo-Visualization | 7 |
+| **2 total** | | **24** |
+| 3 | 3.1-3.5 Voice | 10 |
+| **3 total** | | **10** |
+| 4 | 4.1-4.5 Connectivity | 11 |
+| **4 total** | | **11** |
+| **Grand total** | | **100** |
 
 ---
 
-## Phase 11: Polish & Deployment
+## Dependency Graph (Critical Path)
 
-### Performance & UX
-- [x] PERF-01: Add loading skeletons to all data-fetching components (dfbb20e)
-- [x] PERF-02: Implement error boundaries with fallback UI (5fdd495)
-- [x] PERF-03: Add toast notifications for success/error feedback (967d6eb)
-- [x] PERF-04: Implement optimistic updates for analysis entries (33fbc71)
-- [x] PERF-05: Add keyboard shortcuts for common analysis actions (a27d5e8)
-
-### Monitoring & Logging
-- [x] OPS-01: Set up Prometheus metrics collection (cfc3ae6)
-- [x] OPS-02: Configure Grafana dashboards (868dbaa)
-- [x] OPS-03: Set up Winston structured logging (3083251)
-- [x] OPS-04: Configure Loki log aggregation (6fdd3a1)
-
-### Docker & Deployment
-- [x] DEPLOY-01: Create production Docker Compose configuration (e6407d1)
-- [x] DEPLOY-02: Create Nginx reverse proxy configuration (970e923)
-- [x] DEPLOY-03: Configure production environment variables (4bf90bc)
-- [x] DEPLOY-04: Set up GitHub Actions CI/CD pipeline (b85fc5b)
-- [x] DEPLOY-05: Create database migration scripts for production (f05caf5)
-- [x] DEPLOY-06: Add health check endpoints for all services (ed2b886)
-
-### Documentation
-- [x] DOCS-01: Create API documentation with OpenAPI/Swagger (af1c367)
-- [x] DOCS-02: Update README with setup and deployment instructions (e6028d4)
-- [x] DOCS-03: Create environment variable documentation (70d8dfb)
-- [x] DOCS-04: Create user guide for HazOps analysis workflow (16ac55e)
+```
+CLEANUP-01 → SETUP-01 → SETUP-02..07 (parallel)
+                       → API-01 → API-02 → API-03
+                       → UI-01 → UI-02 → UI-03
+                                         → AUTH-04, AUTH-05
+             API-03 → AUTH-01 → AUTH-02 → AUTH-03
+             AUTH-01 + AUTH-03 → DB-01 → DB-02
+             DB-02 → DATA-01 → DATA-02 → DATA-03 → DATA-04
+             UI-01 → DUCK-01 → DUCK-02 → DUCK-03 → DUCK-04
+             DATA-05 depends on DATA-04 + UI-02
+             DUCK-02 → CHART-01 → CHART-02..08 (parallel)
+             CHART-08 → EDITOR-01..05 (sequential)
+             CHART-01..08 + DUCK-02 → DASH-01..05 (sequential)
+             DASH-05 → FILTER-01..03 (sequential)
+             DASH-05 + API-03 → PERSIST-01..04 (sequential)
+```
 
 ---
 
 ## Blockers
 
-_No blockers currently._
+- **Legacy HazOp code + conflict markers** in committed files must be cleaned up before any build work. CLEANUP-01 is the first task. No git merge conflicts exist (merge is done), but 6 files have `<<<<<<<` markers in their committed content (`setup_project.ps1` has 7 blocks — the most of any file).
+
+---
+
+## Notes
+
+- **Gap analysis (2026-02-23)**: Full codebase scan confirmed plan accuracy. 358 legacy HazOp files remain. 48 conflict markers across 6 files. Zero find.bi source code exists.
+- **Merge status**: Git merge is complete (`cc358a4`). No UU/AA conflicts in index. However, 6 files have `<<<<<<<` conflict markers committed into their content: `README.md` (6 markers/2 blocks), `QUICKSTART.md` (3/1), `PROMPT_Build.md` (6/2), `setup_project.sh` (9/3), `setup_project.ps1` (21/7), `.claude/settings.local.json` (3/1). These were merged but markers were left in the file content.
+- **Already clean files**: `PRD.json`, `CLAUDE.md` — contain no conflict markers. PRD.json has correct find.bi content. `loop.ps1` is modified in working directory but has no conflict markers.
+- **Auto-generated files**: `ralph_log_*.txt` and `ralph_log_*.md` exist at root from Ralph loop runs. These should be gitignored (added in CLEANUP-01).
+- **Old HazOp code** exists throughout the repo: `apps/` (288 files — NestJS API + React web), `packages/` (20 files — types+utils), `migrations/` (16 files), `e2e/` (10 files), `docs/` (2 files), `docker/` (14 files — grafana/loki/prometheus/nginx configs), `scripts/` (7 files). Root has 9 HazOp utility scripts. Conflict markers also exist in legacy files but those entire directories get deleted by CLEANUP-01.
+- **docker-compose.yml** currently runs 7 HazOp services (PostgreSQL, Redis, MinIO, RabbitMQ, Prometheus, Loki, Grafana). SETUP-02 replaces with just PostgreSQL.
+- **.env.example** currently has HazOp config (`DB_USER=hazop`, `DB_NAME=hazop`, MinIO, RabbitMQ vars). SETUP-03 replaces with find.bi config.
+- **.gitignore** lines 1-4 reference "CRM runtime" and lacks find.bi paths (`backend/`, `frontend/`, DuckDB, `.claude/settings.local.json`, `ralph_log_*`).
+- **CLAUDE.md** describes find.bi project correctly — no changes needed.
+- **No find.bi source code exists yet** — `frontend/` and `backend/` directories don't exist. Critical path: CLEANUP-01 → SETUP-01 → API-01/UI-01 before any feature work.
+- **specs/** directory contains only a README template — no actual specs. PRD.json is sufficient for this project.
+- **Personality/Easter eggs** (Ralph Wiggum quotes, 404 page, loading messages) are documented in CLAUDE.md but deliberately deferred. Add after Phase 1 core is working — not tracked as tasks.
+- The PRD defines Radar chart type — added as CHART-06.
+- DASH-03 and DASH-05 include radar chart type and text/markdown blocks.
+- **Keep list for CLEANUP-01**: Ralph loop infrastructure (`AGENTS.md`, `findbi.code-workspace`, `hooks/`, `loop.*`, `evaluate_loop.ps1`, `check_prompt_injection.ps1`, `PROMPT_*.md`, `specs/`, `setup_project.*`, `.claude/`) must be preserved during cleanup.
+- **PRD coverage audit**: All 24 features (F001–F024) are mapped to plan tasks. No gaps found.
 
 ---
 
@@ -412,228 +334,4 @@ _No blockers currently._
 
 | Task | Commit | Date |
 |------|--------|------|
-| Initial planning | - | 2026-02-09 |
-| SETUP-01: Initialize Nx monorepo | dc838a8 | 2026-02-09 |
-| SETUP-02: Configure Docker Compose | 3119b77 | 2026-02-09 |
-| SETUP-03: React 18 + TypeScript + Vite | dc838a8 | 2026-02-09 |
-| SETUP-04: Express.js + TypeScript | dc838a8 | 2026-02-09 |
-| SETUP-05: Tailwind CSS + Mantine UI | 8ffe440 | 2026-02-09 |
-| SETUP-06: Vitest frontend testing | 03ed071 | 2026-02-09 |
-| SETUP-07: Jest + Supertest API testing | 4c15fcf | 2026-02-09 |
-| SETUP-08: Playwright E2E testing | 15a2d04 | 2026-02-09 |
-| SETUP-09: ESLint + Prettier code quality | e2a674a | 2026-02-09 |
-| TYPES-01: User, UserRole type definitions | a77cd57 | 2026-02-09 |
-| TYPES-02: Project, ProjectStatus type definitions | bcf10dc | 2026-02-09 |
-| TYPES-03: PIDDocument type definitions | 4f1c83e | 2026-02-09 |
-| TYPES-04: AnalysisNode, EquipmentType type definitions | 8fde62f | 2026-02-09 |
-| TYPES-05: HazopsAnalysis, GuideWord, RiskRanking types | 0f10b5c | 2026-02-09 |
-| TYPES-06: Report, ReportRequest type definitions | fb99a7d | 2026-02-09 |
-| TYPES-07: API request/response type definitions | eeb81c5 | 2026-02-09 |
-| DB-01: PostgreSQL schema with custom enum types | 977df3c | 2026-02-09 |
-| DB-02: Create users table migration | 14437cf | 2026-02-09 |
-| DB-03: Create projects and project_members tables | 3d517f7 | 2026-02-09 |
-| DB-04: Create pid_documents table | 5aa6df5 | 2026-02-09 |
-| DB-05: Create analysis_nodes table | 288e8a9 | 2026-02-09 |
-| DB-06: Create hazop_analyses and analysis_entries tables | 138ddb4 | 2026-02-09 |
-| DB-07: Create collaboration_sessions and session_participants tables | bae521e | 2026-02-09 |
-| DB-08: Create audit_log table for change tracking | ee49495 | 2026-02-09 |
-| DB-09: Create reports and report_templates tables | b9de3bd | 2026-02-09 |
-| DB-10: Add performance indexes for all tables | b3ca5da | 2026-02-09 |
-| DB-11: Create database triggers for updated_at timestamps | 4cae1e7 | 2026-02-09 |
-| AUTH-01: Implement JWT token generation with RS256 | ace7d5e | 2026-02-09 |
-| AUTH-02: Create Passport.js authentication strategy | c1e04c2 | 2026-02-09 |
-| AUTH-03: Create POST /auth/register endpoint | 3b648bc | 2026-02-09 |
-| AUTH-04: Create POST /auth/login endpoint | bd0f7ae | 2026-02-09 |
-| AUTH-05: Create POST /auth/refresh endpoint | 1d12302 | 2026-02-09 |
-| AUTH-06: Create POST /auth/logout endpoint | da49b35 | 2026-02-09 |
-| AUTH-07: Create auth middleware for protected routes | 325d01c | 2026-02-09 |
-| AUTH-08: Implement role-based access control | af11d4f | 2026-02-09 |
-| AUTH-09: Create auth store with Zustand | de6fb38 | 2026-02-09 |
-| AUTH-10: Create login page with email/password form | bf0aa75 | 2026-02-09 |
-| AUTH-11: Create registration page with role selection | 615cb4e | 2026-02-09 |
-| AUTH-12: Create password reset flow (forgot password) | 041b7f5 | 2026-02-09 |
-| AUTH-13: Implement auth guards for protected routes | 7c9e7c4 | 2026-02-09 |
-| AUTH-14: Create user profile page with edit functionality | 1a1e187 | 2026-02-09 |
-| AUTH-15: Add unit tests for JWT token generation/validation | fac9c60 | 2026-02-09 |
-| AUTH-16: Add API tests for auth endpoints | 5f48429 | 2026-02-09 |
-| AUTH-17: Add E2E tests for login/logout flow | b5a233d | 2026-02-09 |
-| ADMIN-01: Create GET /admin/users endpoint | 31b1001 | 2026-02-09 |
-| ADMIN-02: Create PUT /admin/users/:id/role endpoint | 1d9e2fd | 2026-02-09 |
-| ADMIN-03: Create PUT /admin/users/:id/status endpoint | da37825 | 2026-02-09 |
-| ADMIN-04: Create admin user management page with data table | e06d280 | 2026-02-09 |
-| ADMIN-05: Create user role editor modal | e352dad | 2026-02-09 |
-| ADMIN-06: Add admin route guard (administrator role) | bb1c50c | 2026-02-09 |
-| ADMIN-07: Add API tests for admin endpoints | 7d3c1af | 2026-02-09 |
-| PROJ-01: Create GET /projects endpoint | 045b495 | 2026-02-09 |
-| PROJ-02: Create POST /projects endpoint | fd5de9a | 2026-02-09 |
-| PROJ-03: Create GET /projects/:id endpoint | c5a9f6f | 2026-02-09 |
-| PROJ-04: Create PUT /projects/:id endpoint | ceda9af | 2026-02-09 |
-| PROJ-05: Create DELETE /projects/:id endpoint | 28765eb | 2026-02-09 |
-| PROJ-06: Create POST /projects/:id/members endpoint | 01f8bb8 | 2026-02-09 |
-| PROJ-07: Create DELETE /projects/:id/members/:userId endpoint | 9947b15 | 2026-02-09 |
-| PROJ-08: Create projects list page with status filters | cee074e | 2026-02-09 |
-| PROJ-09: Create project card component with status badge | 8ec4869 | 2026-02-09 |
-| PROJ-10: Create new project form modal | 128ac57 | 2026-02-09 |
-| PROJ-11: Create project detail page with tabs | 766041b | 2026-02-09 |
-| PROJ-12: Create team management panel | becc836 | 2026-02-09 |
-| PROJ-13: Create project settings form | 81d529d | 2026-02-09 |
-| PROJ-14: Add API tests for project CRUD endpoints | ea3f410 | 2026-02-10 |
-| PROJ-15: Add E2E tests for project creation workflow | 7ba79cd | 2026-02-10 |
-| PID-01: Configure MinIO client for S3-compatible storage | fb07e54 | 2026-02-10 |
-| PID-02: Create file upload middleware with validation | e453f86 | 2026-02-10 |
-| PID-03: Create file retrieval service with signed URLs | a800aa7 | 2026-02-10 |
-| PID-04: Create POST /projects/:id/documents endpoint | d93a7ef | 2026-02-10 |
-| PID-05: Create GET /projects/:id/documents endpoint | 007f17e | 2026-02-10 |
-| PID-06: Create GET /documents/:id endpoint | eb9e7d9 | 2026-02-10 |
-| PID-07: Create DELETE /documents/:id endpoint | f8025b2 | 2026-02-10 |
-| PID-08: Create GET /documents/:id/download endpoint | d2c5105 | 2026-02-10 |
-| PID-09: Create basic P&ID metadata extraction | a55163a | 2026-02-10 |
-| PID-10: Create manual node creation endpoint POST /documents/:id/nodes | 526790c | 2026-02-10 |
-| PID-11: Create node listing endpoint GET /documents/:id/nodes | 164260b | 2026-02-10 |
-| PID-12: Create node update endpoint PUT /nodes/:id | 28edd5e | 2026-02-10 |
-| PID-13: Create node delete endpoint DELETE /nodes/:id | 2244ab1 | 2026-02-10 |
-| PID-14: Create P&ID upload component with drag-and-drop | d12702e | 2026-02-10 |
-| PID-15: Create document list view with thumbnails | edb28dc | 2026-02-10 |
-| PID-16: Create P&ID viewer component (zoom, pan functionality) | f0a1d95 | 2026-02-10 |
-| PID-17: Create node overlay component (clickable markers on P&ID) | ad9d78c | 2026-02-10 |
-| PID-18: Create node creation form (node ID, description, equipment type) | 4bab101 | 2026-02-10 |
-| PID-19: Create node editing modal | b3f9a29 | 2026-02-10 |
-| PID-20: Add API tests for document upload/retrieval | e4489ea | 2026-02-10 |
-| PID-21: Add E2E tests for P&ID upload workflow | beac65c | 2026-02-10 |
-| HAZOP-01: Create HazOps analysis session service | 0ff9a18 | 2026-02-10 |
-| HAZOP-02: Implement guide word definitions | edc343c | 2026-02-10 |
-| HAZOP-03: Create prepared answer menus for causes | 963a496 | 2026-02-10 |
-| HAZOP-04: Create prepared answer menus for consequences | c71ee6b | 2026-02-10 |
-| HAZOP-05: Create prepared answer menus for safeguards | 31c61c8 | 2026-02-10 |
-| HAZOP-06: Create prepared answer menus for recommendations | 7cbe762 | 2026-02-10 |
-| HAZOP-07: Create POST /projects/:id/analyses endpoint | 57222f7 | 2026-02-10 |
-| HAZOP-08: Create GET /projects/:id/analyses endpoint | ba3a8fe | 2026-02-10 |
-| HAZOP-09: Create GET /analyses/:id endpoint | b93623b | 2026-02-10 |
-| HAZOP-10: Create PUT /analyses/:id endpoint | f9f6a50 | 2026-02-10 |
-| HAZOP-11: Create POST /analyses/:id/entries endpoint | 88cdc58 | 2026-02-10 |
-| HAZOP-12: Create GET /analyses/:id/entries endpoint | cc8d79d | 2026-02-10 |
-| HAZOP-13: Create PUT /entries/:id endpoint | 77ed7d0 | 2026-02-10 |
-| HAZOP-14: Create DELETE /entries/:id endpoint | b8da84e | 2026-02-10 |
-| HAZOP-15: Create POST /analyses/:id/complete endpoint | b4bca6f | 2026-02-10 |
-| HAZOP-16: Create analysis session list page with status indicators | de417ea | 2026-02-10 |
-| HAZOP-17: Create new analysis session wizard | 2ea0778 | 2026-02-11 |
-| HAZOP-18: Create analysis workspace layout (split-pane) | f30b08c | 2026-02-11 |
-| HAZOP-19: Create node selection component | f30b08c | 2026-02-11 |
-| HAZOP-20: Create guide word selector (tab navigation) | 19b0c9a | 2026-02-11 |
-| HAZOP-21: Create deviation input form with autocomplete | cbc99b4 | 2026-02-11 |
-| HAZOP-22: Create causes input with prepared answer menu (multi-select) | fed6243 | 2026-02-11 |
-| HAZOP-23: Create consequences input with prepared answer menu (multi-select) | 49ae70a | 2026-02-11 |
-| HAZOP-24: Create safeguards input with prepared answer menu (multi-select) | d3dbe46 | 2026-02-11 |
-| HAZOP-25: Create recommendations input with prepared answer menu (multi-select) | 74dff69 | 2026-02-11 |
-| HAZOP-26: Create analysis progress tracker (nodes completed/total) | 70a110a | 2026-02-11 |
-| HAZOP-27: Create analysis entry summary table | 0237edc | 2026-02-11 |
-| HAZOP-28: Add unit tests for guide word validation logic | edc343c | 2026-02-11 |
-| HAZOP-29: Add API tests for analysis CRUD endpoints | 07a45fc | 2026-02-11 |
-| HAZOP-30: Add E2E tests for complete analysis workflow | 3f93986 | 2026-02-11 |
-| RISK-01: Create severity × likelihood × detectability calculation service | 328dd41 | 2026-02-11 |
-| RISK-02: Implement 5x5 risk matrix logic (Low, Medium, High mapping) | da65554 | 2026-02-11 |
-| RISK-03: Create risk level threshold configuration | 4e33b9b | 2026-02-11 |
-| RISK-04: Implement risk score aggregation for analysis sessions | 42b0668 | 2026-02-11 |
-| RISK-05: Create PUT /entries/:id/risk endpoint (update risk ranking) | 2ad5107 | 2026-02-11 |
-| RISK-06: Create GET /analyses/:id/risk-summary endpoint (aggregated risk view) | 355c549 | 2026-02-11 |
-| RISK-07: Create GET /projects/:id/risk-dashboard endpoint (project-level risk metrics) | 5bd4aea | 2026-02-11 |
-| RISK-08: Create severity dropdown selector (1-5 scale with descriptions) | fc2c543 | 2026-02-11 |
-| RISK-09: Create likelihood dropdown selector (1-5 scale with descriptions) | 0483327 | 2026-02-11 |
-| RISK-10: Create detectability dropdown selector (1-5 scale with descriptions) | ba4efb6 | 2026-02-11 |
-| RISK-11: Create risk score display component (color-coded badge) | 2a5a12b | 2026-02-11 |
-| RISK-12: Create interactive 5x5 risk matrix visualization | bce10fe | 2026-02-11 |
-| RISK-13: Create risk dashboard page with charts and metrics | 625c2f6 | 2026-02-11 |
-| RISK-14: Add risk filtering to analysis entry table | dd38e31 | 2026-02-11 |
-| RISK-15: Add unit tests for risk calculation logic | 5db21bf | 2026-02-11 |
-| RISK-16: Add API tests for risk endpoints | b8f4374 | 2026-02-11 |
-| LOPA-01: Create LOPA calculation engine | bc63dfe | 2026-02-11 |
-| LOPA-02: Implement IPL validation service | e74a385 | 2026-02-11 |
-| LOPA-03: Create LOPA recommendation trigger service | d65972b | 2026-02-11 |
-| LOPA-04: Implement risk reduction factor calculation | 4ab299d | 2026-02-11 |
-| COMP-01: Create regulatory standards database (IEC 61511, ISO 31000, ISO 9001) | 9da783a | 2026-02-11 |
-| COMP-02: Add ATEX/DSEAR compliance checks | 3fcdb2a | 2026-02-11 |
-| COMP-03: Add PED compliance checks | 3272479 | 2026-02-11 |
-| COMP-04: Add OSHA PSM compliance checks | 5bd6749 | 2026-02-11 |
-| COMP-05: Add EPA RMP compliance checks | 7a55e24 | 2026-02-11 |
-| COMP-06: Add SEVESO III directive compliance checks | 9b6d7d1 | 2026-02-11 |
-| COMP-07: Create compliance validation engine (cross-reference findings) | 6dd6041 | 2026-02-11 |
-| COMP-08: Create POST /entries/:id/lopa endpoint (create LOPA analysis) | e75c4d1 | 2026-02-11 |
-| COMP-09: Create GET /entries/:id/lopa endpoint (get LOPA results) | 8ba89e3 | 2026-02-11 |
-| COMP-10: Create GET /projects/:id/compliance endpoint (compliance status) | 556a33d | 2026-02-11 |
-| COMP-11: Create GET /analyses/:id/compliance endpoint (analysis compliance report) | 22b3966 | 2026-02-11 |
-| COMP-12: Create LOPA input form (initiating event, IPLs, target frequency) | c406ade | 2026-02-11 |
-| COMP-13: Create LOPA results display (gap analysis, recommendations) | 11c15a6 | 2026-02-11 |
-| COMP-14: Create compliance validation screen with checklist view | 776be22 | 2026-02-11 |
-| COMP-15: Create compliance status badges for analyses | 50ebe44 | 2026-02-11 |
-| COMP-16: Create compliance dashboard with standard-by-standard breakdown | 2d1a3ad | 2026-02-11 |
-| COMP-17: Add unit tests for LOPA calculations | e6fdba6 | 2026-02-11 |
-| COMP-18: Add unit tests for compliance validation logic | 48b7752 | 2026-02-11 |
-| COMP-19: Add API tests for compliance endpoints | 127ff88 | 2026-02-11 |
-| COLLAB-01: Set up Socket.io server with authentication | d8af048 | 2026-02-11 |
-| COLLAB-02: Create collaboration room management (create, join, leave) | 5a01b5a | 2026-02-11 |
-| COLLAB-03: Implement real-time analysis entry updates broadcast | 572822a | 2026-02-11 |
-| COLLAB-04: Implement cursor position sharing (included in COLLAB-02) | 5a01b5a | 2026-02-11 |
-| COLLAB-05: Create conflict detection for concurrent edits | 3d3ae3b | 2026-02-11 |
-| COLLAB-06: Create POST /analyses/:id/collaborate endpoint | 732d1da | 2026-02-11 |
-| COLLAB-07: Create GET /analyses/:id/collaborate endpoint | 8171768 | 2026-02-11 |
-| COLLAB-08: Create POST /analyses/:id/invite endpoint | 6b0d2e1 | 2026-02-11 |
-| COLLAB-09: Create POST /sessions/:id/join endpoint | 185b7fe | 2026-02-11 |
-| COLLAB-10: Create useWebSocket hook for real-time updates | ec225f5 | 2026-02-12 |
-| COLLAB-11: Create collaboration status indicator (active users shown) | 0737faf | 2026-02-12 |
-| COLLAB-12: Create user presence avatars on analysis workspace | 5355a6d | 2026-02-12 |
-| COLLAB-13: Create real-time entry update animations | 0786151 | 2026-02-12 |
-| COLLAB-14: Create conflict resolution modal | 2a38312 | 2026-02-12 |
-| COLLAB-15: Add unit tests for WebSocket event handlers | e1b408e | 2026-02-12 |
-| COLLAB-16: Add E2E tests for collaboration workflow | 65891dc | 2026-02-12 |
-| REPORT-01: Set up RabbitMQ for async report generation queue | cfed696 | 2026-02-12 |
-| REPORT-02: Create Word document generator (docx format) | 8ba7713 | 2026-02-12 |
-| REPORT-03: Create PDF document generator | 791b6eb | 2026-02-12 |
-| REPORT-04: Create Excel spreadsheet generator (analysis data tables) | 6d28fad | 2026-02-12 |
-| REPORT-05: Create PowerPoint presentation generator | 91fb804 | 2026-02-12 |
-| REPORT-06: Create risk matrix image generator | fbdede2 | 2026-02-12 |
-| REPORT-07: Create report template management service | 5896ba2 | 2026-02-12 |
-| REPORT-08: Create POST /projects/:id/reports endpoint | 7c0e470 | 2026-02-12 |
-| REPORT-09: Create GET /reports/:id/status endpoint | 726cff3 | 2026-02-12 |
-| REPORT-10: Create GET /reports/:id/download endpoint | 33111ac | 2026-02-12 |
-| REPORT-11: Create GET /projects/:id/reports endpoint | af2877c | 2026-02-12 |
-| REPORT-12: Create GET /templates endpoint | acab9ca | 2026-02-12 |
-| REPORT-13: Create report generation center page | c78eb9c | 2026-02-12 |
-| REPORT-14: Create report request form (format, template, options) | 7574785 | 2026-02-12 |
-| REPORT-15: Create report generation progress indicator | 098f987 | 2026-02-12 |
-| REPORT-16: Create report preview component | 32aecd9 | 2026-02-12 |
-| REPORT-17: Create reports list with download links | 244c02f | 2026-02-12 |
-| REPORT-18: Create template selector with preview | 0913b58 | 2026-02-12 |
-| REPORT-19: Add unit tests for each report format generator | 196ee88 | 2026-02-12 |
-| REPORT-20: Add API tests for report generation endpoints | 69b1acd | 2026-02-12 |
-| REPORT-21: Add E2E tests for full report generation workflow | f01ff28 | 2026-02-12 |
-| DASH-01: Create main dashboard page layout | 39b854b | 2026-02-12 |
-| DASH-02: Create project summary cards (active, completed, draft) | d497c68 | 2026-02-12 |
-| DASH-03: Create recent analyses widget | 40fc2a2 | 2026-02-12 |
-| DASH-04: Create risk overview chart (distribution across projects) | a22c298 | 2026-02-12 |
-| DASH-05: Create pending actions widget (analyses needing review) | daf9873 | 2026-02-12 |
-| DASH-06: Create activity timeline widget | eb0f05d | 2026-02-12 |
-| NAV-01: Create main navigation sidebar with icons | 672aace | 2026-02-12 |
-| NAV-02: Create breadcrumb navigation component | 12064bf | 2026-02-12 |
-| NAV-03: Create responsive layout (desktop primary, tablet support) | d0b6f7f | 2026-02-12 |
-| NAV-04: Create dark mode toggle with theme persistence | d1e2691 | 2026-02-12 |
-| NAV-05: Create user menu dropdown (profile, settings, logout) | 1efdc7f | 2026-02-12 |
-| NAV-06: Create notification dropdown for system alerts | 1bae2b2 | 2026-02-12 |
-| PERF-01: Add loading skeletons to all data-fetching components | dfbb20e | 2026-02-12 |
-| PERF-02: Implement error boundaries with fallback UI | 5fdd495 | 2026-02-12 |
-| PERF-03: Add toast notifications for success/error feedback | 967d6eb | 2026-02-12 |
-| PERF-04: Implement optimistic updates for analysis entries | 33fbc71 | 2026-02-12 |
-| PERF-05: Add keyboard shortcuts for common analysis actions | a27d5e8 | 2026-02-12 |
-| OPS-01: Set up Prometheus metrics collection | cfc3ae6 | 2026-02-12 |
-| OPS-02: Configure Grafana dashboards | 868dbaa | 2026-02-12 |
-| OPS-03: Set up Winston structured logging | 3083251 | 2026-02-12 |
-| OPS-04: Configure Loki log aggregation | 6fdd3a1 | 2026-02-13 |
-| DEPLOY-01: Create production Docker Compose configuration | e6407d1 | 2026-02-13 |
-| DEPLOY-02: Create Nginx reverse proxy configuration | 970e923 | 2026-02-13 |
-| DEPLOY-03: Configure production environment variables | 4bf90bc | 2026-02-13 |
-| DEPLOY-04: Set up GitHub Actions CI/CD pipeline | b85fc5b | 2026-02-13 |
-| DEPLOY-05: Create database migration scripts for production | f05caf5 | 2026-02-13 |
-| DEPLOY-06: Add health check endpoints for all services | ed2b886 | 2026-02-13 |
-| DOCS-01: Create API documentation with OpenAPI/Swagger | af1c367 | 2026-02-13 |
-| DOCS-02: Update README with setup and deployment instructions | e6028d4 | 2026-02-13 |
-| DOCS-03: Create environment variable documentation | 70d8dfb | 2026-02-13 |
-| DOCS-04: Create user guide for HazOps analysis workflow | 16ac55e | 2026-02-13 |
+| - | - | - |

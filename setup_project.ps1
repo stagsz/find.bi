@@ -1,18 +1,10 @@
-<<<<<<< HEAD
 # find.bi - Interactive Project Setup
-=======
-# Ralph Template - Interactive Project Setup
->>>>>>> fd0cfc54ecd6140dbe09febd524261d7fa94570e
 # Walks you through setting up a new project from this template
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "================================================================" -ForegroundColor Cyan
-<<<<<<< HEAD
 Write-Host "               find.bi - New Project Setup                      " -ForegroundColor Cyan
-=======
-Write-Host "          Ralph Template - New Project Setup                    " -ForegroundColor Cyan
->>>>>>> fd0cfc54ecd6140dbe09febd524261d7fa94570e
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "This wizard will help you configure a new project." -ForegroundColor Gray
@@ -232,11 +224,7 @@ This project uses the **Ralph autonomous AI methodology**.
 
 ### The Loop
 
-<<<<<<< HEAD
 ```
-=======
-``````
->>>>>>> fd0cfc54ecd6140dbe09febd524261d7fa94570e
 1. Read IMPLEMENTATION_PLAN.md
 2. Find next unchecked [ ] task
 3. Implement ONLY that task
@@ -245,21 +233,13 @@ This project uses the **Ralph autonomous AI methodology**.
 6. Mark task [x] with commit hash
 7. IMMEDIATELY continue to next task
 8. Only stop if blocked
-<<<<<<< HEAD
 ```
-=======
-``````
->>>>>>> fd0cfc54ecd6140dbe09febd524261d7fa94570e
 
 ### Quality Gates
 
 Run before every commit:
 
-<<<<<<< HEAD
 ```bash
-=======
-``````bash
->>>>>>> fd0cfc54ecd6140dbe09febd524261d7fa94570e
 $(if ($backend -match "Python") {
 "# Backend (Python)
 cd backend && mypy app && ruff check app && pytest"
@@ -277,7 +257,6 @@ cd frontend && npm run typecheck && npm run lint && npm test"
 } else {
 "# No frontend"
 })
-<<<<<<< HEAD
 ```
 
 ### Commit Format
@@ -291,21 +270,6 @@ Types: feat, fix, test, refactor, docs, chore
 ### When Blocked
 
 1. Document blocker in IMPLEMENTATION_PLAN.md under `## Blockers`
-=======
-``````
-
-### Commit Format
-
-``````
-<type>(<scope>): <description> (<TASK-ID>)
-
-Types: feat, fix, test, refactor, docs, chore
-``````
-
-### When Blocked
-
-1. Document blocker in IMPLEMENTATION_PLAN.md under ``## Blockers``
->>>>>>> fd0cfc54ecd6140dbe09febd524261d7fa94570e
 2. Stop and report
 3. Do NOT skip to another task
 4. Wait for user decision
@@ -337,19 +301,11 @@ $claudeMd | Out-File -FilePath "CLAUDE.md" -Encoding UTF8
 Write-Host "[✓] Updated CLAUDE.md" -ForegroundColor Green
 
 # Update workspace file name
-<<<<<<< HEAD
 if (Test-Path "find.bi.code-workspace") {
     $workspaceContent = Get-Content "find.bi.code-workspace" -Raw
     $newWorkspaceName = "$projectName.code-workspace"
     $workspaceContent | Out-File -FilePath $newWorkspaceName -Encoding UTF8
     Remove-Item "find.bi.code-workspace"
-=======
-if (Test-Path "RalphTemplate.code-workspace") {
-    $workspaceContent = Get-Content "RalphTemplate.code-workspace" -Raw
-    $newWorkspaceName = "$projectName.code-workspace"
-    $workspaceContent | Out-File -FilePath $newWorkspaceName -Encoding UTF8
-    Remove-Item "RalphTemplate.code-workspace"
->>>>>>> fd0cfc54ecd6140dbe09febd524261d7fa94570e
     Write-Host "[✓] Renamed workspace to $newWorkspaceName" -ForegroundColor Green
 }
 

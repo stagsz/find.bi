@@ -1,12 +1,3 @@
-# Ralph Automation Scripts (template files - not needed for CRM runtime)
-loop.ps1
-evaluate_loop.ps1
-setup_project.ps1
-check_prompt_injection.ps1
-PROMPT_*.md
-AGENTS.md
-EXPERIMENT_BLOG.md
-
 # Ralph logs and reports
 ralph_log_*.txt
 ralph_log_*.md
@@ -15,10 +6,13 @@ prompt_injection_report.md
 *.log
 logs/
 
+# Claude Code local settings
+.claude/settings.local.json
+
 # Development containers
 .devcontainer/
 
-# Python (if any Python scripts exist)
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -68,16 +62,18 @@ htmlcov/
 .pytest_cache/
 .mypy_cache/
 coverage/
+test-results/
 
-# Database
+# Database and DuckDB
 *.db
 *.sqlite3
+data/workspaces/
 
 # Uploads
 uploads/
 temp/
 
-# Large model files (if any)
+# Large model files
 *.pt
 *.pth
 *.onnx

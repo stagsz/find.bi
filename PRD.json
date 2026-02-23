@@ -1,65 +1,340 @@
 {
-  "product": {
-    "name": "{{PROJECT_NAME}}",
-    "tagline": "{{Short tagline}}",
-    "description": "{{2-3 sentence description}}"
+  "project_name": "Ralph Wiggum BI",
+  "version": "1.0.0",
+  "created": "2026-02-22",
+  "author": "Staffan Greisz",
+  "project_type": "full-stack web app",
+  "description": "Self-hosted, local-first Business Intelligence platform with interactive dashboards, AI-powered analysis, and a conversational voice assistant called Ralph. Alternative to Power BI and Tableau that runs entirely on your own machine.",
+  "tagline": "Your data talks. Ralph listens.",
+  "north_star": "Time from raw data upload to first actionable insight under 60 seconds",
+
+  "tech_stack": {
+    "frontend": "React 18 + Vite + TypeScript",
+    "styling": "Tailwind CSS",
+    "charts_standard": "Apache ECharts (Apache License 2.0) — replaces Recharts",
+    "charts_exploratory": "Observable Plot (ISC) — AI-generated exploratory visualizations",
+    "geo_visualization": "Deck.gl (MIT) + MapLibre GL JS (BSD 3-Clause) — GPU-accelerated geo layers, no API key required",
+    "query_engine": "DuckDB-WASM (in-browser)",
+    "sql_editor": "Monaco Editor",
+    "dashboard_layout": "react-grid-layout",
+    "backend": "Python 3.12 + FastAPI",
+    "orm": "SQLAlchemy + Alembic",
+    "database": "PostgreSQL 15 (metadata) + DuckDB (analytical data)",
+    "ai_analysis": "Anthropic Claude API (claude-sonnet-4-6)",
+    "ai_voice": "OpenAI Realtime API (GPT-4o WebSocket)",
+    "ai_tts": "OpenAI TTS API",
+    "ai_stt_fallback": "Web Speech API",
+    "containerization": "Docker + Docker Compose",
+    "reverse_proxy": "Nginx",
+    "automation": "n8n webhooks",
+    "ci_cd": "GitHub Actions"
   },
-  "users": {
-    "primary": "{{Primary user type}}",
-    "personas": [
-      {
-        "name": "{{Persona 1}}",
-        "needs": "{{What they need from this product}}"
-      },
-      {
-        "name": "{{Persona 2}}",
-        "needs": "{{What they need from this product}}"
-      }
-    ]
+
+  "authentication": true,
+  "auth_type": "JWT + bcrypt, local accounts only",
+
+  "external_api_integrations": [
+    "Anthropic Claude API",
+    "OpenAI Realtime API",
+    "OpenAI TTS API",
+    "n8n webhook endpoints"
+  ],
+
+  "repository_structure": {
+    "frontend/": "React + Vite + TypeScript app",
+    "frontend/src/components/": "UI components (charts, dashboard, editor, voice, geo)",
+    "frontend/src/components/geo/": "Deck.gl map layers (ScatterplotLayer, HexagonLayer, ArcLayer, HeatmapLayer, GeoJsonLayer)",
+    "frontend/src/hooks/": "Custom React hooks (useDuckDB, useVoice, useAI)",
+    "frontend/src/services/": "API client, DuckDB-WASM init, WebSocket voice",
+    "backend/": "FastAPI application",
+    "backend/api/": "Route handlers (auth, data, dashboards, ai, voice, n8n)",
+    "backend/services/": "Business logic (ai, duckdb, alerts, export, n8n)",
+    "backend/models/": "SQLAlchemy models",
+    "backend/alembic/": "Database migrations",
+    "docker/": "Dockerfiles and compose configs",
+    "docs/": "Architecture and API documentation",
+    "scripts/": "Dev setup and seed data helpers",
+    ".github/workflows/": "CI/CD pipelines"
   },
-  "features": {
-    "core": [
-      {
-        "id": "F1",
-        "name": "{{Feature name}}",
-        "description": "{{What it does}}"
-      },
-      {
-        "id": "F2",
-        "name": "{{Feature name}}",
-        "description": "{{What it does}}"
-      },
-      {
-        "id": "F3",
-        "name": "{{Feature name}}",
-        "description": "{{What it does}}"
-      }
-    ],
-    "future": [
-      {
-        "id": "F10",
-        "name": "{{Future feature}}",
-        "description": "{{For later}}"
-      }
-    ]
-  },
-  "techStack": {
-    "frontend": [],
-    "backend": [],
-    "database": [],
-    "auth": [],
-    "other": []
-  },
-  "dataModels": {
-    "example_model": {
-      "fields": ["id", "name", "created_at"],
-      "relationships": ["belongs_to: other_model"]
+
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Foundation",
+      "goal": "Working local BI tool — file upload, charts, SQL editor, dashboard builder"
+    },
+    {
+      "phase": 2,
+      "name": "Intelligence",
+      "goal": "AI analysis, natural language to SQL, insight engine, deck generator"
+    },
+    {
+      "phase": 3,
+      "name": "Voice",
+      "goal": "Hey Ralph voice assistant — push-to-talk, wake word, spoken responses"
+    },
+    {
+      "phase": 4,
+      "name": "Connectivity",
+      "goal": "Live data sources, n8n pipelines, scheduled refresh, alerts, export"
+    }
+  ],
+
+  "features": [
+    {
+      "id": "F001",
+      "phase": 1,
+      "name": "Docker Compose stack",
+      "description": "Full dev and prod Docker Compose setup: FastAPI, React, PostgreSQL, Nginx. Single command startup.",
+      "priority": "P0",
+      "done": false
+    },
+    {
+      "id": "F002",
+      "phase": 1,
+      "name": "File ingestion",
+      "description": "Drag-and-drop upload for CSV, JSON, Parquet, Excel. Auto-detect schema and column types. Store as DuckDB database file per workspace.",
+      "priority": "P0",
+      "done": false
+    },
+    {
+      "id": "F003",
+      "phase": 1,
+      "name": "DuckDB-WASM query engine",
+      "description": "Initialize DuckDB-WASM in browser. Load uploaded data files. Execute SQL queries client-side. Sub-500ms response target.",
+      "priority": "P0",
+      "done": false
+    },
+    {
+      "id": "F004",
+      "phase": 1,
+      "name": "Chart library — Apache ECharts",
+      "description": "Bar, Line, Area, Scatter, Pie, Donut, Radar, KPI card, Data Table using Apache ECharts (Apache License 2.0). Each chart takes a SQL query and renders result. Click to drill down. Canvas and SVG rendering modes. Handles 10M+ data points via progressive rendering.",
+      "priority": "P0",
+      "done": false
+    },
+    {
+      "id": "F005",
+      "phase": 1,
+      "name": "Dashboard builder",
+      "description": "Drag-and-drop grid canvas using react-grid-layout. Add, resize, reorder chart cards. Add text/markdown blocks. Save dashboard as JSON.",
+      "priority": "P0",
+      "done": false
+    },
+    {
+      "id": "F006",
+      "phase": 1,
+      "name": "SQL editor",
+      "description": "Monaco-based SQL IDE with syntax highlighting, schema explorer sidebar, query history, result preview as table or chart.",
+      "priority": "P0",
+      "done": false
+    },
+    {
+      "id": "F007",
+      "phase": 1,
+      "name": "Interactive filters",
+      "description": "Date range picker, dropdown, multi-select, search box filter components. Filters apply across all linked charts on dashboard instantly.",
+      "priority": "P0",
+      "done": false
+    },
+    {
+      "id": "F008",
+      "phase": 1,
+      "name": "User authentication",
+      "description": "JWT-based auth. Register, login, logout. bcrypt password hashing. Protected API routes. Per-user workspace isolation.",
+      "priority": "P0",
+      "done": false
+    },
+    {
+      "id": "F009",
+      "phase": 1,
+      "name": "Dashboard persistence",
+      "description": "Save dashboards to PostgreSQL. Load, rename, delete. Export dashboard config as portable JSON file. Import from JSON.",
+      "priority": "P0",
+      "done": false
+    },
+    {
+      "id": "F010",
+      "phase": 2,
+      "name": "AI text-to-SQL",
+      "description": "Natural language query input. Send question + schema context to Claude API. Execute generated SQL. Display result as chart or table automatically.",
+      "priority": "P1",
+      "done": false
+    },
+    {
+      "id": "F010B",
+      "phase": 2,
+      "name": "Observable Plot — AI exploratory charts",
+      "description": "Use Observable Plot (ISC license) for AI-generated exploratory visualizations. Claude generates Plot specs as JSON declaratively — faster and more reliable than generating imperative ECharts config. AI chat panel renders responses as Plot charts automatically. Users can promote Plot charts to full ECharts dashboard cards.",
+      "priority": "P1",
+      "done": false
+    },
+    {
+      "id": "F011",
+      "phase": 2,
+      "name": "AI insight engine",
+      "description": "On data upload, Claude analyzes schema and sample rows. Auto-generates insight cards: trends, anomalies, correlations, outliers with plain English explanations.",
+      "priority": "P1",
+      "done": false
+    },
+    {
+      "id": "F012",
+      "phase": 2,
+      "name": "AI chat panel",
+      "description": "Right sidebar chat interface. Ask questions about current dataset in plain English. Conversation history maintained per session. Responses include charts when relevant.",
+      "priority": "P1",
+      "done": false
+    },
+    {
+      "id": "F013",
+      "phase": 2,
+      "name": "Deck generator",
+      "description": "One-click AI deck generation. Claude reads dataset, builds complete analysis presentation: charts, narrative, key findings, and recommendations. Rendered as interactive deck.",
+      "priority": "P1",
+      "done": false
+    },
+    {
+      "id": "F014",
+      "phase": 2,
+      "name": "Data quality scoring",
+      "description": "Scan uploaded dataset for missing values, type mismatches, duplicates, outliers. Display quality score card with actionable cleaning suggestions.",
+      "priority": "P2",
+      "done": false
+    },
+    {
+      "id": "F014B",
+      "phase": 2,
+      "name": "Deck.gl geo-visualization layer",
+      "description": "Integrate @deck.gl/react + MapLibre GL JS. Auto-detect lat/lon or geographic columns in uploaded data. Offer map chart type in dashboard builder. GPU-accelerated rendering handles millions of points in browser.",
+      "priority": "P1",
+      "done": false
+    },
+    {
+      "id": "F014C",
+      "phase": 2,
+      "name": "Deck.gl layer types",
+      "description": "Implement ScatterplotLayer (point data), HexagonLayer (density aggregation), HeatmapLayer (intensity), ArcLayer (origin-destination flows), GeoJsonLayer (polygon/boundary data). Each selectable as chart type in dashboard builder.",
+      "priority": "P1",
+      "done": false
+    },
+    {
+      "id": "F014D",
+      "phase": 2,
+      "name": "AI geo-column detection",
+      "description": "Claude detects geographic columns in dataset schema (lat/lon pairs, country names, region codes, postal codes). Automatically suggests Deck.gl map as recommended chart type. Can geocode named regions via lookup table.",
+      "priority": "P2",
+      "done": false
+    },
+    {
+      "id": "F015",
+      "phase": 3,
+      "name": "Voice assistant core",
+      "description": "OpenAI Realtime API WebSocket connection. Push-to-talk button: hold to record, release to send. Audio streamed to GPT-4o. Response audio streamed back and played.",
+      "priority": "P1",
+      "done": false
+    },
+    {
+      "id": "F016",
+      "phase": 3,
+      "name": "Wake word detection",
+      "description": "'Hey Ralph' wake word triggers voice mode hands-free. Uses Web Speech API for continuous listening when enabled. Visual indicator when listening.",
+      "priority": "P1",
+      "done": false
+    },
+    {
+      "id": "F017",
+      "phase": 3,
+      "name": "Voice command routing",
+      "description": "Classify voice intent: query | filter | export | narrate | generate. Route data queries to Claude for SQL. Update dashboard visually while speaking response.",
+      "priority": "P1",
+      "done": false
+    },
+    {
+      "id": "F018",
+      "phase": 3,
+      "name": "Dashboard narration",
+      "description": "Ralph reads dashboard aloud chart by chart with AI-generated narrative and recommendations. 'Narrate this dashboard' command.",
+      "priority": "P2",
+      "done": false
+    },
+    {
+      "id": "F019",
+      "phase": 3,
+      "name": "Voice transcript panel",
+      "description": "Rolling transcript of voice interactions. Searchable history. Click past query to re-run. Copy transcript as text.",
+      "priority": "P2",
+      "done": false
+    },
+    {
+      "id": "F020",
+      "phase": 4,
+      "name": "n8n webhook integration",
+      "description": "FastAPI webhook endpoints that n8n can POST data to. Auto-ingest into DuckDB workspace. Support for scheduled pushes and trigger-based updates.",
+      "priority": "P1",
+      "done": false
+    },
+    {
+      "id": "F021",
+      "phase": 4,
+      "name": "Database connectors",
+      "description": "Direct connection to PostgreSQL, MySQL, SQLite. Connection string config. Query live database tables from within Ralph.",
+      "priority": "P1",
+      "done": false
+    },
+    {
+      "id": "F022",
+      "phase": 4,
+      "name": "Scheduled refresh",
+      "description": "Cron-based dashboard data refresh. Config per data source. Last refreshed timestamp displayed on dashboard.",
+      "priority": "P2",
+      "done": false
+    },
+    {
+      "id": "F023",
+      "phase": 4,
+      "name": "Alert engine",
+      "description": "Define threshold rules on metrics. Ralph triggers browser notification, email, or n8n webhook when condition is met.",
+      "priority": "P2",
+      "done": false
+    },
+    {
+      "id": "F024",
+      "phase": 4,
+      "name": "Export engine",
+      "description": "Export dashboard as PDF report. Individual charts as PNG/SVG. Data as CSV or Excel. Scheduled email reports via SMTP.",
+      "priority": "P2",
+      "done": false
+    }
+  ],
+
+  "open_source_commitment": {
+    "policy": "All visualization and frontend libraries must be open source with permissive licenses. No vendor lock-in, no API keys required for core rendering.",
+    "license_audit": {
+      "Apache ECharts": "Apache License 2.0 — https://github.com/apache/echarts",
+      "Observable Plot": "ISC License — https://github.com/observablehq/plot",
+      "Deck.gl": "MIT License — https://github.com/visgl/deck.gl",
+      "MapLibre GL JS": "BSD 3-Clause — https://github.com/maplibre/maplibre-gl-js",
+      "DuckDB-WASM": "MIT License — https://github.com/duckdb/duckdb-wasm",
+      "React": "MIT License",
+      "FastAPI": "MIT License",
+      "PostgreSQL": "PostgreSQL License (permissive)",
+      "Monaco Editor": "MIT License"
     }
   },
-  "constraints": {
-    "maxFileSize": "{{if applicable}}",
-    "supportedFormats": [],
-    "compliance": "{{GDPR, SOC2, etc if applicable}}",
-    "other": []
+
+  "non_functional_requirements": {
+    "query_response_ms": 500,
+    "chart_render_ms": 200,
+    "voice_latency_ms": 800,
+    "browser_support": ["Chrome 114+", "Firefox 113+", "Edge 114+"],
+    "data_privacy": "local-first, no data leaves machine without explicit config",
+    "api_key_storage": "encrypted in PostgreSQL, never exposed to frontend"
+  },
+
+  "success_criteria": {
+    "phase_1": "Upload CSV, build 3-chart dashboard, save it — under 5 minutes",
+    "phase_2": "Ask 'What are my top 5 customers by revenue?' and get a correct chart",
+    "phase_3": "Say 'Hey Ralph, what should I focus on this week?' and get spoken + visual answer",
+    "phase_4": "n8n pushes daily data automatically, dashboard refreshes, alert fires on threshold breach"
   }
 }
