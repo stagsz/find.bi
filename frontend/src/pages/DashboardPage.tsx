@@ -5,9 +5,11 @@ import type { DashboardCardConfig } from "@/components/dashboard/DashboardGrid";
 import DashboardCard from "@/components/dashboard/DashboardCard";
 import CardRenderer from "@/components/dashboard/CardRenderer";
 import ChartConfigDialog from "@/components/dashboard/ChartConfigDialog";
+import FilterBar from "@/components/dashboard/FilterBar";
+import { FiltersProvider } from "@/hooks/useFilters";
 import useDashboardCards from "@/hooks/useDashboardCards";
 
-function DashboardPage() {
+function DashboardPageInner() {
   const { id } = useParams<{ id: string }>();
 
   const {
@@ -131,6 +133,9 @@ function DashboardPage() {
         </div>
       </div>
 
+      {/* Filter bar */}
+      <FilterBar editMode={editMode} />
+
       {/* Grid area */}
       <div className="flex-1 overflow-auto p-6">
         {cards.length === 0 ? (
@@ -178,6 +183,14 @@ function DashboardPage() {
         initialConfig={editingCard ?? undefined}
       />
     </div>
+  );
+}
+
+function DashboardPage() {
+  return (
+    <FiltersProvider>
+      <DashboardPageInner />
+    </FiltersProvider>
   );
 }
 
