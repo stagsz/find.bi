@@ -8,7 +8,8 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import type { AsyncDuckDB } from "@duckdb/duckdb-wasm";
-import { initDuckDB } from "@/services/duckdb";
+import { initDuckDB, loadTable as loadTableService } from "@/services/duckdb";
+import { getAccessToken } from "@/services/api";
 
 export interface QueryResult {
   columns: string[];
@@ -114,8 +115,31 @@ export function useDuckDB() {
     [db],
   );
 
+  const loadTable = useCallback(
+    async (tableName: string, fileUrl: string): Promise<void> => {
+      if (!db) {
+        throw new Error("DuckDB is not initialized");
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const token = getAccessToken();
+        await loadTableService(db, tableName, fileUrl, token);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [db],
+  );
+
   return useMemo(
-    () => ({ query, loading, error, isReady, initError }),
-    [query, loading, error, isReady, initError],
+    () => ({ query, loadTable, loading, error, isReady, initError }),
+    [query, loadTable, loading, error, isReady, initError],
   );
 }

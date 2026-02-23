@@ -7,13 +7,26 @@ import UploadPage from "./UploadPage";
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
+  loadTable: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/services/api", () => ({
   default: {
     get: mocks.get,
     post: mocks.post,
+    defaults: { baseURL: "http://localhost:8000" },
   },
+}));
+
+vi.mock("@/hooks/useDuckDB", () => ({
+  useDuckDB: () => ({
+    loadTable: mocks.loadTable,
+    query: vi.fn(),
+    loading: false,
+    error: null,
+    isReady: true,
+    initError: null,
+  }),
 }));
 
 const WORKSPACE_ID = "ws-001";
@@ -396,6 +409,70 @@ describe("UploadPage", () => {
         workspace_id: WORKSPACE_ID,
         table_name: "sales",
       });
+    });
+  });
+
+  it("calls loadTable after successful ingestion", async () => {
+    mockUploadAndSchema();
+    mocks.post.mockResolvedValueOnce({
+      data: {
+        table_name: "sales",
+        columns: [
+          { name: "region", type: "string", duckdb_type: "VARCHAR" },
+        ],
+        row_count: 42,
+      },
+    });
+
+    renderUpload();
+    const user = userEvent.setup();
+    const input = screen.getByTestId("file-input");
+
+    await user.upload(input, createCsvFile());
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /confirm/i }),
+      ).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /confirm/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/import successful/i)).toBeInTheDocument();
+    });
+
+    expect(mocks.loadTable).toHaveBeenCalledWith(
+      "sales",
+      expect.stringContaining("/api/data/export/sales"),
+    );
+    expect(mocks.loadTable).toHaveBeenCalledWith(
+      "sales",
+      expect.stringContaining(`workspace_id=${WORKSPACE_ID}`),
+    );
+  });
+
+  it("still shows success if loadTable fails", async () => {
+    mockUploadAndSchema();
+    mocks.post.mockResolvedValueOnce({
+      data: { table_name: "sales", columns: [], row_count: 10 },
+    });
+    mocks.loadTable.mockRejectedValueOnce(new Error("WASM load failed"));
+
+    renderUpload();
+    const user = userEvent.setup();
+    const input = screen.getByTestId("file-input");
+
+    await user.upload(input, createCsvFile());
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /confirm/i }),
+      ).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /confirm/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/import successful/i)).toBeInTheDocument();
     });
   });
 });

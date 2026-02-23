@@ -204,6 +204,63 @@ def list_tables(db_path: str) -> list[dict[str, Any]]:
         conn.close()
 
 
+def export_table(
+    db_path: str,
+    table_name: str,
+    output_path: str,
+    export_format: str = "parquet",
+) -> None:
+    """Export a table from workspace DuckDB to a file.
+
+    Parameters
+    ----------
+    db_path:
+        Absolute path to the workspace ``.db`` file.
+    table_name:
+        Name of the table to export.
+    output_path:
+        Absolute path for the output file.
+    export_format:
+        Output format: ``"parquet"`` or ``"csv"``.
+
+    Raises
+    ------
+    ValueError
+        If the database file doesn't exist, the table doesn't exist,
+        or the export fails.
+    """
+    if not os.path.isfile(db_path):
+        raise ValueError(f"Database file not found: {db_path}")
+
+    safe_name = _sanitize_table_name(table_name)
+
+    conn = duckdb.connect(db_path, read_only=True)
+    try:
+        existing = {
+            row[0]
+            for row in conn.execute(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'main'"
+            ).fetchall()
+        }
+        if safe_name not in existing:
+            raise ValueError(f"Table not found: {table_name}")
+
+        safe_output = output_path.replace("\\", "/")
+        if export_format == "csv":
+            conn.execute(
+                f'COPY "{safe_name}" TO \'{safe_output}\' (FORMAT CSV, HEADER)'
+            )
+        else:
+            conn.execute(
+                f'COPY "{safe_name}" TO \'{safe_output}\' (FORMAT PARQUET)'
+            )
+    except duckdb.Error as e:
+        raise ValueError(f"Failed to export table: {e}") from e
+    finally:
+        conn.close()
+
+
 def drop_table(db_path: str, table_name: str) -> bool:
     """Drop a table from a workspace DuckDB database.
 

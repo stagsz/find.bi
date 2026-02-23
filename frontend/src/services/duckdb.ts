@@ -80,3 +80,44 @@ export async function resetDuckDB(): Promise<void> {
     initPromise = null;
   }
 }
+
+/**
+ * Fetch a data file from a URL and load it into DuckDB-WASM as a named table.
+ * Supports Parquet (default) and CSV formats. Format is detected from the
+ * response Content-Type header or URL query parameters.
+ */
+export async function loadTable(
+  instance: duckdb.AsyncDuckDB,
+  tableName: string,
+  fileUrl: string,
+  authToken?: string | null,
+): Promise<void> {
+  const headers: HeadersInit = {};
+  if (authToken) {
+    headers["Authorization"] = `Bearer ${authToken}`;
+  }
+
+  const response = await fetch(fileUrl, { headers });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch table data: ${response.statusText}`);
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  const isCSV =
+    contentType.includes("text/csv") || fileUrl.includes("format=csv");
+  const readFn = isCSV ? "read_csv_auto" : "read_parquet";
+  const ext = isCSV ? ".csv" : ".parquet";
+  const virtualFile = `_load_${tableName}${ext}`;
+
+  const buffer = new Uint8Array(await response.arrayBuffer());
+  await instance.registerFileBuffer(virtualFile, buffer);
+
+  const conn = await instance.connect();
+  try {
+    await conn.query(
+      `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM ${readFn}('${virtualFile}')`,
+    );
+  } finally {
+    await conn.close();
+  }
+}

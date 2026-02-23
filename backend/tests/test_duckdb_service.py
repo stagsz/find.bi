@@ -11,6 +11,7 @@ from services.duckdb_service import (
     _resolve_table_name,
     _sanitize_table_name,
     drop_table,
+    export_table,
     ingest_file,
     list_tables,
 )
@@ -473,3 +474,77 @@ class TestDropTable:
         # "my-table" sanitizes to "my_table" which matches the existing table
         assert drop_table(db, "my-table") is True
         assert list_tables(db) == []
+
+
+# ---------------------------------------------------------------------------
+# export_table
+# ---------------------------------------------------------------------------
+
+
+class TestExportTable:
+    def test_export_parquet(self, tmp_path: object) -> None:
+        csv_path = _write_csv(tmp_path)
+        db = _db_path(tmp_path)
+        ingest_file(db, csv_path, "sales")
+
+        output = os.path.join(str(tmp_path), "export.parquet")
+        export_table(db, "sales", output, "parquet")
+
+        assert os.path.isfile(output)
+        assert os.path.getsize(output) > 0
+
+    def test_export_csv(self, tmp_path: object) -> None:
+        csv_path = _write_csv(tmp_path)
+        db = _db_path(tmp_path)
+        ingest_file(db, csv_path, "sales")
+
+        output = os.path.join(str(tmp_path), "export.csv")
+        export_table(db, "sales", output, "csv")
+
+        assert os.path.isfile(output)
+        with open(output, "r", encoding="utf-8") as f:
+            content = f.read()
+        assert "Alice" in content
+        assert "Bob" in content
+
+    def test_export_parquet_readable(self, tmp_path: object) -> None:
+        """Exported Parquet can be read back by DuckDB."""
+        import duckdb
+
+        csv_path = _write_csv(tmp_path)
+        db = _db_path(tmp_path)
+        ingest_file(db, csv_path, "sales")
+
+        output = os.path.join(str(tmp_path), "export.parquet")
+        export_table(db, "sales", output, "parquet")
+
+        conn = duckdb.connect(":memory:")
+        safe = output.replace("\\", "/")
+        rows = conn.execute(f"SELECT * FROM read_parquet('{safe}')").fetchall()
+        conn.close()
+        assert len(rows) == 3
+
+    def test_export_default_format_is_parquet(self, tmp_path: object) -> None:
+        csv_path = _write_csv(tmp_path)
+        db = _db_path(tmp_path)
+        ingest_file(db, csv_path, "sales")
+
+        output = os.path.join(str(tmp_path), "export.parquet")
+        export_table(db, "sales", output)
+
+        assert os.path.isfile(output)
+
+    def test_export_nonexistent_table(self, tmp_path: object) -> None:
+        import duckdb
+
+        db = _db_path(tmp_path)
+        conn = duckdb.connect(db)
+        conn.close()
+
+        output = os.path.join(str(tmp_path), "out.parquet")
+        with pytest.raises(ValueError, match="Table not found"):
+            export_table(db, "nonexistent", output)
+
+    def test_export_db_not_found(self) -> None:
+        with pytest.raises(ValueError, match="Database file not found"):
+            export_table("/nonexistent/path.db", "t", "/tmp/out.parquet")

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import api from "@/services/api";
+import { useDuckDB } from "@/hooks/useDuckDB";
 
 interface ColumnInfo {
   name: string;
@@ -68,6 +69,9 @@ function UploadPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // DuckDB-WASM data loading bridge
+  const { loadTable } = useDuckDB();
 
   useEffect(() => {
     api
@@ -207,6 +211,16 @@ function UploadPage() {
         table_name: tableName.trim(),
       });
       setIngestResult(res.data);
+
+      // Load table into DuckDB-WASM for client-side SQL queries
+      try {
+        const baseUrl = api.defaults.baseURL ?? "";
+        const exportUrl = `${baseUrl}/api/data/export/${encodeURIComponent(res.data.table_name)}?workspace_id=${encodeURIComponent(workspaceId)}&format=parquet`;
+        await loadTable(res.data.table_name, exportUrl);
+      } catch {
+        // Non-fatal: data is still available on the server
+      }
+
       setStep("done");
     } catch (err: unknown) {
       const msg =
@@ -214,7 +228,7 @@ function UploadPage() {
       setError(msg);
       setStep("preview");
     }
-  }, [uploadResult, workspaceId, tableName]);
+  }, [uploadResult, workspaceId, tableName, loadTable]);
 
   const handleReset = useCallback(() => {
     setStep("select");

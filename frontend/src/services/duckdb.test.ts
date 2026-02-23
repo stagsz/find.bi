@@ -209,4 +209,155 @@ describe("duckdb service", () => {
       expect(mockTerminate).not.toHaveBeenCalled();
     });
   });
+
+  describe("loadTable", () => {
+    function createMockDb(queryFn = vi.fn().mockResolvedValue(undefined)) {
+      const closeFn = vi.fn().mockResolvedValue(undefined);
+      return {
+        db: {
+          registerFileBuffer: vi.fn().mockResolvedValue(undefined),
+          connect: vi.fn().mockResolvedValue({
+            query: queryFn,
+            close: closeFn,
+          }),
+        },
+        queryFn,
+        closeFn,
+      };
+    }
+
+    function stubFetch(
+      ok = true,
+      contentType = "application/octet-stream",
+      data = new ArrayBuffer(10),
+    ) {
+      const mockResponse = {
+        ok,
+        statusText: ok ? "OK" : "Not Found",
+        headers: new Headers({ "content-type": contentType }),
+        arrayBuffer: vi.fn().mockResolvedValue(data),
+      };
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockResponse));
+      return mockResponse;
+    }
+
+    function restoreGlobals() {
+      vi.unstubAllGlobals();
+      vi.stubGlobal(
+        "Worker",
+        vi.fn().mockImplementation(() => ({})),
+      );
+    }
+
+    it("fetches file with auth token and creates Parquet table", async () => {
+      const { db, queryFn, closeFn } = createMockDb();
+      stubFetch();
+      const { loadTable } = await importFresh();
+
+      await loadTable(
+        db,
+        "my_table",
+        "http://localhost/api/data/export/my_table?format=parquet",
+        "test-token",
+      );
+
+      expect(fetch).toHaveBeenCalledWith(
+        "http://localhost/api/data/export/my_table?format=parquet",
+        { headers: { Authorization: "Bearer test-token" } },
+      );
+      expect(db.registerFileBuffer).toHaveBeenCalledWith(
+        "_load_my_table.parquet",
+        expect.any(Uint8Array),
+      );
+      expect(queryFn).toHaveBeenCalledWith(
+        `CREATE OR REPLACE TABLE "my_table" AS SELECT * FROM read_parquet('_load_my_table.parquet')`,
+      );
+      expect(closeFn).toHaveBeenCalledOnce();
+      restoreGlobals();
+    });
+
+    it("detects CSV from content-type header", async () => {
+      const { db, queryFn } = createMockDb();
+      stubFetch(true, "text/csv");
+      const { loadTable } = await importFresh();
+
+      await loadTable(db, "data", "http://localhost/file", null);
+
+      expect(db.registerFileBuffer).toHaveBeenCalledWith(
+        "_load_data.csv",
+        expect.any(Uint8Array),
+      );
+      expect(queryFn).toHaveBeenCalledWith(
+        `CREATE OR REPLACE TABLE "data" AS SELECT * FROM read_csv_auto('_load_data.csv')`,
+      );
+      restoreGlobals();
+    });
+
+    it("detects CSV from URL query parameter", async () => {
+      const { db, queryFn } = createMockDb();
+      stubFetch();
+      const { loadTable } = await importFresh();
+
+      await loadTable(db, "data", "http://localhost/export?format=csv", null);
+
+      expect(db.registerFileBuffer).toHaveBeenCalledWith(
+        "_load_data.csv",
+        expect.any(Uint8Array),
+      );
+      expect(queryFn).toHaveBeenCalledWith(
+        expect.stringContaining("read_csv_auto"),
+      );
+      restoreGlobals();
+    });
+
+    it("sends no auth header when token is null", async () => {
+      const { db } = createMockDb();
+      stubFetch();
+      const { loadTable } = await importFresh();
+
+      await loadTable(db, "t", "http://localhost/file", null);
+
+      expect(fetch).toHaveBeenCalledWith("http://localhost/file", {
+        headers: {},
+      });
+      restoreGlobals();
+    });
+
+    it("sends no auth header when token is undefined", async () => {
+      const { db } = createMockDb();
+      stubFetch();
+      const { loadTable } = await importFresh();
+
+      await loadTable(db, "t", "http://localhost/file");
+
+      expect(fetch).toHaveBeenCalledWith("http://localhost/file", {
+        headers: {},
+      });
+      restoreGlobals();
+    });
+
+    it("throws on fetch failure", async () => {
+      const { db } = createMockDb();
+      stubFetch(false);
+      const { loadTable } = await importFresh();
+
+      await expect(
+        loadTable(db, "t", "http://localhost/file"),
+      ).rejects.toThrow("Failed to fetch table data: Not Found");
+      restoreGlobals();
+    });
+
+    it("closes connection even on query failure", async () => {
+      const queryFn = vi.fn().mockRejectedValue(new Error("SQL error"));
+      const { db, closeFn } = createMockDb(queryFn);
+      stubFetch();
+      const { loadTable } = await importFresh();
+
+      await expect(
+        loadTable(db, "t", "http://localhost/file"),
+      ).rejects.toThrow("SQL error");
+      expect(closeFn).toHaveBeenCalledOnce();
+      restoreGlobals();
+    });
+  });
 });

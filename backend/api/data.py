@@ -1,10 +1,21 @@
 """Data API routes: file upload, data source listing, and table management."""
 
 import os
+import tempfile
 import uuid as _uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+)
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -12,7 +23,12 @@ from api.auth import get_authenticated_user
 from db import get_db
 from models.user import User
 from models.workspace import Workspace
-from services.duckdb_service import drop_table, ingest_file, list_tables
+from services.duckdb_service import (
+    drop_table,
+    export_table,
+    ingest_file,
+    list_tables,
+)
 from services.schema_service import detect_schema
 
 DUCKDB_PATH = os.environ.get("DUCKDB_PATH", "/data/workspaces")
@@ -200,6 +216,51 @@ def delete_source(
         raise HTTPException(
             status_code=404, detail="Table not found",
         )
+
+
+@router.get("/export/{table_name}")
+def export_table_endpoint(
+    table_name: str,
+    background_tasks: BackgroundTasks,
+    workspace_id: str = Query(...),
+    export_format: str = Query("parquet", alias="format"),
+    user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    """Export a table from workspace DuckDB as Parquet or CSV."""
+    if export_format not in ("parquet", "csv"):
+        raise HTTPException(
+            status_code=400,
+            detail="Format must be 'parquet' or 'csv'",
+        )
+
+    db_path = _get_workspace_db_path(workspace_id, user, db)
+
+    if not os.path.isfile(db_path):
+        raise HTTPException(status_code=404, detail="Table not found")
+
+    suffix = ".parquet" if export_format == "parquet" else ".csv"
+    fd, export_path = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+
+    try:
+        export_table(db_path, table_name, export_path, export_format)
+    except ValueError as e:
+        os.unlink(export_path)
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+    media_type = (
+        "application/octet-stream"
+        if export_format == "parquet"
+        else "text/csv"
+    )
+    background_tasks.add_task(os.unlink, export_path)
+
+    return FileResponse(
+        export_path,
+        media_type=media_type,
+        filename=f"{table_name}.{suffix.lstrip('.')}",
+    )
 
 
 # --- Schema detection and ingestion ---

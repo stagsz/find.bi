@@ -12,10 +12,17 @@ const mockConnect = vi.fn().mockResolvedValue({
 
 const mocks = vi.hoisted(() => ({
   initDuckDB: vi.fn(),
+  loadTableService: vi.fn(),
+  getAccessToken: vi.fn(),
 }));
 
 vi.mock("@/services/duckdb", () => ({
   initDuckDB: mocks.initDuckDB,
+  loadTable: mocks.loadTableService,
+}));
+
+vi.mock("@/services/api", () => ({
+  getAccessToken: mocks.getAccessToken,
 }));
 
 import { DuckDBProvider, useDuckDB } from "./useDuckDB";
@@ -302,6 +309,130 @@ describe("useDuckDB", () => {
       });
 
       expect(result.current.error).toBe("string failure");
+    });
+  });
+
+  describe("loadTable", () => {
+    it("calls service loadTable with db, tableName, fileUrl, and token", async () => {
+      mocks.getAccessToken.mockReturnValue("jwt-token-123");
+      mocks.loadTableService.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => useDuckDB(), { wrapper });
+      await act(async () => {});
+
+      await act(async () => {
+        await result.current.loadTable("sales", "http://localhost/export");
+      });
+
+      expect(mocks.loadTableService).toHaveBeenCalledWith(
+        mockDb,
+        "sales",
+        "http://localhost/export",
+        "jwt-token-123",
+      );
+    });
+
+    it("passes null token when not authenticated", async () => {
+      mocks.getAccessToken.mockReturnValue(null);
+      mocks.loadTableService.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => useDuckDB(), { wrapper });
+      await act(async () => {});
+
+      await act(async () => {
+        await result.current.loadTable("t", "http://localhost/file");
+      });
+
+      expect(mocks.loadTableService).toHaveBeenCalledWith(
+        mockDb,
+        "t",
+        "http://localhost/file",
+        null,
+      );
+    });
+
+    it("sets loading state during loadTable", async () => {
+      let resolveLoad!: () => void;
+      mocks.loadTableService.mockReturnValue(
+        new Promise<void>((resolve) => {
+          resolveLoad = resolve;
+        }),
+      );
+
+      const { result } = renderHook(() => useDuckDB(), { wrapper });
+      await act(async () => {});
+      expect(result.current.loading).toBe(false);
+
+      let loadPromise!: Promise<void>;
+      act(() => {
+        loadPromise = result.current.loadTable("t", "http://localhost/file");
+      });
+
+      expect(result.current.loading).toBe(true);
+
+      await act(async () => {
+        resolveLoad();
+        await loadPromise;
+      });
+
+      expect(result.current.loading).toBe(false);
+    });
+
+    it("sets error on loadTable failure", async () => {
+      mocks.loadTableService.mockRejectedValue(new Error("load failed"));
+
+      const { result } = renderHook(() => useDuckDB(), { wrapper });
+      await act(async () => {});
+
+      await act(async () => {
+        try {
+          await result.current.loadTable("t", "http://localhost/file");
+        } catch {
+          // expected
+        }
+      });
+
+      expect(result.current.error).toBe("load failed");
+      expect(result.current.loading).toBe(false);
+    });
+
+    it("throws when DuckDB is not initialized", async () => {
+      mocks.initDuckDB.mockReturnValue(new Promise(() => {})); // never resolves
+
+      const { result } = renderHook(() => useDuckDB(), { wrapper });
+
+      let thrownError: Error | undefined;
+      await act(async () => {
+        try {
+          await result.current.loadTable("t", "http://localhost/file");
+        } catch (e) {
+          thrownError = e as Error;
+        }
+      });
+
+      expect(thrownError?.message).toBe("DuckDB is not initialized");
+    });
+
+    it("clears previous error on new loadTable call", async () => {
+      mocks.loadTableService.mockRejectedValueOnce(new Error("first error"));
+
+      const { result } = renderHook(() => useDuckDB(), { wrapper });
+      await act(async () => {});
+
+      await act(async () => {
+        try {
+          await result.current.loadTable("t", "http://localhost/file");
+        } catch {
+          // expected
+        }
+      });
+      expect(result.current.error).toBe("first error");
+
+      mocks.loadTableService.mockResolvedValueOnce(undefined);
+      await act(async () => {
+        await result.current.loadTable("t", "http://localhost/file");
+      });
+      expect(result.current.error).toBeNull();
     });
   });
 });
