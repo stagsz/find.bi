@@ -88,7 +88,7 @@
 - [x] DUCK-01: Set up DuckDB-WASM — `frontend/src/services/duckdb.ts`. Initialize DuckDB-WASM with Web Worker. Configure OPFS or IndexedDB for persistence. Handle initialization errors gracefully. Write initialization test. *(cee1d85)*
 - [x] DUCK-02: Create `useDuckDB` hook — `frontend/src/hooks/useDuckDB.ts`. Provides `query(sql)` function returning `{ columns, rows, duration }`. Handles loading state, errors. Manages single shared DuckDB instance via React context. *(3cef688)*
 - [x] DUCK-03: Create data loading bridge — After file upload, fetch the file from backend and register it in DuckDB-WASM so client-side SQL works. Support loading Parquet directly, CSV via `read_csv_auto`. Add `loadTable(tableName, fileUrl)` to DuckDB service. *(3606cf7)*
-- [x] DUCK-04: Write query execution tests — Test SQL queries against mock data loaded into DuckDB-WASM. Test SELECT, GROUP BY, aggregations, JOINs. Verify result shape matches expectations.
+- [x] DUCK-04: Write query execution tests — Test SQL queries against mock data loaded into DuckDB-WASM. Test SELECT, GROUP BY, aggregations, JOINs. Verify result shape matches expectations. *(e0791c9)*
 
 ### 1.8 Chart Library — Apache ECharts (F004)
 
@@ -363,3 +363,4 @@ CLEANUP-01 → SETUP-01 → SETUP-02..07 (parallel)
 | DUCK-01 | cee1d85 | 2026-02-23 |
 | DUCK-02 | 3cef688 | 2026-02-23 |
 | DUCK-03 | 3606cf7 | 2026-02-23 |
+| DUCK-04 | e0791c9 | 2026-02-23 |
