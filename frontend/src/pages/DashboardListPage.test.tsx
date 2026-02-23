@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   listDashboards: vi.fn(),
   createDashboard: vi.fn(),
   deleteDashboard: vi.fn(),
+  importDashboard: vi.fn(),
 }));
 
 vi.mock("@/services/workspaces", () => ({
@@ -26,6 +27,7 @@ vi.mock("@/services/dashboards", () => ({
   listDashboards: (...args: unknown[]) => mocks.listDashboards(...args),
   createDashboard: (...args: unknown[]) => mocks.createDashboard(...args),
   deleteDashboard: (...args: unknown[]) => mocks.deleteDashboard(...args),
+  importDashboard: (...args: unknown[]) => mocks.importDashboard(...args),
 }));
 
 function renderPage() {
@@ -215,6 +217,56 @@ describe("DashboardListPage", () => {
 
     await user.click(screen.getByTestId("dashboard-card-d-1"));
     expect(mockNavigate).toHaveBeenCalledWith("/dashboards/d-1");
+  });
+
+  // --- Import dashboard ---
+
+  it("shows import button", async () => {
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByTestId("import-dashboard-button")).toBeInTheDocument();
+    });
+  });
+
+  it("has hidden file input for import", async () => {
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByTestId("import-file-input")).toBeInTheDocument();
+    });
+    const input = screen.getByTestId("import-file-input") as HTMLInputElement;
+    expect(input.type).toBe("file");
+    expect(input.accept).toBe(".json");
+  });
+
+  it("imports dashboard from file and navigates to it", async () => {
+    const importedDash = { ...SAMPLE_DASHBOARDS[0], id: "d-imported", name: "Imported" };
+    mocks.importDashboard.mockResolvedValue(importedDash);
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("import-dashboard-button")).toBeInTheDocument();
+    });
+
+    const exportData = {
+      version: 1,
+      name: "Imported",
+      layout_json: { items: [] },
+      cards_json: { cards: [] },
+      filters_json: {},
+    };
+    const file = new File([JSON.stringify(exportData)], "dashboard.json", {
+      type: "application/json",
+    });
+
+    const input = screen.getByTestId("import-file-input") as HTMLInputElement;
+    // Use fireEvent for hidden file inputs (userEvent.upload may not work reliably with hidden inputs)
+    Object.defineProperty(input, "files", { value: [file] });
+    fireEvent.change(input);
+
+    await waitFor(() => {
+      expect(mocks.importDashboard).toHaveBeenCalledWith("ws-1", exportData);
+    });
+    expect(mockNavigate).toHaveBeenCalledWith("/dashboards/d-imported");
   });
 
   // --- Title ---

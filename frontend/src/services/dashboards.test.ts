@@ -5,8 +5,10 @@ import {
   getDashboard,
   updateDashboard,
   deleteDashboard,
+  exportDashboard,
+  importDashboard,
 } from "@/services/dashboards";
-import type { DashboardDTO } from "@/services/dashboards";
+import type { DashboardDTO, DashboardExport } from "@/services/dashboards";
 import api from "@/services/api";
 
 vi.mock("@/services/api", () => ({
@@ -127,6 +129,47 @@ describe("dashboards service", () => {
       await deleteDashboard("d1");
 
       expect(api.delete).toHaveBeenCalledWith("/api/dashboards/d1");
+    });
+  });
+
+  describe("exportDashboard", () => {
+    const SAMPLE_EXPORT: DashboardExport = {
+      version: 1,
+      name: "Sales",
+      layout_json: { items: [] },
+      cards_json: { cards: [] },
+      filters_json: {},
+    };
+
+    it("calls GET /api/dashboards/:id/export", async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: SAMPLE_EXPORT });
+
+      const result = await exportDashboard("d1");
+
+      expect(api.get).toHaveBeenCalledWith("/api/dashboards/d1/export");
+      expect(result).toEqual(SAMPLE_EXPORT);
+    });
+  });
+
+  describe("importDashboard", () => {
+    const IMPORT_DATA: DashboardExport = {
+      version: 1,
+      name: "Imported",
+      layout_json: { items: [] },
+      cards_json: { cards: [] },
+      filters_json: {},
+    };
+
+    it("calls POST /api/dashboards/import with workspace_id and dashboard", async () => {
+      vi.mocked(api.post).mockResolvedValue({ data: SAMPLE_DASHBOARD });
+
+      const result = await importDashboard("ws1", IMPORT_DATA);
+
+      expect(api.post).toHaveBeenCalledWith("/api/dashboards/import", {
+        workspace_id: "ws1",
+        dashboard: IMPORT_DATA,
+      });
+      expect(result).toEqual(SAMPLE_DASHBOARD);
     });
   });
 });

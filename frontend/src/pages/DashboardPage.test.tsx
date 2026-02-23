@@ -45,6 +45,8 @@ const mocks = vi.hoisted(() => ({
   persistDirty: false,
   persistSaving: false,
   persistSave: vi.fn(),
+  // Export mock
+  exportDashboard: vi.fn(),
 }));
 
 vi.mock("@/hooks/useDashboardCards", () => ({
@@ -191,6 +193,11 @@ vi.mock("@/components/dashboard/ChartConfigDialog", () => ({
       </div>
     );
   },
+}));
+
+// Mock dashboard service (export)
+vi.mock("@/services/dashboards", () => ({
+  exportDashboard: (...args: unknown[]) => mocks.exportDashboard(...args),
 }));
 
 // Mock FilterBar
@@ -363,6 +370,36 @@ describe("DashboardPage", () => {
     renderDashboard("/dashboards/abc-123");
     expect(screen.getByTestId("dashboard-save-error")).toBeInTheDocument();
     expect(screen.getByText("Save failed")).toBeInTheDocument();
+  });
+
+  // --- Export button ---
+
+  it("shows export button when dashboard has an ID", () => {
+    mocks.persistDashboard = { name: "Test" } as never;
+    renderDashboard("/dashboards/abc-123");
+    expect(screen.getByTestId("export-button")).toBeInTheDocument();
+  });
+
+  it("does not show export button when no dashboard ID", () => {
+    renderDashboard("/dashboards");
+    expect(screen.queryByTestId("export-button")).not.toBeInTheDocument();
+  });
+
+  it("calls exportDashboard when Export button is clicked", async () => {
+    mocks.persistDashboard = { name: "Test" } as never;
+    mocks.exportDashboard.mockResolvedValue({
+      version: 1,
+      name: "Test",
+      layout_json: {},
+      cards_json: {},
+      filters_json: {},
+    });
+    renderDashboard("/dashboards/abc-123");
+    const user = userEvent.setup();
+
+    await user.click(screen.getByTestId("export-button"));
+
+    expect(mocks.exportDashboard).toHaveBeenCalledWith("abc-123");
   });
 
   // --- Empty state ---

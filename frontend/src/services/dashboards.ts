@@ -65,3 +65,29 @@ export async function updateDashboard(
 export async function deleteDashboard(id: string): Promise<void> {
   await api.delete(`/api/dashboards/${id}`);
 }
+
+export interface DashboardExport {
+  version: number;
+  name: string;
+  layout_json: Record<string, unknown>;
+  cards_json: Record<string, unknown>;
+  filters_json: Record<string, unknown>;
+}
+
+export async function exportDashboard(id: string): Promise<DashboardExport> {
+  const res = await api.get<DashboardExport>(
+    `/api/dashboards/${id}/export`,
+  );
+  return res.data;
+}
+
+export async function importDashboard(
+  workspaceId: string,
+  dashboard: DashboardExport,
+): Promise<DashboardDTO> {
+  const res = await api.post<DashboardDTO>("/api/dashboards/import", {
+    workspace_id: workspaceId,
+    dashboard,
+  });
+  return res.data;
+}

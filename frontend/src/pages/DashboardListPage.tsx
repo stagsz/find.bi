@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
   listDashboards,
   createDashboard,
   deleteDashboard,
+  importDashboard,
 } from "@/services/dashboards";
-import type { DashboardDTO } from "@/services/dashboards";
+import type { DashboardDTO, DashboardExport } from "@/services/dashboards";
 import { listWorkspaces } from "@/services/workspaces";
 
 function DashboardListPage() {
@@ -18,6 +19,7 @@ function DashboardListPage() {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch default workspace, then dashboards
   const fetchDashboards = useCallback(async (wsId: string) => {
@@ -89,6 +91,42 @@ function DashboardListPage() {
     [workspaceId],
   );
 
+  const handleImport = useCallback(
+    (file: File) => {
+      if (!workspaceId) return;
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const text = reader.result as string;
+          const data = JSON.parse(text) as DashboardExport;
+          if (!data.name || typeof data.name !== "string") {
+            setError("Invalid dashboard file: missing name");
+            return;
+          }
+          const created = await importDashboard(workspaceId, data);
+          navigate(`/dashboards/${created.id}`);
+        } catch {
+          setError("Failed to import dashboard");
+        }
+      };
+      reader.onerror = () => {
+        setError("Failed to read file");
+      };
+      reader.readAsText(file);
+    },
+    [workspaceId, navigate],
+  );
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) handleImport(file);
+      // Reset input so the same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    },
+    [handleImport],
+  );
+
   if (loading) {
     return (
       <div
@@ -115,22 +153,40 @@ function DashboardListPage() {
     <div data-testid="dashboard-list-page" className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-900">Dashboards</h1>
-        <button
-          data-testid="new-dashboard-button"
-          type="button"
-          className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-          onClick={() => setShowCreate(true)}
-        >
-          <svg
-            className="h-4 w-4"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            aria-hidden="true"
+        <div className="flex items-center gap-2">
+          <input
+            data-testid="import-file-input"
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <button
+            data-testid="import-dashboard-button"
+            type="button"
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            onClick={() => fileInputRef.current?.click()}
           >
-            <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
-          </svg>
-          New Dashboard
-        </button>
+            Import
+          </button>
+          <button
+            data-testid="new-dashboard-button"
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+            onClick={() => setShowCreate(true)}
+          >
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+            </svg>
+            New Dashboard
+          </button>
+        </div>
       </div>
 
       {/* Error banner */}

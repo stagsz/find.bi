@@ -473,3 +473,208 @@ def test_delete_dashboard_invalid_token(client: TestClient) -> None:
         headers={"Authorization": "Bearer invalid.jwt.token"},
     )
     assert resp.status_code == 401
+
+
+# --- GET /api/dashboards/:id/export ---
+
+
+def test_export_dashboard_success(client: TestClient) -> None:
+    token = _register_and_login(client)
+    ws_id = _get_workspace_id(client, token)
+    layout = {"items": [{"i": "c1", "x": 0, "y": 0, "w": 4, "h": 3}]}
+    cards = {"cards": [{"id": "c1", "type": "bar", "title": "Revenue"}]}
+    filters = {"filters": [{"id": "f1", "type": "search"}]}
+    created = client.post(
+        "/api/dashboards/",
+        json={
+            "workspace_id": ws_id,
+            "name": "Export Me",
+            "layout_json": layout,
+            "cards_json": cards,
+            "filters_json": filters,
+        },
+        headers=_auth_headers(token),
+    ).json()
+
+    resp = client.get(
+        f"/api/dashboards/{created['id']}/export",
+        headers=_auth_headers(token),
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["version"] == 1
+    assert data["name"] == "Export Me"
+    assert data["layout_json"] == layout
+    assert data["cards_json"] == cards
+    assert data["filters_json"] == filters
+    # Should NOT contain ID or timestamps
+    assert "id" not in data
+    assert "workspace_id" not in data
+    assert "created_at" not in data
+    assert "updated_at" not in data
+
+
+def test_export_dashboard_content_disposition(client: TestClient) -> None:
+    token = _register_and_login(client)
+    ws_id = _get_workspace_id(client, token)
+    created = _create_dashboard(client, token, ws_id, "My Report")
+    resp = client.get(
+        f"/api/dashboards/{created['id']}/export",
+        headers=_auth_headers(token),
+    )
+    assert resp.status_code == 200
+    assert "Content-Disposition" in resp.headers
+    assert "My_Report.json" in resp.headers["Content-Disposition"]
+
+
+def test_export_dashboard_not_found(client: TestClient) -> None:
+    token = _register_and_login(client)
+    resp = client.get(
+        "/api/dashboards/00000000-0000-0000-0000-000000000000/export",
+        headers=_auth_headers(token),
+    )
+    assert resp.status_code == 404
+
+
+def test_export_dashboard_other_user(client: TestClient) -> None:
+    token_a = _register_and_login(client, "owner@example.com")
+    token_b = _register_and_login(client, "intruder@example.com")
+    ws_id = _get_workspace_id(client, token_a)
+    created = _create_dashboard(client, token_a, ws_id)
+    resp = client.get(
+        f"/api/dashboards/{created['id']}/export",
+        headers=_auth_headers(token_b),
+    )
+    assert resp.status_code == 404
+
+
+# --- POST /api/dashboards/import ---
+
+
+def test_import_dashboard_success(client: TestClient) -> None:
+    token = _register_and_login(client)
+    ws_id = _get_workspace_id(client, token)
+    export_data = {
+        "version": 1,
+        "name": "Imported Dashboard",
+        "layout_json": {"items": [{"i": "c1", "x": 0, "y": 0, "w": 6, "h": 4}]},
+        "cards_json": {"cards": [{"id": "c1", "type": "line"}]},
+        "filters_json": {"filters": []},
+    }
+    resp = client.post(
+        "/api/dashboards/import",
+        json={"workspace_id": ws_id, "dashboard": export_data},
+        headers=_auth_headers(token),
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["name"] == "Imported Dashboard"
+    assert data["layout_json"] == export_data["layout_json"]
+    assert data["cards_json"] == export_data["cards_json"]
+    assert data["filters_json"] == export_data["filters_json"]
+    assert data["workspace_id"] == ws_id
+    assert "id" in data
+
+
+def test_import_dashboard_missing_name(client: TestClient) -> None:
+    token = _register_and_login(client)
+    ws_id = _get_workspace_id(client, token)
+    resp = client.post(
+        "/api/dashboards/import",
+        json={"workspace_id": ws_id, "dashboard": {"layout_json": {}}},
+        headers=_auth_headers(token),
+    )
+    assert resp.status_code == 400
+    assert "name" in resp.json()["detail"].lower()
+
+
+def test_import_dashboard_empty_name(client: TestClient) -> None:
+    token = _register_and_login(client)
+    ws_id = _get_workspace_id(client, token)
+    resp = client.post(
+        "/api/dashboards/import",
+        json={"workspace_id": ws_id, "dashboard": {"name": "   "}},
+        headers=_auth_headers(token),
+    )
+    assert resp.status_code == 400
+
+
+def test_import_dashboard_workspace_not_found(client: TestClient) -> None:
+    token = _register_and_login(client)
+    resp = client.post(
+        "/api/dashboards/import",
+        json={
+            "workspace_id": "00000000-0000-0000-0000-000000000000",
+            "dashboard": {"name": "Test"},
+        },
+        headers=_auth_headers(token),
+    )
+    assert resp.status_code == 404
+
+
+def test_import_dashboard_other_users_workspace(client: TestClient) -> None:
+    token_a = _register_and_login(client, "owner@example.com")
+    token_b = _register_and_login(client, "intruder@example.com")
+    ws_id = _get_workspace_id(client, token_a)
+    resp = client.post(
+        "/api/dashboards/import",
+        json={
+            "workspace_id": ws_id,
+            "dashboard": {"name": "Sneaky Import"},
+        },
+        headers=_auth_headers(token_b),
+    )
+    assert resp.status_code == 404
+
+
+def test_import_defaults_empty_json_fields(client: TestClient) -> None:
+    token = _register_and_login(client)
+    ws_id = _get_workspace_id(client, token)
+    resp = client.post(
+        "/api/dashboards/import",
+        json={"workspace_id": ws_id, "dashboard": {"name": "Minimal"}},
+        headers=_auth_headers(token),
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["layout_json"] == {}
+    assert data["cards_json"] == {}
+    assert data["filters_json"] == {}
+
+
+def test_export_import_roundtrip(client: TestClient) -> None:
+    """Export a dashboard, then import it — the imported copy should match."""
+    token = _register_and_login(client)
+    ws_id = _get_workspace_id(client, token)
+    layout = {"items": [{"i": "c1", "x": 0, "y": 0, "w": 6, "h": 4}]}
+    cards = {"cards": [{"id": "c1", "type": "bar"}]}
+    created = client.post(
+        "/api/dashboards/",
+        json={
+            "workspace_id": ws_id,
+            "name": "Roundtrip",
+            "layout_json": layout,
+            "cards_json": cards,
+        },
+        headers=_auth_headers(token),
+    ).json()
+
+    # Export
+    export_resp = client.get(
+        f"/api/dashboards/{created['id']}/export",
+        headers=_auth_headers(token),
+    )
+    export_data = export_resp.json()
+
+    # Import
+    import_resp = client.post(
+        "/api/dashboards/import",
+        json={"workspace_id": ws_id, "dashboard": export_data},
+        headers=_auth_headers(token),
+    )
+    assert import_resp.status_code == 201
+    imported = import_resp.json()
+    assert imported["name"] == "Roundtrip"
+    assert imported["layout_json"] == layout
+    assert imported["cards_json"] == cards
+    assert imported["id"] != created["id"]  # New dashboard with new ID

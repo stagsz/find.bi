@@ -9,6 +9,7 @@ import FilterBar from "@/components/dashboard/FilterBar";
 import { FiltersProvider, useFiltersOptional } from "@/hooks/useFilters";
 import useDashboardCards from "@/hooks/useDashboardCards";
 import useDashboardPersistence from "@/hooks/useDashboardPersistence";
+import { exportDashboard } from "@/services/dashboards";
 
 function DashboardPageInner() {
   const { id } = useParams<{ id: string }>();
@@ -84,6 +85,24 @@ function DashboardPageInner() {
     [removeCard],
   );
 
+  const handleExport = useCallback(async () => {
+    if (!id) return;
+    try {
+      const data = await exportDashboard(id);
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${data.name.replace(/\s+/g, "_")}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // Export errors are non-critical — user can retry
+    }
+  }, [id]);
+
   const renderCard = useCallback(
     (card: DashboardCardConfig) => (
       <DashboardCard
@@ -158,6 +177,17 @@ function DashboardPageInner() {
                   ? "Unsaved changes"
                   : "Saved"}
             </span>
+          )}
+          {/* Export button */}
+          {id && (
+            <button
+              data-testid="export-button"
+              type="button"
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              onClick={() => void handleExport()}
+            >
+              Export
+            </button>
           )}
           {/* Immediate save button */}
           {id && dirty && (

@@ -1,9 +1,10 @@
-"""Dashboard API routes: list, create, read, update, delete dashboards."""
+"""Dashboard API routes: list, create, read, update, delete, export, import."""
 
 import uuid as _uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -32,6 +33,11 @@ class UpdateDashboardRequest(BaseModel):
     layout_json: dict[str, Any] | None = None
     cards_json: dict[str, Any] | None = None
     filters_json: dict[str, Any] | None = None
+
+
+class ImportDashboardRequest(BaseModel):
+    workspace_id: str
+    dashboard: dict[str, Any]
 
 
 class DashboardResponse(BaseModel):
@@ -168,6 +174,57 @@ def delete_dashboard(
     dashboard = _get_dashboard_for_user(dashboard_id, user, db)
     db.delete(dashboard)
     db.commit()
+
+
+@router.get("/{dashboard_id}/export")
+def export_dashboard(
+    dashboard_id: str,
+    user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    """Export a dashboard as a portable JSON file (no IDs, no timestamps, no data)."""
+    dashboard = _get_dashboard_for_user(dashboard_id, user, db)
+    export_data = {
+        "version": 1,
+        "name": dashboard.name,
+        "layout_json": dashboard.layout_json,
+        "cards_json": dashboard.cards_json,
+        "filters_json": dashboard.filters_json,
+    }
+    filename = f"{dashboard.name.replace(' ', '_')}.json"
+    return JSONResponse(
+        content=export_data,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
+
+
+@router.post("/import", response_model=DashboardResponse, status_code=201)
+def import_dashboard(
+    body: ImportDashboardRequest,
+    user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> DashboardResponse:
+    """Import a dashboard from a portable JSON export."""
+    workspace = _verify_workspace_access(body.workspace_id, user, db)
+    data = body.dashboard
+    name = data.get("name", "").strip() if isinstance(data.get("name"), str) else ""
+    if not name:
+        raise HTTPException(
+            status_code=400, detail="Dashboard name is required in import data",
+        )
+    dashboard = Dashboard(
+        workspace_id=workspace.id,
+        name=name,
+        layout_json=data.get("layout_json", {}),
+        cards_json=data.get("cards_json", {}),
+        filters_json=data.get("filters_json", {}),
+    )
+    db.add(dashboard)
+    db.commit()
+    db.refresh(dashboard)
+    return _dashboard_response(dashboard)
 
 
 def _get_dashboard_for_user(
