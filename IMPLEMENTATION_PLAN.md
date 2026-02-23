@@ -5,11 +5,11 @@
 ## Current Status
 
 **Phase**: 1 - Foundation
-**Progress**: 7 / 100 tasks
-**Last Completed**: SETUP-06
+**Progress**: 8 / 100 tasks
+**Last Completed**: SETUP-07
 **Last Reviewed**: 2026-02-23
 **Blockers**: None
-**Code state**: Docker Compose configured. `.env.example` provides template for all environment variables. Backend and frontend Dockerfiles ready. `backend/requirements.txt` added with core dependencies. Nginx reverse proxy configured with API proxy, WebSocket upgrade for voice, and SPA fallback. Dockerfile.frontend updated to use repo root as build context. Ready for SETUP-07 (CI) and parallel scaffolding tasks (API-01, UI-01).
+**Code state**: Docker Compose configured. `.env.example` provides template for all environment variables. Backend and frontend Dockerfiles ready. `backend/requirements.txt` added with core dependencies. Nginx reverse proxy configured with API proxy, WebSocket upgrade for voice, and SPA fallback. GitHub Actions CI workflow added with backend (pytest+ruff+mypy) and frontend (vitest+eslint+typecheck) jobs. Both jobs gracefully skip when their stack isn't scaffolded yet. Project setup (F001 infra) complete. Ready for parallel scaffolding: API-01 (backend) and UI-01 (frontend).
 
 ---
 
@@ -48,7 +48,7 @@
 - [x] SETUP-04: Create `docker/Dockerfile.backend` — Python 3.12 slim, install dependencies from requirements.txt, uvicorn entrypoint on port 8000. *(08c08aa)*
 - [x] SETUP-05: Create `docker/Dockerfile.frontend` — Node 20 alpine, npm install, Vite build, serve with nginx. Multi-stage build. *(a00b4f0)*
 - [x] SETUP-06: Create `docker/nginx.conf` — Reverse proxy: `/api` to backend:8000, `/` to frontend static files. WebSocket upgrade support for voice. *(7baa760)*
-- [ ] SETUP-07: Create `.github/workflows/ci.yml` — On push/PR: run backend pytest + ruff + mypy, run frontend vitest + eslint + typecheck.
+- [x] SETUP-07: Create `.github/workflows/ci.yml` — On push/PR: run backend pytest + ruff + mypy, run frontend vitest + eslint + typecheck. *(357fe2a)*
 
 ### 1.2 Backend Scaffold (F001)
 
@@ -341,3 +341,4 @@ CLEANUP-01 → SETUP-01 → SETUP-02..07 (parallel)
 | SETUP-04 | 08c08aa | 2026-02-23 |
 | SETUP-05 | a00b4f0 | 2026-02-23 |
 | SETUP-06 | 7baa760 | 2026-02-23 |
+| SETUP-07 | 357fe2a | 2026-02-23 |
