@@ -127,7 +127,7 @@
 
 - [x] PERSIST-01: Create Dashboard model — `backend/models/dashboard.py` with id (UUID), workspace_id (FK), name, layout_json (JSONB for grid positions), cards_json (JSONB for chart configs + queries), filters_json (JSONB), created_at, updated_at. Create Alembic migration. Write model test. *(b7d93c1)*
 - [x] PERSIST-02: Create Dashboard API routes — `backend/api/dashboards.py` with `GET /api/dashboards` (list), `POST /api/dashboards` (create), `GET /api/dashboards/:id`, `PUT /api/dashboards/:id` (update layout/cards), `DELETE /api/dashboards/:id`. Scoped to workspace. Write pytest tests. *(648c284)*
-- [ ] PERSIST-03: Wire frontend save/load — Dashboard page loads from API on mount. Auto-save on layout change (debounced 2s). Save button for immediate save. Dashboard list page showing all dashboards with create/rename/delete.
+- [x] PERSIST-03: Wire frontend save/load — Dashboard page loads from API on mount. Auto-save on layout change (debounced 2s). Save button for immediate save. Dashboard list page showing all dashboards with create/rename/delete. *(b572e9e)*
 - [ ] PERSIST-04: Dashboard export/import — `POST /api/dashboards/import` and `GET /api/dashboards/:id/export`. Export returns portable JSON file (layout + card configs, no data). Import creates new dashboard from JSON. Add export/import buttons in UI.
 
 ---
