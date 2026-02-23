@@ -5,11 +5,11 @@
 ## Current Status
 
 **Phase**: 1 - Foundation
-**Progress**: 2 / 100 tasks
-**Last Completed**: SETUP-01
+**Progress**: 3 / 100 tasks
+**Last Completed**: SETUP-02
 **Last Reviewed**: 2026-02-23
 **Blockers**: None
-**Code state**: Directory structure created. `frontend/`, `backend/`, `docker/`, `.github/workflows/`, `scripts/` directories with placeholder READMEs. Ready for SETUP-02 (Docker Compose) and parallel scaffolding tasks.
+**Code state**: Docker Compose configured. `docker-compose.yml` provides PostgreSQL 15 (ralph/ralph). `docker-compose.dev.yml` adds FastAPI + React dev containers with hot reload and volume mounts. Ready for SETUP-03 (.env.example) and parallel scaffolding tasks.
 
 ---
 
@@ -43,7 +43,7 @@
 ### 1.1 Project Setup & Docker Stack (F001)
 
 - [x] SETUP-01: Create directory structure — `frontend/`, `backend/`, `docker/`, `.github/workflows/`, `scripts/`. Add placeholder READMEs in each.
-- [ ] SETUP-02: Create `docker-compose.yml` for find.bi — PostgreSQL 15 (ralph/ralph) only. Create `docker-compose.dev.yml` adding FastAPI + React dev containers with hot reload and volume mounts.
+- [x] SETUP-02: Create `docker-compose.yml` for find.bi — PostgreSQL 15 (ralph/ralph) only. Create `docker-compose.dev.yml` adding FastAPI + React dev containers with hot reload and volume mounts.
 - [ ] SETUP-03: Create `.env.example` for find.bi — DATABASE_URL, JWT_SECRET, DUCKDB_PATH, ANTHROPIC_API_KEY, OPENAI_API_KEY, VITE_API_URL. Clean environment file with no HazOp references.
 - [ ] SETUP-04: Create `docker/Dockerfile.backend` — Python 3.12 slim, install dependencies from requirements.txt, uvicorn entrypoint on port 8000.
 - [ ] SETUP-05: Create `docker/Dockerfile.frontend` — Node 20 alpine, npm install, Vite build, serve with nginx. Multi-stage build.
@@ -336,3 +336,4 @@ CLEANUP-01 → SETUP-01 → SETUP-02..07 (parallel)
 |------|--------|------|
 | CLEANUP-01 | c8de093 + 783b7a9 | 2026-02-23 |
 | SETUP-01 | c3757d8 | 2026-02-23 |
+| SETUP-02 | 8f7a2c0 | 2026-02-23 |
