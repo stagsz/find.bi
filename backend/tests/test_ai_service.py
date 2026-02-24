@@ -1,4 +1,4 @@
-"""Tests for AI service: text_to_sql and generate_plot_spec."""
+"""Tests for AI service: text_to_sql, generate_plot_spec, and generate_insights."""
 
 import json
 from typing import Any
@@ -822,3 +822,512 @@ class TestExtractJson:
 
         raw = '```\n{"marks": []}\n```'
         assert _extract_json(raw) == '{"marks": []}'
+
+
+# ---------------------------------------------------------------------------
+# Insight fixtures
+# ---------------------------------------------------------------------------
+
+
+VALID_INSIGHTS_JSON = json.dumps([
+    {
+        "type": "anomaly",
+        "title": "Revenue Spike in North Region",
+        "description": "North region revenue is significantly lower than South.",
+        "severity": "info",
+        "table": "sales",
+        "columns": ["region", "revenue"],
+        "metrics": {"north_revenue": 1500.0, "south_revenue": 2300.0},
+    },
+    {
+        "type": "trend",
+        "title": "Product Pricing Gap",
+        "description": "Gadget is priced 2x higher than Widget.",
+        "severity": "warning",
+        "table": "products",
+        "columns": ["name", "price"],
+        "metrics": {"price_ratio": 2.0},
+    },
+    {
+        "type": "correlation",
+        "title": "Quantity-Revenue Relationship",
+        "description": "Higher quantity correlates with higher revenue across regions.",
+        "severity": "info",
+        "table": "sales",
+        "columns": ["quantity", "revenue"],
+        "metrics": {"correlation": 0.95},
+    },
+])
+
+
+# ---------------------------------------------------------------------------
+# generate_insights tests
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateInsights:
+    """Tests for the generate_insights function."""
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_returns_insights_list(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """generate_insights returns dict with insights key containing a list."""
+        from services.ai_service import generate_insights
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_INSIGHTS_JSON,
+        )
+
+        result = generate_insights(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert "insights" in result
+        assert isinstance(result["insights"], list)
+        assert len(result["insights"]) == 3
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_insight_structure(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Each insight has required fields: type, title, description, severity."""
+        from services.ai_service import generate_insights
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_INSIGHTS_JSON,
+        )
+
+        result = generate_insights(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        for insight in result["insights"]:
+            assert "type" in insight
+            assert "title" in insight
+            assert "description" in insight
+            assert "severity" in insight
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_strips_markdown_fences(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Markdown code fences around JSON are stripped."""
+        from services.ai_service import generate_insights
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        fenced = f"```json\n{VALID_INSIGHTS_JSON}\n```"
+        mock_client.messages.create.return_value = _mock_response(fenced)
+
+        result = generate_insights(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert len(result["insights"]) == 3
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_filters_invalid_insight_types(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Insights with invalid types are filtered out."""
+        from services.ai_service import generate_insights
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mixed = json.dumps([
+            {
+                "type": "trend",
+                "title": "Valid",
+                "description": "A valid insight.",
+                "severity": "info",
+                "table": "sales",
+                "columns": ["revenue"],
+            },
+            {
+                "type": "invalid_type",
+                "title": "Bad",
+                "description": "Should be filtered.",
+                "severity": "info",
+                "table": "sales",
+                "columns": ["revenue"],
+            },
+        ])
+        mock_client.messages.create.return_value = _mock_response(mixed)
+
+        result = generate_insights(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert len(result["insights"]) == 1
+        assert result["insights"][0]["type"] == "trend"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_filters_invalid_severity(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Insights with invalid severity are filtered out."""
+        from services.ai_service import generate_insights
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        bad_severity = json.dumps([
+            {
+                "type": "anomaly",
+                "title": "Good",
+                "description": "Valid insight.",
+                "severity": "info",
+                "table": "sales",
+                "columns": ["revenue"],
+            },
+            {
+                "type": "anomaly",
+                "title": "Bad",
+                "description": "Bad severity.",
+                "severity": "critical",
+                "table": "sales",
+                "columns": ["revenue"],
+            },
+        ])
+        mock_client.messages.create.return_value = _mock_response(bad_severity)
+
+        result = generate_insights(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert len(result["insights"]) == 1
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_raises_on_invalid_json(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Raises ValueError when Claude returns non-JSON."""
+        from services.ai_service import generate_insights
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            "This is not JSON at all",
+        )
+
+        with pytest.raises(ValueError, match="invalid JSON"):
+            generate_insights(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_raises_when_not_array(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Raises ValueError when Claude returns an object instead of array."""
+        from services.ai_service import generate_insights
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({"insights": []}),
+        )
+
+        with pytest.raises(ValueError, match="JSON array"):
+            generate_insights(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_raises_when_empty_array(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Raises ValueError when Claude returns an empty array."""
+        from services.ai_service import generate_insights
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response("[]")
+
+        with pytest.raises(ValueError, match="must not be empty"):
+            generate_insights(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_raises_when_all_insights_invalid(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Raises ValueError when all insights fail validation."""
+        from services.ai_service import generate_insights
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        all_bad = json.dumps([
+            {"type": "bad", "title": "", "description": "", "severity": "bad"},
+        ])
+        mock_client.messages.create.return_value = _mock_response(all_bad)
+
+        with pytest.raises(ValueError, match="No valid insights found"):
+            generate_insights(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""})
+    def test_raises_without_api_key(self) -> None:
+        """Raises ValueError when API key is not set."""
+        from services.ai_service import generate_insights
+
+        with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
+            generate_insights(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_raises_on_api_error(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Raises ValueError when Claude API returns an error."""
+        import anthropic as anthropic_mod
+
+        from services.ai_service import generate_insights
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.side_effect = anthropic_mod.APIError(
+            message="rate limited",
+            request=MagicMock(),
+            body=None,
+        )
+
+        with pytest.raises(ValueError, match="Claude API error"):
+            generate_insights(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_sends_insights_system_prompt(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Verifies the insights system prompt is sent."""
+        from services.ai_service import generate_insights
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_INSIGHTS_JSON,
+        )
+
+        generate_insights(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        call_args = mock_client.messages.create.call_args
+        system = call_args.kwargs["system"]
+        assert "insight" in system.lower()
+        assert "trend" in system.lower()
+        assert "anomaly" in system.lower()
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_sends_schema_in_prompt(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Verifies the schema context is included in the API call."""
+        from services.ai_service import generate_insights
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_INSIGHTS_JSON,
+        )
+
+        generate_insights(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        call_args = mock_client.messages.create.call_args
+        user_content = call_args.kwargs["messages"][0]["content"]
+        assert "sales" in user_content
+        assert "products" in user_content
+        assert "revenue" in user_content
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_preserves_optional_fields(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Optional fields like table, columns, metrics are preserved."""
+        from services.ai_service import generate_insights
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_INSIGHTS_JSON,
+        )
+
+        result = generate_insights(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        first = result["insights"][0]
+        assert first["table"] == "sales"
+        assert "revenue" in first["columns"]
+        assert "metrics" in first
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_single_api_call(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """generate_insights makes exactly one API call (no explanation call)."""
+        from services.ai_service import generate_insights
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_INSIGHTS_JSON,
+        )
+
+        generate_insights(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert mock_client.messages.create.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# _validate_insights tests
+# ---------------------------------------------------------------------------
+
+
+class TestValidateInsights:
+    """Tests for the insight validator."""
+
+    def test_valid_insights_pass(self) -> None:
+        """Valid insights pass validation."""
+        from services.ai_service import _validate_insights
+
+        insights = [
+            {
+                "type": "trend",
+                "title": "A trend",
+                "description": "Description.",
+                "severity": "info",
+            },
+        ]
+        result = _validate_insights(insights)
+        assert len(result) == 1
+
+    def test_rejects_non_list(self) -> None:
+        """Raises ValueError for non-list input."""
+        from services.ai_service import _validate_insights
+
+        with pytest.raises(ValueError, match="JSON array"):
+            _validate_insights({"not": "a list"})
+
+    def test_rejects_empty_list(self) -> None:
+        """Raises ValueError for empty list."""
+        from services.ai_service import _validate_insights
+
+        with pytest.raises(ValueError, match="must not be empty"):
+            _validate_insights([])
+
+    def test_filters_missing_title(self) -> None:
+        """Insights without title are filtered out."""
+        from services.ai_service import _validate_insights
+
+        insights = [
+            {
+                "type": "trend",
+                "title": "Valid",
+                "description": "Desc.",
+                "severity": "info",
+            },
+            {
+                "type": "trend",
+                "description": "No title.",
+                "severity": "info",
+            },
+        ]
+        result = _validate_insights(insights)
+        assert len(result) == 1
+
+    def test_filters_empty_title(self) -> None:
+        """Insights with empty string title are filtered out."""
+        from services.ai_service import _validate_insights
+
+        insights = [
+            {
+                "type": "trend",
+                "title": "",
+                "description": "Desc.",
+                "severity": "info",
+            },
+            {
+                "type": "trend",
+                "title": "Valid",
+                "description": "Desc.",
+                "severity": "info",
+            },
+        ]
+        result = _validate_insights(insights)
+        assert len(result) == 1
+        assert result[0]["title"] == "Valid"
+
+    def test_filters_empty_description(self) -> None:
+        """Insights with empty description are filtered out."""
+        from services.ai_service import _validate_insights
+
+        insights = [
+            {
+                "type": "anomaly",
+                "title": "Title",
+                "description": "",
+                "severity": "warning",
+            },
+            {
+                "type": "anomaly",
+                "title": "Good",
+                "description": "Has description.",
+                "severity": "warning",
+            },
+        ]
+        result = _validate_insights(insights)
+        assert len(result) == 1
+
+    def test_filters_non_dict_items(self) -> None:
+        """Non-dict items in the array are skipped."""
+        from services.ai_service import _validate_insights
+
+        insights = [
+            "not a dict",
+            {
+                "type": "outlier",
+                "title": "Valid",
+                "description": "Desc.",
+                "severity": "important",
+            },
+        ]
+        result = _validate_insights(insights)
+        assert len(result) == 1
+        assert result[0]["type"] == "outlier"
+
+    def test_raises_when_all_invalid(self) -> None:
+        """Raises ValueError when no insights pass validation."""
+        from services.ai_service import _validate_insights
+
+        with pytest.raises(ValueError, match="No valid insights found"):
+            _validate_insights([{"type": "bad", "title": "", "severity": "x"}])
+
+    def test_all_valid_types_accepted(self) -> None:
+        """All four insight types are accepted."""
+        from services.ai_service import _validate_insights
+
+        insights = [
+            {
+                "type": t,
+                "title": f"Title {t}",
+                "description": f"Desc {t}.",
+                "severity": "info",
+            }
+            for t in ("trend", "anomaly", "correlation", "outlier")
+        ]
+        result = _validate_insights(insights)
+        assert len(result) == 4
+
+    def test_all_severity_levels_accepted(self) -> None:
+        """All three severity levels are accepted."""
+        from services.ai_service import _validate_insights
+
+        insights = [
+            {
+                "type": "trend",
+                "title": f"Title {s}",
+                "description": f"Desc {s}.",
+                "severity": s,
+            }
+            for s in ("info", "warning", "important")
+        ]
+        result = _validate_insights(insights)
+        assert len(result) == 3

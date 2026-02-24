@@ -126,6 +126,137 @@ Rules:
 """
 
 
+VALID_INSIGHT_TYPES: set[str] = {"trend", "anomaly", "correlation", "outlier"}
+VALID_SEVERITY_LEVELS: set[str] = {"info", "warning", "important"}
+
+INSIGHTS_SYSTEM_PROMPT = """\
+You are a data analyst assistant for a Business Intelligence application.
+Given a database schema and sample data, generate actionable insights about
+the data: trends, anomalies, correlations, and outliers.
+
+Return ONLY a JSON array of insight objects. Each object must have:
+{
+  "type": "trend" | "anomaly" | "correlation" | "outlier",
+  "title": "Short, descriptive title",
+  "description": "One to two sentence explanation of the insight",
+  "severity": "info" | "warning" | "important",
+  "table": "table_name",
+  "columns": ["column1", "column2"],
+  "metrics": { ... optional supporting numbers ... }
+}
+
+Rules:
+- Return ONLY valid JSON (an array), no explanation, no markdown fences.
+- Generate between 3 and 10 insights depending on dataset complexity.
+- Focus on the most interesting and actionable findings.
+- Each insight must reference real table and column names from the schema.
+- Use "important" severity sparingly — only for critical findings.
+- Metrics should contain numeric values that support the insight.
+"""
+
+
+def _validate_insights(insights: Any) -> list[dict[str, Any]]:
+    """Validate and sanitize a list of insight dicts.
+
+    Raises ValueError if the input is fundamentally invalid.
+    Filters out insights with missing or invalid required fields.
+    """
+    if not isinstance(insights, list):
+        raise ValueError("Insights must be a JSON array")
+
+    if len(insights) == 0:
+        raise ValueError("Insights array must not be empty")
+
+    valid: list[dict[str, Any]] = []
+    for item in insights:
+        if not isinstance(item, dict):
+            continue
+        insight_type = item.get("type")
+        if not isinstance(insight_type, str) or insight_type not in VALID_INSIGHT_TYPES:
+            continue
+        severity = item.get("severity")
+        if not isinstance(severity, str) or severity not in VALID_SEVERITY_LEVELS:
+            continue
+        title = item.get("title")
+        if not isinstance(title, str) or not title.strip():
+            continue
+        description = item.get("description")
+        if not isinstance(description, str) or not description.strip():
+            continue
+        valid.append(item)
+
+    if len(valid) == 0:
+        raise ValueError(
+            "No valid insights found. Each insight must have type "
+            f"({sorted(VALID_INSIGHT_TYPES)}), severity "
+            f"({sorted(VALID_SEVERITY_LEVELS)}), title, and description."
+        )
+
+    return valid
+
+
+def generate_insights(
+    schema: list[dict[str, Any]],
+    sample_rows: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    """Generate data insights from schema and sample data using Claude.
+
+    Parameters
+    ----------
+    schema:
+        List of table metadata dicts, each with ``table_name``, ``columns``
+        (list of ``{name, type}``), and ``row_count``.
+    sample_rows:
+        Dict mapping table names to lists of sample row dicts (max 50 each).
+
+    Returns
+    -------
+    dict with keys:
+        ``insights`` — list of validated insight dicts.
+
+    Raises
+    ------
+    ValueError
+        If the API key is missing, the API call fails, or the response
+        is not valid JSON / contains no valid insights.
+    """
+    client = _get_client()
+    schema_context = _build_schema_context(schema, sample_rows)
+
+    user_message = (
+        f"Database schema and sample data:\n{schema_context}\n"
+        "Analyze this data and generate insights. "
+        "Return only the JSON array of insight objects."
+    )
+
+    try:
+        response = client.messages.create(
+            model=_get_model(),
+            max_tokens=4096,
+            system=INSIGHTS_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_message}],
+        )
+    except anthropic.APIError as exc:
+        raise ValueError(f"Claude API error: {exc}") from exc
+
+    raw = ""
+    for block in response.content:
+        if block.type == "text":
+            raw = block.text.strip()
+            break
+
+    raw = _extract_json(raw)
+
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Claude returned invalid JSON: {exc}") from exc
+
+    insights = _validate_insights(parsed)
+
+    return {"insights": insights}
+
+
 def text_to_sql(
     question: str,
     schema: list[dict[str, Any]],
