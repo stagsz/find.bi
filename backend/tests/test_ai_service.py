@@ -1798,3 +1798,450 @@ class TestChat:
         result = chat("Show data", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
 
         assert result["data_table"] is None
+
+
+# ---------------------------------------------------------------------------
+# Deck fixtures
+# ---------------------------------------------------------------------------
+
+
+VALID_DECK_JSON = json.dumps({
+    "deck_title": "Sales Analysis",
+    "summary": "An overview of sales performance across regions.",
+    "slides": [
+        {
+            "title": "Executive Summary",
+            "narrative": "Overall sales are strong with regional variation.",
+            "plot_spec": None,
+        },
+        {
+            "title": "Revenue by Region",
+            "narrative": "North region leads in revenue.",
+            "plot_spec": {
+                "marks": [
+                    {
+                        "type": "barY",
+                        "data": [
+                            {"region": "North", "revenue": 1500},
+                            {"region": "South", "revenue": 2300},
+                        ],
+                        "options": {"x": "region", "y": "revenue"},
+                    }
+                ],
+                "width": 640,
+                "height": 400,
+            },
+        },
+        {
+            "title": "Recommendations",
+            "narrative": "Invest more in the North region to boost revenue.",
+            "plot_spec": None,
+        },
+    ],
+})
+
+
+# ---------------------------------------------------------------------------
+# _validate_deck tests
+# ---------------------------------------------------------------------------
+
+
+class TestValidateDeck:
+    """Tests for the deck validator."""
+
+    def test_valid_deck_passes(self) -> None:
+        """A valid deck passes validation."""
+        from services.ai_service import _validate_deck
+
+        parsed = json.loads(VALID_DECK_JSON)
+        result = _validate_deck(parsed)
+        assert result["deck_title"] == "Sales Analysis"
+        assert len(result["slides"]) == 3
+
+    def test_rejects_non_dict(self) -> None:
+        """Raises ValueError for non-dict input."""
+        from services.ai_service import _validate_deck
+
+        with pytest.raises(ValueError, match="JSON object"):
+            _validate_deck("not a dict")
+
+    def test_rejects_missing_deck_title(self) -> None:
+        """Raises ValueError when deck_title is missing."""
+        from services.ai_service import _validate_deck
+
+        with pytest.raises(ValueError, match="deck_title"):
+            _validate_deck({
+                "summary": "Summary.",
+                "slides": [{"title": "T", "narrative": "N"}],
+            })
+
+    def test_rejects_empty_deck_title(self) -> None:
+        """Raises ValueError when deck_title is empty."""
+        from services.ai_service import _validate_deck
+
+        with pytest.raises(ValueError, match="deck_title"):
+            _validate_deck({
+                "deck_title": "   ",
+                "summary": "Summary.",
+                "slides": [{"title": "T", "narrative": "N"}],
+            })
+
+    def test_rejects_missing_summary(self) -> None:
+        """Raises ValueError when summary is missing."""
+        from services.ai_service import _validate_deck
+
+        with pytest.raises(ValueError, match="summary"):
+            _validate_deck({
+                "deck_title": "Title",
+                "slides": [{"title": "T", "narrative": "N"}],
+            })
+
+    def test_rejects_empty_slides(self) -> None:
+        """Raises ValueError when slides array is empty."""
+        from services.ai_service import _validate_deck
+
+        with pytest.raises(ValueError, match="slides"):
+            _validate_deck({
+                "deck_title": "Title",
+                "summary": "Summary.",
+                "slides": [],
+            })
+
+    def test_filters_slides_without_title(self) -> None:
+        """Slides without title are filtered out."""
+        from services.ai_service import _validate_deck
+
+        parsed = {
+            "deck_title": "Title",
+            "summary": "Summary.",
+            "slides": [
+                {"title": "Valid", "narrative": "Has narrative."},
+                {"narrative": "Missing title."},
+            ],
+        }
+        result = _validate_deck(parsed)
+        assert len(result["slides"]) == 1
+        assert result["slides"][0]["title"] == "Valid"
+
+    def test_filters_slides_without_narrative(self) -> None:
+        """Slides without narrative are filtered out."""
+        from services.ai_service import _validate_deck
+
+        parsed = {
+            "deck_title": "Title",
+            "summary": "Summary.",
+            "slides": [
+                {"title": "Valid", "narrative": "Has narrative."},
+                {"title": "No Narrative"},
+            ],
+        }
+        result = _validate_deck(parsed)
+        assert len(result["slides"]) == 1
+
+    def test_raises_when_all_slides_invalid(self) -> None:
+        """Raises ValueError when all slides fail validation."""
+        from services.ai_service import _validate_deck
+
+        with pytest.raises(ValueError, match="No valid slides"):
+            _validate_deck({
+                "deck_title": "Title",
+                "summary": "Summary.",
+                "slides": [{"title": "", "narrative": ""}],
+            })
+
+    def test_invalid_plot_spec_becomes_none(self) -> None:
+        """Invalid plot_spec in a slide is set to None."""
+        from services.ai_service import _validate_deck
+
+        parsed = {
+            "deck_title": "Title",
+            "summary": "Summary.",
+            "slides": [
+                {
+                    "title": "Slide",
+                    "narrative": "Text.",
+                    "plot_spec": {"marks": []},  # invalid — empty marks
+                },
+            ],
+        }
+        result = _validate_deck(parsed)
+        assert result["slides"][0]["plot_spec"] is None
+
+    def test_non_dict_plot_spec_becomes_none(self) -> None:
+        """Non-dict plot_spec in a slide is set to None."""
+        from services.ai_service import _validate_deck
+
+        parsed = {
+            "deck_title": "Title",
+            "summary": "Summary.",
+            "slides": [
+                {
+                    "title": "Slide",
+                    "narrative": "Text.",
+                    "plot_spec": "not a dict",
+                },
+            ],
+        }
+        result = _validate_deck(parsed)
+        assert result["slides"][0]["plot_spec"] is None
+
+    def test_valid_plot_spec_preserved(self) -> None:
+        """Valid plot_spec in a slide is preserved."""
+        from services.ai_service import _validate_deck
+
+        parsed = json.loads(VALID_DECK_JSON)
+        result = _validate_deck(parsed)
+        chart_slide = result["slides"][1]
+        assert chart_slide["plot_spec"] is not None
+        assert chart_slide["plot_spec"]["marks"][0]["type"] == "barY"
+
+    def test_filters_non_dict_slides(self) -> None:
+        """Non-dict items in slides array are skipped."""
+        from services.ai_service import _validate_deck
+
+        parsed = {
+            "deck_title": "Title",
+            "summary": "Summary.",
+            "slides": [
+                "not a dict",
+                {"title": "Valid", "narrative": "Text."},
+            ],
+        }
+        result = _validate_deck(parsed)
+        assert len(result["slides"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# generate_deck tests
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateDeck:
+    """Tests for the generate_deck function."""
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_returns_deck_structure(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """generate_deck returns dict with deck_title, summary, and slides."""
+        from services.ai_service import generate_deck
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_DECK_JSON,
+        )
+
+        result = generate_deck(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert result["deck_title"] == "Sales Analysis"
+        assert "overview" in result["summary"].lower()
+        assert isinstance(result["slides"], list)
+        assert len(result["slides"]) == 3
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_slide_structure(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Each slide has title, narrative, and optional plot_spec."""
+        from services.ai_service import generate_deck
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_DECK_JSON,
+        )
+
+        result = generate_deck(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        for slide in result["slides"]:
+            assert "title" in slide
+            assert "narrative" in slide
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_strips_markdown_fences(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Markdown code fences around JSON are stripped."""
+        from services.ai_service import generate_deck
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        fenced = f"```json\n{VALID_DECK_JSON}\n```"
+        mock_client.messages.create.return_value = _mock_response(fenced)
+
+        result = generate_deck(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert len(result["slides"]) == 3
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_raises_on_invalid_json(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Raises ValueError when Claude returns non-JSON."""
+        from services.ai_service import generate_deck
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            "This is not JSON at all",
+        )
+
+        with pytest.raises(ValueError, match="invalid JSON"):
+            generate_deck(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""})
+    def test_raises_without_api_key(self) -> None:
+        """Raises ValueError when API key is not set."""
+        from services.ai_service import generate_deck
+
+        with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
+            generate_deck(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_raises_on_api_error(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Raises ValueError when Claude API returns an error."""
+        import anthropic as anthropic_mod
+
+        from services.ai_service import generate_deck
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.side_effect = anthropic_mod.APIError(
+            message="rate limited",
+            request=MagicMock(),
+            body=None,
+        )
+
+        with pytest.raises(ValueError, match="Claude API error"):
+            generate_deck(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_sends_deck_system_prompt(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Verifies the deck system prompt is sent."""
+        from services.ai_service import generate_deck
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_DECK_JSON,
+        )
+
+        generate_deck(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        call_args = mock_client.messages.create.call_args
+        system = call_args.kwargs["system"]
+        assert "deck" in system.lower()
+        assert "slide" in system.lower()
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_sends_schema_in_prompt(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Verifies the schema context is included in the API call."""
+        from services.ai_service import generate_deck
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_DECK_JSON,
+        )
+
+        generate_deck(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        call_args = mock_client.messages.create.call_args
+        user_content = call_args.kwargs["messages"][0]["content"]
+        assert "sales" in user_content
+        assert "products" in user_content
+        assert "revenue" in user_content
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_includes_user_goal(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """User goal is included in the prompt when provided."""
+        from services.ai_service import generate_deck
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_DECK_JSON,
+        )
+
+        generate_deck(
+            SAMPLE_SCHEMA, SAMPLE_ROWS, user_goal="Analyze revenue trends",
+        )
+
+        call_args = mock_client.messages.create.call_args
+        user_content = call_args.kwargs["messages"][0]["content"]
+        assert "Analyze revenue trends" in user_content
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_empty_user_goal_excluded(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Empty user goal does not add goal clause to prompt."""
+        from services.ai_service import generate_deck
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_DECK_JSON,
+        )
+
+        generate_deck(SAMPLE_SCHEMA, SAMPLE_ROWS, user_goal="")
+
+        call_args = mock_client.messages.create.call_args
+        user_content = call_args.kwargs["messages"][0]["content"]
+        assert "analysis goal" not in user_content.lower()
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_single_api_call(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """generate_deck makes exactly one API call."""
+        from services.ai_service import generate_deck
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_DECK_JSON,
+        )
+
+        generate_deck(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert mock_client.messages.create.call_count == 1
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_preserves_valid_plot_spec(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Valid plot_spec in slides is preserved."""
+        from services.ai_service import generate_deck
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_DECK_JSON,
+        )
+
+        result = generate_deck(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        chart_slide = result["slides"][1]
+        assert chart_slide["plot_spec"] is not None
+        assert chart_slide["plot_spec"]["marks"][0]["type"] == "barY"

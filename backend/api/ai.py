@@ -15,6 +15,7 @@ from models.insight_cache import InsightCache
 from models.user import User
 from models.workspace import Workspace
 from services.ai_service import chat as ai_chat
+from services.ai_service import generate_deck as ai_generate_deck
 from services.ai_service import generate_insights, text_to_sql
 from services.duckdb_service import list_tables
 
@@ -341,4 +342,64 @@ def chat_endpoint(
         sql=result.get("sql"),
         plot_spec=result.get("plot_spec"),
         data_table=data_table_model,
+    )
+
+
+class DeckRequest(BaseModel):
+    workspace_id: str
+    user_goal: str = ""
+
+
+class DeckSlide(BaseModel):
+    title: str
+    narrative: str
+    plot_spec: dict[str, Any] | None = None
+
+
+class DeckResponse(BaseModel):
+    deck_title: str
+    summary: str
+    slides: list[DeckSlide]
+
+
+@router.post("/deck", response_model=DeckResponse)
+def deck_endpoint(
+    body: DeckRequest,
+    user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> DeckResponse:
+    """Generate a multi-slide analysis deck for workspace data.
+
+    Claude analyzes the full schema and sample data, producing a
+    structured deck with title, executive summary, data-driven slides
+    (each with optional Observable Plot chart), and recommendations.
+    """
+    db_path = _get_workspace_db_path(body.workspace_id, user, db)
+
+    if os.path.isfile(db_path):
+        try:
+            schema = list_tables(db_path)
+        except ValueError:
+            schema = []
+    else:
+        schema = []
+
+    if not schema:
+        raise HTTPException(
+            status_code=400,
+            detail="No data tables found in workspace. Upload data first.",
+        )
+
+    table_names = [t["table_name"] for t in schema]
+    sample_rows = _fetch_sample_rows(db_path, table_names)
+
+    try:
+        result = ai_generate_deck(schema, sample_rows, body.user_goal)
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+    return DeckResponse(
+        deck_title=result["deck_title"],
+        summary=result["summary"],
+        slides=[DeckSlide(**s) for s in result["slides"]],
     )

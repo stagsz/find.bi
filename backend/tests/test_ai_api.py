@@ -1361,3 +1361,252 @@ class TestChatEndpoint:
 
         assert resp.status_code == 200
         assert resp.json()["data_table"] is None
+
+
+# --- POST /api/ai/deck ---
+
+VALID_DECK_RESPONSE: dict[str, Any] = {
+    "deck_title": "Sales Analysis",
+    "summary": "An overview of sales performance across regions.",
+    "slides": [
+        {
+            "title": "Executive Summary",
+            "narrative": "Overall sales are strong with regional variation.",
+            "plot_spec": None,
+        },
+        {
+            "title": "Revenue by Region",
+            "narrative": "North region leads in revenue.",
+            "plot_spec": {
+                "marks": [
+                    {
+                        "type": "barY",
+                        "data": [
+                            {"region": "North", "revenue": 1500},
+                            {"region": "South", "revenue": 2300},
+                        ],
+                        "options": {"x": "region", "y": "revenue"},
+                    }
+                ],
+                "width": 640,
+                "height": 400,
+            },
+        },
+        {
+            "title": "Recommendations",
+            "narrative": "Invest more in the North region.",
+            "plot_spec": None,
+        },
+    ],
+}
+
+
+class TestDeckEndpoint:
+    """Tests for POST /api/ai/deck."""
+
+    def test_requires_authentication(self, client: TestClient) -> None:
+        """Returns 422 without auth header."""
+        resp = client.post(
+            "/api/ai/deck",
+            json={"workspace_id": "x"},
+        )
+        assert resp.status_code == 422
+
+    def test_invalid_auth_token(self, client: TestClient) -> None:
+        """Returns 401 with an invalid token."""
+        resp = client.post(
+            "/api/ai/deck",
+            json={"workspace_id": "x"},
+            headers={"Authorization": "Bearer invalid-token"},
+        )
+        assert resp.status_code == 401
+
+    def test_workspace_not_found(self, client: TestClient) -> None:
+        """Returns 404 for non-existent workspace."""
+        token = _register_and_login(client)
+        resp = client.post(
+            "/api/ai/deck",
+            json={
+                "workspace_id": "00000000-0000-0000-0000-000000000000",
+            },
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+        assert "Workspace not found" in resp.json()["detail"]
+
+    def test_no_tables_in_workspace(self, client: TestClient) -> None:
+        """Returns 400 when workspace has no data tables."""
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+        resp = client.post(
+            "/api/ai/deck",
+            json={"workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 400
+        assert "No data tables" in resp.json()["detail"]
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_generate_deck")
+    def test_returns_deck(
+        self,
+        mock_deck: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Returns deck with title, summary, and slides on success."""
+        mock_deck.return_value = VALID_DECK_RESPONSE
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/deck",
+            json={"workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["deck_title"] == "Sales Analysis"
+        assert "overview" in data["summary"].lower()
+        assert len(data["slides"]) == 3
+        assert data["slides"][0]["title"] == "Executive Summary"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_generate_deck")
+    def test_passes_user_goal(
+        self,
+        mock_deck: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """User goal is forwarded to the AI service."""
+        mock_deck.return_value = VALID_DECK_RESPONSE
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        client.post(
+            "/api/ai/deck",
+            json={
+                "workspace_id": workspace_id,
+                "user_goal": "Analyze revenue trends",
+            },
+            headers=_auth_headers(token),
+        )
+
+        mock_deck.assert_called_once()
+        call_args = mock_deck.call_args
+        assert call_args[0][2] == "Analyze revenue trends"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_generate_deck")
+    def test_default_empty_user_goal(
+        self,
+        mock_deck: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """User goal defaults to empty string when not provided."""
+        mock_deck.return_value = VALID_DECK_RESPONSE
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        client.post(
+            "/api/ai/deck",
+            json={"workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+
+        mock_deck.assert_called_once()
+        call_args = mock_deck.call_args
+        assert call_args[0][2] == ""
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""})
+    def test_ai_service_error_returns_502(
+        self, client: TestClient,
+    ) -> None:
+        """Returns 502 when AI service raises ValueError (missing key)."""
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/deck",
+            json={"workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 502
+        assert "ANTHROPIC_API_KEY" in resp.json()["detail"]
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_generate_deck")
+    def test_response_schema(
+        self,
+        mock_deck: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Response has exactly deck_title, summary, and slides fields."""
+        mock_deck.return_value = VALID_DECK_RESPONSE
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/deck",
+            json={"workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        assert set(resp.json().keys()) == {"deck_title", "summary", "slides"}
+
+        slide = resp.json()["slides"][0]
+        assert set(slide.keys()) == {"title", "narrative", "plot_spec"}
+
+    def test_other_user_cannot_access_workspace(
+        self, client: TestClient,
+    ) -> None:
+        """Returns 404 when trying to use another user's workspace."""
+        token_a = _register_and_login(client, "deckA@test.com")
+        token_b = _register_and_login(client, "deckB@test.com")
+
+        workspace_id_a = _get_workspace_id(client, token_a)
+
+        resp = client.post(
+            "/api/ai/deck",
+            json={"workspace_id": workspace_id_a},
+            headers=_auth_headers(token_b),
+        )
+
+        assert resp.status_code == 404
+        assert "Workspace not found" in resp.json()["detail"]

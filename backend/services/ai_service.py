@@ -676,6 +676,189 @@ def chat(
     }
 
 
+DECK_SYSTEM_PROMPT = """\
+You are Ralph, a data analyst for a Business Intelligence application called
+find.bi. Given a database schema and sample data, produce a multi-slide
+analysis deck as a JSON object.
+
+Response format — return ONLY valid JSON with this structure:
+{
+  "deck_title": "Short title for the entire deck",
+  "summary": "One-paragraph executive summary of the analysis.",
+  "slides": [
+    {
+      "title": "Slide title",
+      "narrative": "One to three paragraph analysis for this slide.",
+      "plot_spec": null
+    }
+  ]
+}
+
+Slide guidelines:
+- Generate between 3 and 8 slides depending on data complexity.
+- The first slide should be an executive summary (plot_spec: null).
+- Middle slides should each focus on one finding, trend, or insight.
+- Include an Observable Plot chart for data-driven slides where a visual
+  would help. Set plot_spec to null for narrative-only slides.
+- The last slide should contain recommendations or next steps.
+
+When providing a plot_spec, use this exact Observable Plot structure:
+{
+  "marks": [
+    {
+      "type": "<mark_type>",
+      "data": [ ... ],
+      "options": { "x": "<column>", "y": "<column>", ... }
+    }
+  ],
+  "width": 640,
+  "height": 400,
+  "x": { "label": "X Axis Label" },
+  "y": { "label": "Y Axis Label" }
+}
+
+Supported mark types:
+  area, areaX, areaY, barX, barY, cell, cellX, cellY,
+  dot, dotX, dotY, frame, line, lineX, lineY, link,
+  rect, rectX, rectY, ruleX, ruleY, text, textX, textY,
+  tickX, tickY, tip
+
+Rules:
+- Return ONLY valid JSON, no explanation, no markdown fences.
+- Embed data directly in each mark's "data" array.
+- Reference only tables and columns from the provided schema.
+- Be insightful and actionable — focus on what matters most.
+- If the user provides a goal, focus the analysis on that goal.
+"""
+
+
+def _validate_deck(parsed: Any) -> dict[str, Any]:
+    """Validate and sanitize a deck response from Claude.
+
+    Raises ValueError if the structure is fundamentally invalid.
+    Filters out slides with missing required fields.
+    """
+    if not isinstance(parsed, dict):
+        raise ValueError("Deck response must be a JSON object")
+
+    deck_title = parsed.get("deck_title")
+    if not isinstance(deck_title, str) or not deck_title.strip():
+        raise ValueError("Deck must have a non-empty 'deck_title'")
+
+    summary = parsed.get("summary")
+    if not isinstance(summary, str) or not summary.strip():
+        raise ValueError("Deck must have a non-empty 'summary'")
+
+    slides = parsed.get("slides")
+    if not isinstance(slides, list) or len(slides) == 0:
+        raise ValueError("Deck must contain a non-empty 'slides' array")
+
+    valid_slides: list[dict[str, Any]] = []
+    for slide in slides:
+        if not isinstance(slide, dict):
+            continue
+        title = slide.get("title")
+        if not isinstance(title, str) or not title.strip():
+            continue
+        narrative = slide.get("narrative")
+        if not isinstance(narrative, str) or not narrative.strip():
+            continue
+
+        # Validate plot_spec if present
+        plot_spec = slide.get("plot_spec")
+        if plot_spec is not None:
+            if not isinstance(plot_spec, dict):
+                slide["plot_spec"] = None
+            else:
+                try:
+                    slide["plot_spec"] = _validate_plot_spec(plot_spec)
+                except ValueError:
+                    slide["plot_spec"] = None
+
+        valid_slides.append(slide)
+
+    if len(valid_slides) == 0:
+        raise ValueError(
+            "No valid slides found. Each slide must have "
+            "a non-empty 'title' and 'narrative'."
+        )
+
+    return {
+        "deck_title": deck_title.strip(),
+        "summary": summary.strip(),
+        "slides": valid_slides,
+    }
+
+
+def generate_deck(
+    schema: list[dict[str, Any]],
+    sample_rows: dict[str, list[dict[str, Any]]],
+    user_goal: str = "",
+) -> dict[str, Any]:
+    """Generate a multi-slide analysis deck from schema and sample data.
+
+    Parameters
+    ----------
+    schema:
+        List of table metadata dicts, each with ``table_name``, ``columns``
+        (list of ``{name, type}``), and ``row_count``.
+    sample_rows:
+        Dict mapping table names to lists of sample row dicts (max 50 each).
+    user_goal:
+        Optional focus prompt from the user (e.g. "Analyze revenue trends").
+
+    Returns
+    -------
+    dict with keys:
+        ``deck_title`` — title for the entire deck.
+        ``summary`` — one-paragraph executive summary.
+        ``slides`` — list of validated slide dicts.
+
+    Raises
+    ------
+    ValueError
+        If the API key is missing, the API call fails, or the response
+        is not valid JSON / contains no valid slides.
+    """
+    client = _get_client()
+    schema_context = _build_schema_context(schema, sample_rows)
+
+    goal_clause = ""
+    if user_goal.strip():
+        goal_clause = f"\nUser's analysis goal: {user_goal.strip()}\n"
+
+    user_message = (
+        f"Database schema and sample data:\n{schema_context}\n"
+        f"{goal_clause}"
+        "Generate a complete analysis deck. Return only the JSON object."
+    )
+
+    try:
+        response = client.messages.create(
+            model=_get_model(),
+            max_tokens=4096,
+            system=DECK_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_message}],
+        )
+    except anthropic.APIError as exc:
+        raise ValueError(f"Claude API error: {exc}") from exc
+
+    raw = ""
+    for block in response.content:
+        if block.type == "text":
+            raw = block.text.strip()
+            break
+
+    raw = _extract_json(raw)
+
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Claude returned invalid JSON: {exc}") from exc
+
+    return _validate_deck(parsed)
+
+
 def generate_plot_spec(
     question: str,
     query_result: dict[str, Any],
