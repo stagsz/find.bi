@@ -6,6 +6,7 @@ import DashboardCard from "@/components/dashboard/DashboardCard";
 import CardRenderer from "@/components/dashboard/CardRenderer";
 import ChartConfigDialog from "@/components/dashboard/ChartConfigDialog";
 import FilterBar from "@/components/dashboard/FilterBar";
+import DeckGeneratorModal from "@/components/ai/DeckGeneratorModal";
 import { FiltersProvider, useFiltersOptional } from "@/hooks/useFilters";
 import useDashboardCards from "@/hooks/useDashboardCards";
 import useDashboardPersistence from "@/hooks/useDashboardPersistence";
@@ -49,6 +50,7 @@ function DashboardPageInner() {
   const [editingCard, setEditingCard] = useState<DashboardCardConfig | null>(
     null,
   );
+  const [deckModalOpen, setDeckModalOpen] = useState(false);
 
   const handleAddCard = useCallback(() => {
     setEditingCard(null);
@@ -189,6 +191,31 @@ function DashboardPageInner() {
               Export
             </button>
           )}
+          {/* Generate Analysis Deck button */}
+          {dashboard?.workspace_id && (
+            <button
+              data-testid="dashboard-generate-deck-button"
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-md border border-[#F5A623]/40 bg-[#F5A623]/10 px-3 py-1.5 font-mono text-[0.65rem] font-semibold uppercase tracking-wider text-[#F5A623] transition-colors hover:bg-[#F5A623]/20 hover:text-[#FFB84D]"
+              onClick={() => setDeckModalOpen(true)}
+            >
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+              Deck
+            </button>
+          )}
           {/* Immediate save button */}
           {id && dirty && (
             <button
@@ -292,6 +319,13 @@ function DashboardPageInner() {
         onClose={handleDialogClose}
         onSave={handleDialogSave}
         initialConfig={editingCard ?? undefined}
+      />
+
+      {/* Deck generator modal */}
+      <DeckGeneratorModal
+        workspaceId={dashboard?.workspace_id ?? null}
+        open={deckModalOpen}
+        onClose={() => setDeckModalOpen(false)}
       />
     </div>
   );

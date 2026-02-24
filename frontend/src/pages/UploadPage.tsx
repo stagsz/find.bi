@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import api from "@/services/api";
 import { useDuckDB } from "@/hooks/useDuckDB";
 import InsightPanel from "@/components/ai/InsightPanel";
+import DeckGeneratorModal from "@/components/ai/DeckGeneratorModal";
 
 interface ColumnInfo {
   name: string;
@@ -68,6 +69,8 @@ function UploadPage() {
 
   // Workspace ID
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+
+  const [deckModalOpen, setDeckModalOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -465,13 +468,37 @@ function UploadPage() {
               created with {ingestResult.row_count.toLocaleString()} rows and{" "}
               {ingestResult.columns.length} columns.
             </p>
-            <button
-              type="button"
-              onClick={handleReset}
-              className="mt-4 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Upload Another File
-            </button>
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleReset}
+                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Upload Another File
+              </button>
+              <button
+                type="button"
+                data-testid="upload-generate-deck-button"
+                onClick={() => setDeckModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded border border-[#F5A623]/40 bg-[#F5A623]/10 px-3 py-1.5 font-mono text-[0.7rem] font-semibold uppercase tracking-wider text-[#F5A623] transition-colors hover:bg-[#F5A623]/20 hover:text-[#FFB84D]"
+              >
+                <svg
+                  className="h-3.5 w-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                  <line x1="8" y1="21" x2="16" y2="21" />
+                  <line x1="12" y1="17" x2="12" y2="21" />
+                </svg>
+                Generate Analysis Deck
+              </button>
+            </div>
           </div>
           <InsightPanel
             workspaceId={workspaceId}
@@ -480,6 +507,12 @@ function UploadPage() {
           />
         </>
       )}
+
+      <DeckGeneratorModal
+        workspaceId={workspaceId}
+        open={deckModalOpen}
+        onClose={() => setDeckModalOpen(false)}
+      />
     </div>
   );
 }
