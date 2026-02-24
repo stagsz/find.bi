@@ -18,6 +18,17 @@ vi.mock("@/services/api", () => ({
   },
 }));
 
+// Mock InsightPanel to avoid nested API complexity
+vi.mock("@/components/ai/InsightPanel", () => ({
+  default: (props: { workspaceId: string | null; autoFetch?: boolean }) => (
+    <div
+      data-testid="insight-panel"
+      data-workspace-id={props.workspaceId}
+      data-auto-fetch={String(!!props.autoFetch)}
+    />
+  ),
+}));
+
 vi.mock("@/hooks/useDuckDB", () => ({
   useDuckDB: () => ({
     loadTable: mocks.loadTable,
@@ -474,5 +485,41 @@ describe("UploadPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/import successful/i)).toBeInTheDocument();
     });
+  });
+
+  it("shows InsightPanel after successful ingestion", async () => {
+    mockUploadAndSchema();
+    mocks.post.mockResolvedValueOnce({
+      data: {
+        table_name: "sales",
+        columns: [
+          { name: "region", type: "string", duckdb_type: "VARCHAR" },
+        ],
+        row_count: 42,
+      },
+    });
+
+    renderUpload();
+    const user = userEvent.setup();
+    const input = screen.getByTestId("file-input");
+
+    await user.upload(input, createCsvFile());
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /confirm/i }),
+      ).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /confirm/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/import successful/i)).toBeInTheDocument();
+    });
+
+    // InsightPanel should be rendered with auto-fetch enabled
+    const panel = screen.getByTestId("insight-panel");
+    expect(panel).toBeInTheDocument();
+    expect(panel).toHaveAttribute("data-auto-fetch", "true");
+    expect(panel).toHaveAttribute("data-workspace-id", WORKSPACE_ID);
   });
 });

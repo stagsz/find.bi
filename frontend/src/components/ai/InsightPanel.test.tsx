@@ -1,14 +1,15 @@
-import { render, screen, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // ─── Hoisted mocks ──────────────────────────────────────────────────
 const mocks = vi.hoisted(() => ({
   post: vi.fn(),
+  get: vi.fn(),
 }));
 
 vi.mock("@/services/api", () => ({
-  default: { post: mocks.post },
+  default: { post: mocks.post, get: mocks.get },
 }));
 
 // Mock InsightCard to keep tests focused on panel behavior
@@ -26,9 +27,11 @@ import InsightPanel from "./InsightPanel";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.useFakeTimers({ shouldAdvanceTime: true });
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
 });
 
@@ -61,6 +64,37 @@ const MOCK_INSIGHTS = {
         table: "sales",
         columns: ["revenue", "quantity"],
         metrics: { correlation: 0.95 },
+      },
+    ],
+  },
+};
+
+const MOCK_CACHED_READY = {
+  data: {
+    entries: [
+      {
+        table_name: "sales",
+        status: "ready",
+        insights: [
+          {
+            type: "trend",
+            title: "Cached insight",
+            description: "From cache.",
+            severity: "info",
+          },
+        ],
+      },
+    ],
+  },
+};
+
+const MOCK_CACHED_PENDING = {
+  data: {
+    entries: [
+      {
+        table_name: "orders",
+        status: "pending",
+        insights: [],
       },
     ],
   },
@@ -130,6 +164,7 @@ describe("InsightPanel", () => {
 
   describe("API call", () => {
     it("calls insights API with workspace_id on Analyze click", async () => {
+      vi.useRealTimers();
       const user = userEvent.setup();
       mocks.post.mockResolvedValue(MOCK_INSIGHTS);
 
@@ -142,6 +177,7 @@ describe("InsightPanel", () => {
     });
 
     it("does not call API when workspaceId is null", async () => {
+      vi.useRealTimers();
       const user = userEvent.setup();
 
       render(<InsightPanel workspaceId={null} />);
@@ -155,6 +191,7 @@ describe("InsightPanel", () => {
 
   describe("loading state", () => {
     it("shows loading indicator while fetching", async () => {
+      vi.useRealTimers();
       const user = userEvent.setup();
       mocks.post.mockReturnValue(new Promise(() => {}));
 
@@ -165,6 +202,7 @@ describe("InsightPanel", () => {
     });
 
     it("shows Analyzing... text on button while loading", async () => {
+      vi.useRealTimers();
       const user = userEvent.setup();
       mocks.post.mockReturnValue(new Promise(() => {}));
 
@@ -177,6 +215,7 @@ describe("InsightPanel", () => {
     });
 
     it("disables button while loading", async () => {
+      vi.useRealTimers();
       const user = userEvent.setup();
       mocks.post.mockReturnValue(new Promise(() => {}));
 
@@ -191,6 +230,7 @@ describe("InsightPanel", () => {
 
   describe("successful response", () => {
     it("renders insight cards", async () => {
+      vi.useRealTimers();
       const user = userEvent.setup();
       mocks.post.mockResolvedValue(MOCK_INSIGHTS);
 
@@ -206,6 +246,7 @@ describe("InsightPanel", () => {
     });
 
     it("passes insight data to InsightCard", async () => {
+      vi.useRealTimers();
       const user = userEvent.setup();
       mocks.post.mockResolvedValue(MOCK_INSIGHTS);
 
@@ -222,6 +263,7 @@ describe("InsightPanel", () => {
     });
 
     it("shows Refresh button after successful load", async () => {
+      vi.useRealTimers();
       const user = userEvent.setup();
       mocks.post.mockResolvedValue(MOCK_INSIGHTS);
 
@@ -236,6 +278,7 @@ describe("InsightPanel", () => {
     });
 
     it("hides loading indicator after response", async () => {
+      vi.useRealTimers();
       const user = userEvent.setup();
       mocks.post.mockResolvedValue(MOCK_INSIGHTS);
 
@@ -254,6 +297,7 @@ describe("InsightPanel", () => {
 
   describe("empty response", () => {
     it("shows empty state when no insights returned", async () => {
+      vi.useRealTimers();
       const user = userEvent.setup();
       mocks.post.mockResolvedValue({ data: { insights: [] } });
 
@@ -273,6 +317,7 @@ describe("InsightPanel", () => {
 
   describe("error handling", () => {
     it("shows error on API failure with detail", async () => {
+      vi.useRealTimers();
       const user = userEvent.setup();
       mocks.post.mockRejectedValue({
         response: { data: { detail: "No data tables found" } },
@@ -290,6 +335,7 @@ describe("InsightPanel", () => {
     });
 
     it("shows generic error on network failure", async () => {
+      vi.useRealTimers();
       const user = userEvent.setup();
       mocks.post.mockRejectedValue(new Error("Network Error"));
 
@@ -305,6 +351,7 @@ describe("InsightPanel", () => {
     });
 
     it("clears error on successful retry", async () => {
+      vi.useRealTimers();
       const user = userEvent.setup();
       mocks.post.mockRejectedValueOnce(new Error("fail"));
       mocks.post.mockResolvedValueOnce(MOCK_INSIGHTS);
@@ -330,6 +377,7 @@ describe("InsightPanel", () => {
 
   describe("state reset on re-analyze", () => {
     it("clears previous insights on new analyze", async () => {
+      vi.useRealTimers();
       const user = userEvent.setup();
       mocks.post.mockResolvedValueOnce(MOCK_INSIGHTS);
       // Second call returns different data
@@ -363,6 +411,112 @@ describe("InsightPanel", () => {
       expect(screen.getByTestId("insight-card-mock")).toHaveAttribute(
         "data-title",
         "New insight",
+      );
+    });
+  });
+
+  // ─── Auto-fetch (cached insights polling) ──────────────────────────
+
+  describe("auto-fetch", () => {
+    it("fetches cached insights immediately when autoFetch is true", async () => {
+      mocks.get.mockResolvedValue(MOCK_CACHED_READY);
+
+      await act(async () => {
+        render(
+          <InsightPanel workspaceId={WORKSPACE_ID} autoFetch />,
+        );
+      });
+
+      await waitFor(() => {
+        expect(mocks.get).toHaveBeenCalledWith(
+          expect.stringContaining("/api/ai/insights/cached"),
+        );
+      });
+    });
+
+    it("displays cached insights when ready", async () => {
+      mocks.get.mockResolvedValue(MOCK_CACHED_READY);
+
+      await act(async () => {
+        render(
+          <InsightPanel workspaceId={WORKSPACE_ID} autoFetch />,
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("insight-list")).toBeInTheDocument();
+      });
+
+      const cards = screen.getAllByTestId("insight-card-mock");
+      expect(cards).toHaveLength(1);
+      expect(cards[0]).toHaveAttribute("data-title", "Cached insight");
+    });
+
+    it("shows loading spinner when cache is pending", async () => {
+      mocks.get.mockResolvedValue(MOCK_CACHED_PENDING);
+
+      await act(async () => {
+        render(
+          <InsightPanel workspaceId={WORKSPACE_ID} autoFetch />,
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("insight-loading")).toBeInTheDocument();
+      });
+    });
+
+    it("does not auto-fetch when autoFetch is false", async () => {
+      await act(async () => {
+        render(
+          <InsightPanel workspaceId={WORKSPACE_ID} autoFetch={false} />,
+        );
+      });
+
+      expect(mocks.get).not.toHaveBeenCalled();
+    });
+
+    it("does not auto-fetch when workspaceId is null", async () => {
+      await act(async () => {
+        render(<InsightPanel workspaceId={null} autoFetch />);
+      });
+
+      expect(mocks.get).not.toHaveBeenCalled();
+    });
+
+    it("polls and displays insights once ready", async () => {
+      // First poll: pending, second poll: ready
+      mocks.get
+        .mockResolvedValueOnce(MOCK_CACHED_PENDING)
+        .mockResolvedValueOnce(MOCK_CACHED_READY);
+
+      await act(async () => {
+        render(
+          <InsightPanel workspaceId={WORKSPACE_ID} autoFetch />,
+        );
+      });
+
+      // First call returns pending — should show loading
+      await waitFor(() => {
+        expect(mocks.get).toHaveBeenCalledTimes(1);
+      });
+
+      // Advance timers to trigger next poll
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await waitFor(() => {
+        expect(mocks.get).toHaveBeenCalledTimes(2);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("insight-list")).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId("insight-card-mock")).toHaveAttribute(
+        "data-title",
+        "Cached insight",
       );
     });
   });

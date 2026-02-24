@@ -23,6 +23,7 @@ from api.auth import get_authenticated_user
 from db import get_db
 from models.user import User
 from models.workspace import Workspace
+from services.ai_service import generate_and_cache_insights
 from services.duckdb_service import (
     drop_table,
     export_table,
@@ -332,6 +333,7 @@ def detect_schema_endpoint(
 @router.post("/ingest", response_model=IngestResponse, status_code=201)
 def ingest_endpoint(
     body: IngestRequest,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_authenticated_user),
     db: Session = Depends(get_db),
 ) -> IngestResponse:
@@ -343,6 +345,14 @@ def ingest_endpoint(
         result = ingest_file(db_path, body.file_path, body.table_name)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+    # Trigger background insight generation (non-blocking, best-effort)
+    background_tasks.add_task(
+        generate_and_cache_insights,
+        body.workspace_id,
+        body.table_name,
+        db_path,
+    )
 
     return IngestResponse(
         table_name=result["table_name"],

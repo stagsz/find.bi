@@ -1,6 +1,7 @@
 """AI API routes: text-to-SQL and related AI endpoints."""
 
 import os
+import uuid as _uuid
 from typing import Any
 
 import duckdb
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from api.auth import get_authenticated_user
 from db import get_db
+from models.insight_cache import InsightCache
 from models.user import User
 from models.workspace import Workspace
 from services.ai_service import generate_insights, text_to_sql
@@ -48,14 +50,24 @@ class InsightsResponse(BaseModel):
     insights: list[InsightItem]
 
 
+class CachedInsightEntry(BaseModel):
+    table_name: str
+    status: str
+    insights: list[InsightItem]
+
+    model_config = {"from_attributes": True}
+
+
+class CachedInsightsResponse(BaseModel):
+    entries: list[CachedInsightEntry]
+
+
 def _get_workspace_db_path(
     workspace_id: str,
     user: User,
     db: Session,
 ) -> str:
     """Validate workspace ownership and return its DuckDB path."""
-    import uuid as _uuid
-
     try:
         ws_uuid = _uuid.UUID(workspace_id)
     except ValueError:
@@ -199,3 +211,50 @@ def insights_endpoint(
     return InsightsResponse(
         insights=[InsightItem(**i) for i in result["insights"]],
     )
+
+
+@router.get("/insights/cached", response_model=CachedInsightsResponse)
+def cached_insights_endpoint(
+    workspace_id: str,
+    user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> CachedInsightsResponse:
+    """Retrieve cached insights for a workspace.
+
+    Returns all cached insight entries with their status (pending, ready,
+    error). Frontend polls this endpoint after upload to check if background
+    insight generation is complete.
+    """
+    # Validate workspace ownership
+    try:
+        ws_uuid = _uuid.UUID(workspace_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    workspace = (
+        db.query(Workspace)
+        .filter(Workspace.id == ws_uuid, Workspace.owner_id == user.id)
+        .first()
+    )
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    caches = (
+        db.query(InsightCache)
+        .filter(InsightCache.workspace_id == ws_uuid)
+        .order_by(InsightCache.updated_at.desc())
+        .all()
+    )
+
+    entries = []
+    for cache in caches:
+        insights_data = cache.insights_json if cache.insights_json else []
+        entries.append(
+            CachedInsightEntry(
+                table_name=cache.table_name,
+                status=cache.status,
+                insights=[InsightItem(**i) for i in insights_data],
+            )
+        )
+
+    return CachedInsightsResponse(entries=entries)

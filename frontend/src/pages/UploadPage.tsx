@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import api from "@/services/api";
 import { useDuckDB } from "@/hooks/useDuckDB";
+import InsightPanel from "@/components/ai/InsightPanel";
 
 interface ColumnInfo {
   name: string;
@@ -454,23 +455,30 @@ function UploadPage() {
 
       {/* Step 4: Success */}
       {step === "done" && ingestResult && (
-        <div className="mt-6 rounded-lg border border-green-200 bg-green-50 p-6">
-          <h2 className="text-lg font-semibold text-green-800">
-            Import Successful
-          </h2>
-          <p className="mt-1 text-sm text-green-700">
-            Table <span className="font-mono">{ingestResult.table_name}</span>{" "}
-            created with {ingestResult.row_count.toLocaleString()} rows and{" "}
-            {ingestResult.columns.length} columns.
-          </p>
-          <button
-            type="button"
-            onClick={handleReset}
-            className="mt-4 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            Upload Another File
-          </button>
-        </div>
+        <>
+          <div className="mt-6 rounded-lg border border-green-200 bg-green-50 p-6">
+            <h2 className="text-lg font-semibold text-green-800">
+              Import Successful
+            </h2>
+            <p className="mt-1 text-sm text-green-700">
+              Table <span className="font-mono">{ingestResult.table_name}</span>{" "}
+              created with {ingestResult.row_count.toLocaleString()} rows and{" "}
+              {ingestResult.columns.length} columns.
+            </p>
+            <button
+              type="button"
+              onClick={handleReset}
+              className="mt-4 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              Upload Another File
+            </button>
+          </div>
+          <InsightPanel
+            workspaceId={workspaceId}
+            autoFetch
+            className="mt-6 rounded-lg border border-[#2A2A28] bg-[#141414] p-4"
+          />
+        </>
       )}
     </div>
   );

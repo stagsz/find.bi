@@ -1,10 +1,14 @@
 """AI service: Claude API client for text-to-SQL and related AI features."""
 
 import json
+import logging
 import os
 from typing import Any
 
 import anthropic
+import duckdb
+
+logger = logging.getLogger(__name__)
 
 
 def _get_api_key() -> str:
@@ -255,6 +259,123 @@ def generate_insights(
     insights = _validate_insights(parsed)
 
     return {"insights": insights}
+
+
+def generate_and_cache_insights(
+    workspace_id: str,
+    table_name: str,
+    db_path: str,
+) -> None:
+    """Background task: generate insights for a table and cache in PostgreSQL.
+
+    Called by FastAPI BackgroundTasks after file ingestion. Fetches schema and
+    sample rows from DuckDB, calls Claude, and stores the result in the
+    insight_caches table.
+    """
+    import uuid as _uuid
+
+    from db import SessionLocal
+    from models.insight_cache import InsightCache
+    from services.duckdb_service import list_tables
+
+    ws_uuid = _uuid.UUID(workspace_id)
+
+    session = SessionLocal()
+    try:
+        # Upsert: find existing cache row or create a new one
+        cache_row = (
+            session.query(InsightCache)
+            .filter(
+                InsightCache.workspace_id == ws_uuid,
+                InsightCache.table_name == table_name,
+            )
+            .first()
+        )
+        if cache_row is None:
+            cache_row = InsightCache(
+                workspace_id=ws_uuid,
+                table_name=table_name,
+                status="pending",
+                insights_json=[],
+            )
+            session.add(cache_row)
+        else:
+            cache_row.status = "pending"
+            cache_row.insights_json = []
+        session.commit()
+
+        # Fetch schema and sample rows from DuckDB
+        if not os.path.isfile(db_path):
+            cache_row.status = "error"
+            session.commit()
+            return
+
+        try:
+            schema = list_tables(db_path)
+        except ValueError:
+            cache_row.status = "error"
+            session.commit()
+            return
+
+        if not schema:
+            cache_row.status = "error"
+            session.commit()
+            return
+
+        # Fetch sample rows for the specific table
+        sample_rows: dict[str, list[dict[str, Any]]] = {}
+        conn = duckdb.connect(db_path, read_only=True)
+        try:
+            for table in schema:
+                tname = table["table_name"]
+                try:
+                    rows = conn.execute(
+                        f'SELECT * FROM "{tname}" LIMIT 50'
+                    ).fetchall()
+                    columns = [
+                        desc[0]
+                        for desc in conn.execute(
+                            f'SELECT * FROM "{tname}" LIMIT 0'
+                        ).description
+                    ]
+                    sample_rows[tname] = [
+                        dict(zip(columns, row)) for row in rows
+                    ]
+                except duckdb.Error:
+                    sample_rows[tname] = []
+        finally:
+            conn.close()
+
+        # Generate insights via Claude
+        result = generate_insights(schema, sample_rows)
+
+        cache_row.status = "ready"
+        cache_row.insights_json = result["insights"]
+        session.commit()
+
+    except Exception:
+        logger.exception(
+            "Background insight generation failed for table %s",
+            table_name,
+        )
+        session.rollback()
+        # Try to mark as error
+        try:
+            cache_row = (
+                session.query(InsightCache)
+                .filter(
+                    InsightCache.workspace_id == ws_uuid,
+                    InsightCache.table_name == table_name,
+                )
+                .first()
+            )
+            if cache_row is not None:
+                cache_row.status = "error"
+                session.commit()
+        except Exception:
+            session.rollback()
+    finally:
+        session.close()
 
 
 def text_to_sql(
