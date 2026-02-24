@@ -74,10 +74,16 @@ class ChatRequest(BaseModel):
     history: list[ChatMessage] = []
 
 
+class DataTable(BaseModel):
+    columns: list[str]
+    rows: list[list[Any]]
+
+
 class ChatResponse(BaseModel):
     text: str
     sql: str | None = None
     plot_spec: dict[str, Any] | None = None
+    data_table: DataTable | None = None
 
 
 def _get_workspace_db_path(
@@ -322,8 +328,17 @@ def chat_endpoint(
     except ValueError as e:
         raise HTTPException(status_code=502, detail=str(e)) from e
 
+    data_table = result.get("data_table")
+    data_table_model = None
+    if isinstance(data_table, dict):
+        cols = data_table.get("columns")
+        rows = data_table.get("rows")
+        if isinstance(cols, list) and isinstance(rows, list):
+            data_table_model = DataTable(columns=cols, rows=rows)
+
     return ChatResponse(
         text=result["text"],
         sql=result.get("sql"),
         plot_spec=result.get("plot_spec"),
+        data_table=data_table_model,
     )

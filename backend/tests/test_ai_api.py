@@ -901,6 +901,16 @@ VALID_CHAT_WITH_PLOT: dict[str, Any] = {
     },
 }
 
+VALID_CHAT_WITH_TABLE: dict[str, Any] = {
+    "text": "Here are the top products.",
+    "sql": None,
+    "plot_spec": None,
+    "data_table": {
+        "columns": ["name", "price"],
+        "rows": [["Widget", 9.99], ["Gadget", 19.99]],
+    },
+}
+
 
 class TestChatEndpoint:
     """Tests for POST /api/ai/chat."""
@@ -1285,4 +1295,69 @@ class TestChatEndpoint:
         )
 
         assert resp.status_code == 200
-        assert set(resp.json().keys()) == {"text", "sql", "plot_spec"}
+        assert set(resp.json().keys()) == {"text", "sql", "plot_spec", "data_table"}
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_chat")
+    def test_returns_data_table(
+        self,
+        mock_chat: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Returns data_table when provided by AI service."""
+        mock_chat.return_value = VALID_CHAT_WITH_TABLE
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/chat",
+            json={
+                "message": "Show products",
+                "workspace_id": workspace_id,
+            },
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["data_table"] is not None
+        assert data["data_table"]["columns"] == ["name", "price"]
+        assert len(data["data_table"]["rows"]) == 2
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_chat")
+    def test_data_table_null_when_not_provided(
+        self,
+        mock_chat: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """data_table is null when AI service does not provide it."""
+        mock_chat.return_value = VALID_CHAT_RESPONSE
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/chat",
+            json={
+                "message": "Hello",
+                "workspace_id": workspace_id,
+            },
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()["data_table"] is None

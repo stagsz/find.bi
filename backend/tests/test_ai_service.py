@@ -1368,6 +1368,19 @@ VALID_CHAT_TEXT_ONLY_JSON = json.dumps({
     "plot_spec": None,
 })
 
+VALID_CHAT_WITH_TABLE_JSON = json.dumps({
+    "text": "Here are the top products by price.",
+    "sql": "SELECT name, price FROM products ORDER BY price DESC",
+    "plot_spec": None,
+    "data_table": {
+        "columns": ["name", "price"],
+        "rows": [
+            ["Gadget", 19.99],
+            ["Widget", 9.99],
+        ],
+    },
+})
+
 
 class TestChat:
     """Tests for the chat() service function."""
@@ -1677,3 +1690,111 @@ class TestChat:
         result = chat("Hello", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
 
         assert result["text"] == "The total revenue across all regions is $5,600."
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_returns_data_table(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Returns data_table when Claude provides one."""
+        from services.ai_service import chat
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_CHAT_WITH_TABLE_JSON,
+        )
+
+        result = chat("Show products", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert result["data_table"] is not None
+        assert result["data_table"]["columns"] == ["name", "price"]
+        assert len(result["data_table"]["rows"]) == 2
+        assert result["data_table"]["rows"][0] == ["Gadget", 19.99]
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_data_table_none_when_not_provided(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """data_table is None when Claude does not provide it."""
+        from services.ai_service import chat
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_CHAT_JSON,
+        )
+
+        result = chat("Hello", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert result["data_table"] is None
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_invalid_data_table_becomes_none(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Invalid data_table (non-dict) is silently set to None."""
+        from services.ai_service import chat
+
+        response_json = json.dumps({
+            "text": "Here's a table.",
+            "sql": None,
+            "plot_spec": None,
+            "data_table": "not a dict",
+        })
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(response_json)
+
+        result = chat("Show data", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert result["data_table"] is None
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_data_table_empty_columns_becomes_none(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """data_table with empty columns array is set to None."""
+        from services.ai_service import chat
+
+        response_json = json.dumps({
+            "text": "Here's a table.",
+            "sql": None,
+            "plot_spec": None,
+            "data_table": {"columns": [], "rows": []},
+        })
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(response_json)
+
+        result = chat("Show data", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert result["data_table"] is None
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_data_table_missing_columns_becomes_none(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """data_table without columns key is set to None."""
+        from services.ai_service import chat
+
+        response_json = json.dumps({
+            "text": "Here's a table.",
+            "sql": None,
+            "plot_spec": None,
+            "data_table": {"rows": [[1, 2]]},
+        })
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(response_json)
+
+        result = chat("Show data", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert result["data_table"] is None

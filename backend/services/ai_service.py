@@ -517,16 +517,19 @@ You have access to the user's database schema and sample data. You can:
 1. Answer questions about the data in plain language.
 2. Generate SQL queries when the user asks for specific data.
 3. Suggest Observable Plot chart specifications when a visualisation would help.
+4. Include inline data tables when showing small result sets directly.
 
 Response format — return ONLY valid JSON with this structure:
 {
   "text": "Your conversational response here.",
   "sql": null,
-  "plot_spec": null
+  "plot_spec": null,
+  "data_table": null
 }
 
 Rules:
 - "text" is ALWAYS required — your main conversational response.
+  You may use basic markdown in text: `code`, **bold**, *italic*.
 - Set "sql" to a DuckDB-compatible SELECT query string when the user asks
   a data question that needs a query. Otherwise set it to null.
 - Set "plot_spec" to an Observable Plot specification object when a chart
@@ -537,6 +540,10 @@ Rules:
   Supported mark types: area, areaX, areaY, barX, barY, cell, cellX, cellY,
   dot, dotX, dotY, frame, line, lineX, lineY, link, rect, rectX, rectY,
   ruleX, ruleY, text, textX, textY, tickX, tickY, tip
+- Set "data_table" to show tabular data inline. Structure:
+  {"columns": ["col1", "col2"], "rows": [["val1", "val2"], ...]}
+  Use data_table when showing a small result set (under 20 rows) directly
+  in the conversation, e.g. a quick summary or comparison table.
 - Do NOT include markdown fences or extra text — return ONLY the JSON object.
 - Use DuckDB SQL syntax for queries. Only SELECT queries are allowed.
 - Reference only tables and columns that exist in the provided schema.
@@ -647,10 +654,25 @@ def chat(
             except ValueError:
                 plot_spec = None
 
+    data_table = parsed.get("data_table")
+    if data_table is not None:
+        if not isinstance(data_table, dict):
+            data_table = None
+        else:
+            columns = data_table.get("columns")
+            rows = data_table.get("rows")
+            if (
+                not isinstance(columns, list)
+                or not isinstance(rows, list)
+                or len(columns) == 0
+            ):
+                data_table = None
+
     return {
         "text": text_value.strip(),
         "sql": sql_value,
         "plot_spec": plot_spec,
+        "data_table": data_table,
     }
 
 

@@ -3,6 +3,7 @@
  *
  * Features:
  * - Message bubbles (user right-aligned, Ralph left-aligned)
+ * - Rich response rendering: SQL code blocks (with Run/Copy), Observable Plot charts, data tables
  * - Conversation history maintained per session in state
  * - Input field at bottom with Enter to send
  * - Ralph avatar with personality
@@ -14,8 +15,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import api from "@/services/api";
+import { useDuckDB } from "@/hooks/useDuckDB";
+import type { QueryResult } from "@/hooks/useDuckDB";
+import PlotRenderer from "@/components/explore/PlotRenderer";
+import type { PlotSpec } from "@/components/explore/PlotRenderer";
 
 // ─── Types ──────────────────────────────────────────────────────────
+
+interface DataTable {
+  columns: string[];
+  rows: unknown[][];
+}
 
 interface ChatMessage {
   id: string;
@@ -23,12 +33,14 @@ interface ChatMessage {
   content: string;
   sql?: string | null;
   plot_spec?: Record<string, unknown> | null;
+  data_table?: DataTable | null;
 }
 
 interface ChatApiResponse {
   text: string;
   sql: string | null;
   plot_spec: Record<string, unknown> | null;
+  data_table: DataTable | null;
 }
 
 interface ChatPanelProps {
@@ -55,6 +67,315 @@ function pickLoadingPhrase(): string {
 let nextMessageId = 0;
 function generateId(): string {
   return `msg-${++nextMessageId}`;
+}
+
+// ─── Chat Result Table ──────────────────────────────────────────────
+
+interface ChatResultTableProps {
+  columns: string[];
+  rows: unknown[][];
+  duration: number;
+}
+
+const MAX_DISPLAY_ROWS = 10;
+
+function ChatResultTable({ columns, rows, duration }: ChatResultTableProps) {
+  const displayRows = rows.slice(0, MAX_DISPLAY_ROWS);
+
+  return (
+    <div className="overflow-x-auto">
+      <table data-testid="chat-result-table" className="w-full text-left">
+        <thead>
+          <tr className="border-b border-[#2A2A2A]">
+            {columns.map((col) => (
+              <th
+                key={col}
+                className="whitespace-nowrap px-2 py-1 font-mono text-[0.6rem] uppercase tracking-wider text-[#6B6860]"
+              >
+                {col}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {displayRows.map((row, i) => (
+            <tr key={i} className="border-b border-[#1C1C1C] last:border-b-0">
+              {row.map((cell, j) => (
+                <td
+                  key={j}
+                  className="max-w-[120px] truncate whitespace-nowrap px-2 py-1 font-mono text-[0.65rem] text-[#F0EDE4]"
+                >
+                  {cell === null || cell === undefined ? (
+                    <span className="text-[#6B6860] italic">null</span>
+                  ) : (
+                    String(cell)
+                  )}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="flex items-center justify-between px-2 py-1 font-mono text-[0.55rem] text-[#6B6860]">
+        <span>
+          {rows.length} row{rows.length !== 1 ? "s" : ""}
+          {rows.length > MAX_DISPLAY_ROWS
+            ? ` (showing ${MAX_DISPLAY_ROWS})`
+            : ""}
+        </span>
+        <span>{duration.toFixed(0)}ms</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Chat Data Table (inline from Claude) ───────────────────────────
+
+interface ChatDataTableProps {
+  table: DataTable;
+}
+
+const DATA_TABLE_MAX_ROWS = 20;
+
+function ChatDataTable({ table }: ChatDataTableProps) {
+  const displayRows = table.rows.slice(0, DATA_TABLE_MAX_ROWS);
+
+  return (
+    <div
+      data-testid="chat-message-table"
+      className="mt-2 overflow-hidden rounded border border-[#2A2A2A] bg-[#0F0F0F]"
+    >
+      <div className="flex items-center border-b border-[#2A2A2A] px-2 py-1">
+        <span className="font-mono text-[0.6rem] uppercase tracking-wider text-[#6B6860]">
+          Table
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <table data-testid="chat-data-table-grid" className="w-full text-left">
+          <thead>
+            <tr className="border-b border-[#2A2A2A]">
+              {table.columns.map((col) => (
+                <th
+                  key={col}
+                  className="whitespace-nowrap px-2 py-1 font-mono text-[0.6rem] uppercase tracking-wider text-[#F5A623]/70"
+                >
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {displayRows.map((row, i) => (
+              <tr key={i} className="border-b border-[#1C1C1C] last:border-b-0">
+                {row.map((cell, j) => (
+                  <td
+                    key={j}
+                    className="max-w-[140px] truncate whitespace-nowrap px-2 py-1 font-mono text-[0.65rem] text-[#F0EDE4]"
+                  >
+                    {cell === null || cell === undefined ? (
+                      <span className="text-[#6B6860] italic">null</span>
+                    ) : (
+                      String(cell)
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="px-2 py-1 font-mono text-[0.55rem] text-[#6B6860]">
+        {table.rows.length} row{table.rows.length !== 1 ? "s" : ""}
+        {table.rows.length > DATA_TABLE_MAX_ROWS
+          ? ` (showing ${DATA_TABLE_MAX_ROWS})`
+          : ""}
+      </div>
+    </div>
+  );
+}
+
+// ─── Rich Text Renderer ─────────────────────────────────────────────
+
+/**
+ * Parse basic markdown in text content: `code`, **bold**, *italic*.
+ * Returns an array of React nodes for inline rendering.
+ */
+function renderRichText(text: string): React.ReactNode[] {
+  // Pattern matches: `code`, **bold**, *italic* (non-greedy, no nesting)
+  const pattern = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*]+\*)/g;
+  const nodes: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = pattern.exec(text)) !== null) {
+    // Add plain text before this match
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+
+    const full = match[0];
+    if (match[1]) {
+      // Inline code: `code`
+      nodes.push(
+        <code
+          key={++key}
+          className="rounded bg-[#F5A623]/10 px-1 py-0.5 font-mono text-[0.75rem] text-[#F5A623]"
+        >
+          {full.slice(1, -1)}
+        </code>,
+      );
+    } else if (match[2]) {
+      // Bold: **bold**
+      nodes.push(
+        <strong key={++key} className="font-semibold text-[#F0EDE4]">
+          {full.slice(2, -2)}
+        </strong>,
+      );
+    } else if (match[3]) {
+      // Italic: *italic*
+      nodes.push(
+        <em key={++key} className="italic text-[#A09D93]">
+          {full.slice(1, -1)}
+        </em>,
+      );
+    }
+
+    lastIndex = match.index + full.length;
+  }
+
+  // Add remaining text after last match
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes.length > 0 ? nodes : [text];
+}
+
+// ─── Chat SQL Block ─────────────────────────────────────────────────
+
+interface ChatSqlBlockProps {
+  sql: string;
+}
+
+function ChatSqlBlock({ sql }: ChatSqlBlockProps) {
+  const { query, isReady } = useDuckDB();
+  const [result, setResult] = useState<QueryResult | null>(null);
+  const [running, setRunning] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleRun = useCallback(async () => {
+    if (!isReady || running) return;
+    setRunning(true);
+    setRunError(null);
+    try {
+      const res = await query(sql);
+      setResult(res);
+    } catch (err) {
+      setRunError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRunning(false);
+    }
+  }, [sql, query, isReady, running]);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(sql);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API may not be available
+    }
+  }, [sql]);
+
+  return (
+    <div
+      data-testid="chat-message-sql"
+      className="mt-2 overflow-hidden rounded border border-[#2A2A2A] bg-[#0F0F0F]"
+    >
+      {/* Header with label + buttons */}
+      <div className="flex items-center justify-between border-b border-[#2A2A2A] px-2 py-1">
+        <span className="font-mono text-[0.6rem] uppercase tracking-wider text-[#6B6860]">
+          SQL
+        </span>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            data-testid="chat-sql-copy"
+            onClick={handleCopy}
+            className="rounded px-1.5 py-0.5 font-mono text-[0.6rem] text-[#6B6860] transition-colors hover:bg-[#1C1C1C] hover:text-[#A09D93]"
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+          <button
+            type="button"
+            data-testid="chat-sql-run"
+            onClick={handleRun}
+            disabled={!isReady || running}
+            className="rounded bg-[#F5A623]/15 px-1.5 py-0.5 font-mono text-[0.6rem] text-[#F5A623] transition-colors hover:bg-[#F5A623]/25 disabled:opacity-40"
+          >
+            {running ? (
+              <span className="flex items-center gap-1">
+                <svg
+                  className="h-2.5 w-2.5 animate-spin"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                Running…
+              </span>
+            ) : (
+              "▶ Run"
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* SQL code */}
+      <pre className="overflow-x-auto p-2 font-mono text-[0.7rem] leading-relaxed text-[#F5A623]">
+        {sql}
+      </pre>
+
+      {/* Query result */}
+      {result && (
+        <div
+          data-testid="chat-query-result"
+          className="border-t border-[#2A2A2A]"
+        >
+          <ChatResultTable
+            columns={result.columns}
+            rows={result.rows}
+            duration={result.duration}
+          />
+        </div>
+      )}
+
+      {/* Query error */}
+      {runError && (
+        <div
+          data-testid="chat-sql-error"
+          className="border-t border-[#2A2A2A] px-2 py-1.5"
+        >
+          <p className="font-mono text-[0.65rem] text-[#E84393]">{runError}</p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -116,6 +437,7 @@ function ChatPanel({ workspaceId, open, onToggle, className }: ChatPanelProps) {
         content: res.data.text,
         sql: res.data.sql,
         plot_spec: res.data.plot_spec,
+        data_table: res.data.data_table,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -304,46 +626,31 @@ function ChatPanel({ workspaceId, open, onToggle, className }: ChatPanelProps) {
               }`}
             >
               <p className="whitespace-pre-wrap text-[0.8rem] leading-relaxed">
-                {msg.content}
+                {msg.role === "assistant"
+                  ? renderRichText(msg.content)
+                  : msg.content}
               </p>
 
-              {/* SQL block */}
-              {msg.sql && (
-                <div
-                  data-testid="chat-message-sql"
-                  className="mt-2 rounded border border-[#2A2A2A] bg-[#0F0F0F] p-2"
-                >
-                  <div className="mb-1 font-mono text-[0.6rem] uppercase tracking-wider text-[#6B6860]">
-                    SQL
-                  </div>
-                  <pre className="overflow-x-auto font-mono text-[0.7rem] leading-relaxed text-[#F5A623]">
-                    {msg.sql}
-                  </pre>
-                </div>
-              )}
+              {/* Interactive SQL block with Run/Copy buttons */}
+              {msg.sql && <ChatSqlBlock sql={msg.sql} />}
 
-              {/* Plot spec indicator */}
+              {/* Inline Observable Plot chart */}
               {msg.plot_spec && (
                 <div
                   data-testid="chat-message-chart"
-                  className="mt-2 flex items-center gap-1.5 rounded border border-[#F5A623]/20 bg-[#F5A623]/5 px-2 py-1.5"
+                  className="mt-2 overflow-hidden rounded border border-[#F5A623]/20 bg-[#0F0F0F]"
                 >
-                  <svg
-                    className="h-3 w-3 text-[#F5A623]"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    aria-hidden="true"
-                  >
-                    <line x1="18" y1="20" x2="18" y2="10" />
-                    <line x1="12" y1="20" x2="12" y2="4" />
-                    <line x1="6" y1="20" x2="6" y2="14" />
-                  </svg>
-                  <span className="font-mono text-[0.65rem] text-[#F5A623]">
-                    Chart attached
-                  </span>
+                  <PlotRenderer
+                    spec={msg.plot_spec as unknown as PlotSpec}
+                    className="w-full"
+                    style={{ background: "#0F0F0F", maxHeight: 240 }}
+                  />
                 </div>
+              )}
+
+              {/* Inline data table */}
+              {msg.data_table && (
+                <ChatDataTable table={msg.data_table} />
               )}
             </div>
           </div>
@@ -442,5 +749,5 @@ function ChatPanel({ workspaceId, open, onToggle, className }: ChatPanelProps) {
   );
 }
 
-export type { ChatPanelProps, ChatMessage };
+export type { ChatPanelProps, ChatMessage, DataTable };
 export default ChatPanel;

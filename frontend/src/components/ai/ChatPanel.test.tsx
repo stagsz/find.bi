@@ -5,10 +5,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // ─── Hoisted mocks ──────────────────────────────────────────────────
 const mocks = vi.hoisted(() => ({
   post: vi.fn(),
+  query: vi.fn().mockResolvedValue({ columns: [], rows: [], duration: 0 }),
 }));
 
 vi.mock("@/services/api", () => ({
   default: { post: mocks.post },
+}));
+
+vi.mock("@/hooks/useDuckDB", () => ({
+  useDuckDB: () => ({
+    query: mocks.query,
+    isReady: true,
+    loading: false,
+    error: null,
+    initError: null,
+  }),
 }));
 
 import ChatPanel from "./ChatPanel";
@@ -49,6 +60,36 @@ const MOCK_RESPONSE_TEXT_ONLY = {
     text: "I'm Ralph!",
     sql: null,
     plot_spec: null,
+  },
+};
+
+const MOCK_RESPONSE_WITH_TABLE = {
+  data: {
+    text: "Here are the top products:",
+    sql: null,
+    plot_spec: null,
+    data_table: {
+      columns: ["name", "price"],
+      rows: [
+        ["Widget", 9.99],
+        ["Gadget", 19.99],
+        ["Doohickey", 14.50],
+      ],
+    },
+  },
+};
+
+const MOCK_RESPONSE_WITH_ALL = {
+  data: {
+    text: "Here's a **full analysis** with `revenue` data:",
+    sql: null,
+    plot_spec: {
+      marks: [{ type: "barY", data: [{ x: "A", y: 1 }], options: { x: "x", y: "y" } }],
+    },
+    data_table: {
+      columns: ["name", "price"],
+      rows: [["Widget", 9.99]],
+    },
   },
 };
 
@@ -462,7 +503,6 @@ describe("ChatPanel", () => {
       await waitFor(() => {
         expect(screen.getByTestId("chat-message-chart")).toBeInTheDocument();
       });
-      expect(screen.getByTestId("chat-message-chart")).toHaveTextContent("Chart attached");
     });
 
     it("does not show SQL block when sql is null", async () => {
@@ -698,6 +738,173 @@ describe("ChatPanel", () => {
       await user.click(screen.getByTestId("chat-clear-button"));
 
       expect(screen.queryByTestId("chat-clear-button")).not.toBeInTheDocument();
+    });
+  });
+
+  // ─── Data table rendering ───────────────────────────────────────────
+
+  describe("data table rendering", () => {
+    it("shows inline data table when response contains data_table", async () => {
+      const user = userEvent.setup();
+      mocks.post.mockResolvedValue(MOCK_RESPONSE_WITH_TABLE);
+
+      render(
+        <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
+      );
+      await user.type(screen.getByTestId("chat-input"), "show products");
+      await user.click(screen.getByTestId("chat-send-button"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("chat-message-table")).toBeInTheDocument();
+      });
+    });
+
+    it("renders column headers in data table", async () => {
+      const user = userEvent.setup();
+      mocks.post.mockResolvedValue(MOCK_RESPONSE_WITH_TABLE);
+
+      render(
+        <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
+      );
+      await user.type(screen.getByTestId("chat-input"), "show products");
+      await user.click(screen.getByTestId("chat-send-button"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("chat-message-table")).toBeInTheDocument();
+      });
+      expect(screen.getByTestId("chat-message-table")).toHaveTextContent("name");
+      expect(screen.getByTestId("chat-message-table")).toHaveTextContent("price");
+    });
+
+    it("renders row data in data table", async () => {
+      const user = userEvent.setup();
+      mocks.post.mockResolvedValue(MOCK_RESPONSE_WITH_TABLE);
+
+      render(
+        <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
+      );
+      await user.type(screen.getByTestId("chat-input"), "show products");
+      await user.click(screen.getByTestId("chat-send-button"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("chat-message-table")).toBeInTheDocument();
+      });
+      expect(screen.getByTestId("chat-message-table")).toHaveTextContent("Widget");
+      expect(screen.getByTestId("chat-message-table")).toHaveTextContent("9.99");
+      expect(screen.getByTestId("chat-message-table")).toHaveTextContent("Gadget");
+    });
+
+    it("shows row count in data table", async () => {
+      const user = userEvent.setup();
+      mocks.post.mockResolvedValue(MOCK_RESPONSE_WITH_TABLE);
+
+      render(
+        <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
+      );
+      await user.type(screen.getByTestId("chat-input"), "show products");
+      await user.click(screen.getByTestId("chat-send-button"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("chat-message-table")).toBeInTheDocument();
+      });
+      expect(screen.getByTestId("chat-message-table")).toHaveTextContent("3 rows");
+    });
+
+    it("does not show data table when data_table is null", async () => {
+      const user = userEvent.setup();
+      mocks.post.mockResolvedValue(MOCK_RESPONSE_TEXT_ONLY);
+
+      render(
+        <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
+      );
+      await user.type(screen.getByTestId("chat-input"), "hello");
+      await user.click(screen.getByTestId("chat-send-button"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("chat-message-assistant")).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId("chat-message-table")).not.toBeInTheDocument();
+    });
+  });
+
+  // ─── Rich response with all components ──────────────────────────────
+
+  describe("rich response with all components", () => {
+    it("renders chart and data table together", async () => {
+      const user = userEvent.setup();
+      mocks.post.mockResolvedValue(MOCK_RESPONSE_WITH_ALL);
+
+      render(
+        <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
+      );
+      await user.type(screen.getByTestId("chat-input"), "full analysis");
+      await user.click(screen.getByTestId("chat-send-button"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("chat-message-assistant")).toBeInTheDocument();
+      });
+      expect(screen.getByTestId("chat-message-chart")).toBeInTheDocument();
+      expect(screen.getByTestId("chat-message-table")).toBeInTheDocument();
+    });
+
+    it("renders rich text with inline code formatting", async () => {
+      const user = userEvent.setup();
+      mocks.post.mockResolvedValue(MOCK_RESPONSE_WITH_ALL);
+
+      render(
+        <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
+      );
+      await user.type(screen.getByTestId("chat-input"), "analyze");
+      await user.click(screen.getByTestId("chat-send-button"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("chat-message-assistant")).toBeInTheDocument();
+      });
+      // The text contains `revenue` which should be rendered as a <code> element
+      const codeEl = screen.getByTestId("chat-message-assistant").querySelector("code");
+      expect(codeEl).toBeInTheDocument();
+      expect(codeEl).toHaveTextContent("revenue");
+    });
+
+    it("renders rich text with bold formatting", async () => {
+      const user = userEvent.setup();
+      mocks.post.mockResolvedValue(MOCK_RESPONSE_WITH_ALL);
+
+      render(
+        <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
+      );
+      await user.type(screen.getByTestId("chat-input"), "analyze");
+      await user.click(screen.getByTestId("chat-send-button"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("chat-message-assistant")).toBeInTheDocument();
+      });
+      // The text contains **full analysis** which should be rendered as <strong>
+      const strongEl = screen.getByTestId("chat-message-assistant").querySelector("strong");
+      expect(strongEl).toBeInTheDocument();
+      expect(strongEl).toHaveTextContent("full analysis");
+    });
+
+    it("does not apply rich text formatting to user messages", async () => {
+      const user = userEvent.setup();
+      mocks.post.mockResolvedValue(MOCK_RESPONSE_TEXT_ONLY);
+
+      render(
+        <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
+      );
+      // Type a message with markdown-like syntax
+      await user.type(screen.getByTestId("chat-input"), "show **bold** and `code`");
+      await user.click(screen.getByTestId("chat-send-button"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("chat-message-user")).toBeInTheDocument();
+      });
+      // User message should NOT have <code> or <strong> elements
+      const userMsg = screen.getByTestId("chat-message-user");
+      expect(userMsg.querySelector("code")).not.toBeInTheDocument();
+      expect(userMsg.querySelector("strong")).not.toBeInTheDocument();
+      // But text should still be there verbatim
+      expect(userMsg).toHaveTextContent("show **bold** and `code`");
     });
   });
 });
