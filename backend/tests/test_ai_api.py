@@ -1,4 +1,4 @@
-"""Tests for AI API routes: POST /api/ai/text-to-sql."""
+"""Tests for AI API routes: POST /api/ai/text-to-sql, POST /api/ai/insights."""
 
 import os
 import tempfile
@@ -596,3 +596,282 @@ class TestFetchSampleRows:
 
             assert len(result["t1"]) == 2
             assert len(result["t2"]) == 3
+
+
+# --- POST /api/ai/insights ---
+
+
+VALID_INSIGHTS_RESPONSE: list[dict[str, Any]] = [
+    {
+        "type": "trend",
+        "title": "Revenue is increasing",
+        "description": "Revenue shows an upward trend across regions.",
+        "severity": "info",
+        "table": "sales",
+        "columns": ["revenue"],
+        "metrics": {"growth_rate": 0.15},
+    },
+    {
+        "type": "anomaly",
+        "title": "North region outlier",
+        "description": "North has significantly lower revenue than others.",
+        "severity": "warning",
+        "table": "sales",
+        "columns": ["region", "revenue"],
+    },
+    {
+        "type": "correlation",
+        "title": "Revenue-quantity correlation",
+        "description": "Revenue and quantity are strongly correlated.",
+        "severity": "info",
+        "table": "sales",
+        "columns": ["revenue", "quantity"],
+        "metrics": {"correlation": 0.95},
+    },
+]
+
+
+class TestInsightsEndpoint:
+    """Tests for POST /api/ai/insights."""
+
+    def test_requires_authentication(self, client: TestClient) -> None:
+        """Returns 422 without auth header."""
+        resp = client.post(
+            "/api/ai/insights",
+            json={"workspace_id": "x"},
+        )
+        assert resp.status_code == 422
+
+    def test_invalid_auth_token(self, client: TestClient) -> None:
+        """Returns 401 with an invalid token."""
+        resp = client.post(
+            "/api/ai/insights",
+            json={"workspace_id": "x"},
+            headers={"Authorization": "Bearer invalid-token"},
+        )
+        assert resp.status_code == 401
+
+    def test_workspace_not_found(self, client: TestClient) -> None:
+        """Returns 404 for non-existent workspace."""
+        token = _register_and_login(client)
+        resp = client.post(
+            "/api/ai/insights",
+            json={
+                "workspace_id": "00000000-0000-0000-0000-000000000000",
+            },
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+        assert "Workspace not found" in resp.json()["detail"]
+
+    def test_no_tables_in_workspace(self, client: TestClient) -> None:
+        """Returns 400 when workspace has no data tables."""
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+        resp = client.post(
+            "/api/ai/insights",
+            json={"workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 400
+        assert "No data tables" in resp.json()["detail"]
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.generate_insights")
+    def test_returns_insights(
+        self,
+        mock_generate: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Returns generated insights on success."""
+        mock_generate.return_value = {
+            "insights": VALID_INSIGHTS_RESPONSE,
+        }
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/insights",
+            json={"workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "insights" in data
+        assert len(data["insights"]) == 3
+        assert data["insights"][0]["type"] == "trend"
+        assert data["insights"][0]["title"] == "Revenue is increasing"
+        assert data["insights"][1]["severity"] == "warning"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.generate_insights")
+    def test_passes_schema_to_ai_service(
+        self,
+        mock_generate: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Verifies schema and sample rows are passed to generate_insights."""
+        mock_generate.return_value = {
+            "insights": VALID_INSIGHTS_RESPONSE,
+        }
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        client.post(
+            "/api/ai/insights",
+            json={"workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+
+        mock_generate.assert_called_once()
+        call_args = mock_generate.call_args
+        schema_arg = call_args[0][0]
+        sample_rows_arg = call_args[0][1]
+
+        assert len(schema_arg) == 1
+        assert schema_arg[0]["table_name"] == "sales"
+        assert "sales" in sample_rows_arg
+        assert len(sample_rows_arg["sales"]) == 3
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""})
+    def test_ai_service_error_returns_502(
+        self, client: TestClient,
+    ) -> None:
+        """Returns 502 when AI service raises ValueError (missing key)."""
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/insights",
+            json={"workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 502
+        assert "ANTHROPIC_API_KEY" in resp.json()["detail"]
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.generate_insights")
+    def test_response_schema(
+        self,
+        mock_generate: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Response has exactly insights field with correct item structure."""
+        mock_generate.return_value = {
+            "insights": VALID_INSIGHTS_RESPONSE,
+        }
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/insights",
+            json={"workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert set(data.keys()) == {"insights"}
+
+        item = data["insights"][0]
+        assert "type" in item
+        assert "title" in item
+        assert "description" in item
+        assert "severity" in item
+
+    def test_other_user_cannot_access_workspace(
+        self, client: TestClient,
+    ) -> None:
+        """Returns 404 when trying to use another user's workspace."""
+        token_a = _register_and_login(client, "insA@test.com")
+        token_b = _register_and_login(client, "insB@test.com")
+
+        workspace_id_a = _get_workspace_id(client, token_a)
+
+        resp = client.post(
+            "/api/ai/insights",
+            json={"workspace_id": workspace_id_a},
+            headers=_auth_headers(token_b),
+        )
+
+        assert resp.status_code == 404
+        assert "Workspace not found" in resp.json()["detail"]
+
+    def test_missing_workspace_id_field(self, client: TestClient) -> None:
+        """Returns 422 when workspace_id field is missing."""
+        token = _register_and_login(client)
+        resp = client.post(
+            "/api/ai/insights",
+            json={},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 422
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.generate_insights")
+    def test_optional_fields_nullable(
+        self,
+        mock_generate: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Insights without optional fields (table, columns, metrics) are valid."""
+        mock_generate.return_value = {
+            "insights": [
+                {
+                    "type": "trend",
+                    "title": "General trend",
+                    "description": "Something is trending.",
+                    "severity": "info",
+                },
+            ],
+        }
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/insights",
+            json={"workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        item = resp.json()["insights"][0]
+        assert item["table"] is None
+        assert item["columns"] is None
+        assert item["metrics"] is None

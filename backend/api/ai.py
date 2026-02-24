@@ -12,7 +12,7 @@ from api.auth import get_authenticated_user
 from db import get_db
 from models.user import User
 from models.workspace import Workspace
-from services.ai_service import text_to_sql
+from services.ai_service import generate_insights, text_to_sql
 from services.duckdb_service import list_tables
 
 DUCKDB_PATH = os.environ.get("DUCKDB_PATH", "/data/workspaces")
@@ -28,6 +28,24 @@ class TextToSqlRequest(BaseModel):
 class TextToSqlResponse(BaseModel):
     sql: str
     explanation: str
+
+
+class InsightsRequest(BaseModel):
+    workspace_id: str
+
+
+class InsightItem(BaseModel):
+    type: str
+    title: str
+    description: str
+    severity: str
+    table: str | None = None
+    columns: list[str] | None = None
+    metrics: dict[str, float] | None = None
+
+
+class InsightsResponse(BaseModel):
+    insights: list[InsightItem]
 
 
 def _get_workspace_db_path(
@@ -140,4 +158,44 @@ def text_to_sql_endpoint(
     return TextToSqlResponse(
         sql=result["sql"],
         explanation=result["explanation"],
+    )
+
+
+@router.post("/insights", response_model=InsightsResponse)
+def insights_endpoint(
+    body: InsightsRequest,
+    user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> InsightsResponse:
+    """Generate AI insights for a workspace's data using Claude.
+
+    Fetches the workspace schema and sample rows from DuckDB, sends
+    them to the AI service, and returns structured insight cards.
+    """
+    db_path = _get_workspace_db_path(body.workspace_id, user, db)
+
+    if os.path.isfile(db_path):
+        try:
+            schema = list_tables(db_path)
+        except ValueError:
+            schema = []
+    else:
+        schema = []
+
+    if not schema:
+        raise HTTPException(
+            status_code=400,
+            detail="No data tables found in workspace. Upload data first.",
+        )
+
+    table_names = [t["table_name"] for t in schema]
+    sample_rows = _fetch_sample_rows(db_path, table_names)
+
+    try:
+        result = generate_insights(schema, sample_rows)
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+    return InsightsResponse(
+        insights=[InsightItem(**i) for i in result["insights"]],
     )
