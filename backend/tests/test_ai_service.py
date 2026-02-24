@@ -3078,3 +3078,305 @@ class TestValidateIntentResult:
                 "entities": {},
             })
             assert result["intent"] == intent
+
+
+# ---------------------------------------------------------------------------
+# narrate_dashboard tests
+# ---------------------------------------------------------------------------
+
+SAMPLE_DASHBOARD_CONFIG: dict[str, Any] = {
+    "name": "Sales Overview",
+    "cards_json": {
+        "card_1": {"title": "Revenue by Region", "chartType": "bar"},
+        "card_2": {"title": "Monthly Trend", "chartType": "line"},
+    },
+    "layout_json": {},
+    "filters_json": {},
+}
+
+SAMPLE_QUERY_RESULTS: dict[str, Any] = {
+    "card_1": {
+        "columns": ["region", "revenue"],
+        "rows": [["North", 1500.0], ["South", 2300.0]],
+    },
+    "card_2": {
+        "columns": ["month", "revenue"],
+        "rows": [["Jan", 1000.0], ["Feb", 1200.0], ["Mar", 1500.0]],
+    },
+}
+
+
+class TestNarrateDashboard:
+    """Tests for the narrate_dashboard function."""
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_returns_segments(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """narrate_dashboard returns segments for each card."""
+        from services.ai_service import narrate_dashboard
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({
+                "segments": [
+                    {
+                        "card_id": "card_1",
+                        "title": "Revenue by Region",
+                        "narration": "This bar chart shows revenue by region.",
+                    },
+                    {
+                        "card_id": "card_2",
+                        "title": "Monthly Trend",
+                        "narration": "This line chart shows monthly revenue.",
+                    },
+                ],
+            })
+        )
+
+        result = narrate_dashboard(SAMPLE_DASHBOARD_CONFIG, SAMPLE_QUERY_RESULTS)
+
+        assert "segments" in result
+        assert len(result["segments"]) == 2
+        assert result["segments"][0]["card_id"] == "card_1"
+        assert result["segments"][1]["card_id"] == "card_2"
+        assert "revenue" in result["segments"][0]["narration"].lower()
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_strips_markdown_fences(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Markdown code fences are stripped from the JSON response."""
+        from services.ai_service import narrate_dashboard
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            '```json\n'
+            + json.dumps({
+                "segments": [{
+                    "card_id": "card_1",
+                    "title": "Revenue by Region",
+                    "narration": "Shows revenue breakdown.",
+                }],
+            })
+            + '\n```'
+        )
+
+        result = narrate_dashboard(SAMPLE_DASHBOARD_CONFIG, SAMPLE_QUERY_RESULTS)
+
+        assert len(result["segments"]) == 1
+        assert result["segments"][0]["card_id"] == "card_1"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_filters_invalid_segments(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Segments with missing fields are filtered out."""
+        from services.ai_service import narrate_dashboard
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({
+                "segments": [
+                    {
+                        "card_id": "card_1",
+                        "title": "Revenue by Region",
+                        "narration": "Valid narration.",
+                    },
+                    {
+                        "card_id": "",
+                        "title": "Missing card_id",
+                        "narration": "Invalid.",
+                    },
+                    {
+                        "card_id": "card_3",
+                        "title": "",
+                        "narration": "Missing title.",
+                    },
+                    {
+                        "card_id": "card_4",
+                        "title": "Missing narration",
+                    },
+                ],
+            })
+        )
+
+        result = narrate_dashboard(SAMPLE_DASHBOARD_CONFIG, SAMPLE_QUERY_RESULTS)
+
+        assert len(result["segments"]) == 1
+        assert result["segments"][0]["card_id"] == "card_1"
+
+    def test_empty_cards_raises(self) -> None:
+        """Empty cards_json raises ValueError."""
+        from services.ai_service import narrate_dashboard
+
+        config = {
+            "name": "Empty Dashboard",
+            "cards_json": {},
+            "layout_json": {},
+        }
+
+        with pytest.raises(ValueError, match="at least one card"):
+            narrate_dashboard(config, {})
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""})
+    def test_missing_api_key_raises(self) -> None:
+        """Missing API key raises ValueError."""
+        from services.ai_service import narrate_dashboard
+
+        with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
+            narrate_dashboard(SAMPLE_DASHBOARD_CONFIG, SAMPLE_QUERY_RESULTS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_invalid_json_raises(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Invalid JSON from Claude raises ValueError."""
+        from services.ai_service import narrate_dashboard
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            "not valid json"
+        )
+
+        with pytest.raises(ValueError, match="invalid JSON"):
+            narrate_dashboard(SAMPLE_DASHBOARD_CONFIG, SAMPLE_QUERY_RESULTS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_api_error_raises(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Claude API error is wrapped as ValueError."""
+        import anthropic as _anthropic
+
+        from services.ai_service import narrate_dashboard
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.side_effect = _anthropic.APIError(
+            message="Service unavailable",
+            request=MagicMock(),
+            body=None,
+        )
+
+        with pytest.raises(ValueError, match="Claude API error"):
+            narrate_dashboard(SAMPLE_DASHBOARD_CONFIG, SAMPLE_QUERY_RESULTS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_handles_cards_with_no_results(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Cards with no query results are handled gracefully."""
+        from services.ai_service import narrate_dashboard
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({
+                "segments": [{
+                    "card_id": "card_1",
+                    "title": "Revenue by Region",
+                    "narration": "No data available for this chart.",
+                }],
+            })
+        )
+
+        result = narrate_dashboard(SAMPLE_DASHBOARD_CONFIG, {})
+
+        assert len(result["segments"]) == 1
+
+
+class TestValidateNarration:
+    """Tests for the _validate_narration validation function."""
+
+    def test_valid_segments(self) -> None:
+        """Valid segments pass validation."""
+        from services.ai_service import _validate_narration
+
+        result = _validate_narration({
+            "segments": [
+                {
+                    "card_id": "card_1",
+                    "title": "Revenue",
+                    "narration": "Shows revenue data.",
+                },
+            ],
+        })
+        assert len(result) == 1
+        assert result[0]["card_id"] == "card_1"
+
+    def test_non_dict_raises(self) -> None:
+        """Non-dict input raises ValueError."""
+        from services.ai_service import _validate_narration
+
+        with pytest.raises(ValueError, match="JSON object"):
+            _validate_narration("not a dict")
+
+    def test_missing_segments_raises(self) -> None:
+        """Missing segments key raises ValueError."""
+        from services.ai_service import _validate_narration
+
+        with pytest.raises(ValueError, match="non-empty 'segments' array"):
+            _validate_narration({"other": "data"})
+
+    def test_empty_segments_raises(self) -> None:
+        """Empty segments array raises ValueError."""
+        from services.ai_service import _validate_narration
+
+        with pytest.raises(ValueError, match="non-empty 'segments' array"):
+            _validate_narration({"segments": []})
+
+    def test_all_invalid_segments_raises(self) -> None:
+        """All segments invalid raises ValueError."""
+        from services.ai_service import _validate_narration
+
+        with pytest.raises(ValueError, match="No valid narration segments"):
+            _validate_narration({
+                "segments": [
+                    {"card_id": "", "title": "X", "narration": "Y"},
+                    {"card_id": "c1", "title": "", "narration": "Y"},
+                ],
+            })
+
+    def test_filters_non_dict_segments(self) -> None:
+        """Non-dict entries in segments are skipped."""
+        from services.ai_service import _validate_narration
+
+        result = _validate_narration({
+            "segments": [
+                "not a dict",
+                {
+                    "card_id": "card_1",
+                    "title": "Revenue",
+                    "narration": "Shows data.",
+                },
+            ],
+        })
+        assert len(result) == 1
+
+    def test_filters_missing_narration(self) -> None:
+        """Segments without narration field are skipped."""
+        from services.ai_service import _validate_narration
+
+        result = _validate_narration({
+            "segments": [
+                {"card_id": "c1", "title": "T1"},
+                {
+                    "card_id": "c2",
+                    "title": "T2",
+                    "narration": "Valid.",
+                },
+            ],
+        })
+        assert len(result) == 1
+        assert result[0]["card_id"] == "c2"

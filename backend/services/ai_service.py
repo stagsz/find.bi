@@ -1268,3 +1268,168 @@ def detect_geo_columns(
     geo_columns = _validate_geo_columns(parsed)
 
     return {"geo_columns": geo_columns}
+
+
+NARRATION_SYSTEM_PROMPT = """\
+You are Ralph, a friendly dashboard narrator for a Business Intelligence
+application called find.bi. Given a dashboard configuration and query results
+for each chart card, generate a spoken narration for each chart.
+
+For each card, produce a narration segment with:
+1. What the chart shows — a brief plain-language description of the visualisation.
+2. Key takeaways — the most important findings from the data (1-3 points).
+3. Recommendations — actionable next steps or things to investigate further.
+
+Write as if you are speaking aloud to someone looking at the dashboard. Keep the
+tone conversational, clear, and slightly quirky — you're Ralph, after all.
+
+Return ONLY valid JSON with this structure:
+{
+  "segments": [
+    {
+      "card_id": "<id of the card>",
+      "title": "<card title>",
+      "narration": "Full spoken narration text for this chart."
+    }
+  ]
+}
+
+Rules:
+- Return ONLY valid JSON, no explanation, no markdown fences.
+- Generate one segment per card in the dashboard.
+- Each narration should be 2-4 sentences: describe, highlight, recommend.
+- Use plain language — avoid jargon. Imagine you are explaining to a non-technical
+  executive.
+- If a card has no query results (empty data), acknowledge it briefly and move on.
+- Preserve the card order from the input.
+"""
+
+
+def _validate_narration(parsed: Any) -> list[dict[str, Any]]:
+    """Validate and sanitize a narration response from Claude.
+
+    Raises ValueError if the structure is fundamentally invalid.
+    Filters out segments with missing required fields.
+    """
+    if not isinstance(parsed, dict):
+        raise ValueError("Narration response must be a JSON object")
+
+    segments = parsed.get("segments")
+    if not isinstance(segments, list) or len(segments) == 0:
+        raise ValueError("Narration must contain a non-empty 'segments' array")
+
+    valid: list[dict[str, Any]] = []
+    for segment in segments:
+        if not isinstance(segment, dict):
+            continue
+        card_id = segment.get("card_id")
+        if not isinstance(card_id, str) or not card_id.strip():
+            continue
+        title = segment.get("title")
+        if not isinstance(title, str) or not title.strip():
+            continue
+        narration = segment.get("narration")
+        if not isinstance(narration, str) or not narration.strip():
+            continue
+        valid.append(segment)
+
+    if len(valid) == 0:
+        raise ValueError(
+            "No valid narration segments found. Each segment must have "
+            "a non-empty 'card_id', 'title', and 'narration'."
+        )
+
+    return valid
+
+
+def narrate_dashboard(
+    dashboard_config: dict[str, Any],
+    query_results: dict[str, Any],
+) -> dict[str, Any]:
+    """Generate spoken narration for each chart card in a dashboard.
+
+    Parameters
+    ----------
+    dashboard_config:
+        Dashboard configuration dict with ``name``, ``cards_json`` (dict of
+        card configs keyed by card id, each with at least ``title`` and
+        ``chartType``), and ``layout_json``.
+    query_results:
+        Dict mapping card ids to their query result data. Each value is a
+        dict with ``columns`` (list of column name strings) and ``rows``
+        (list of row lists).
+
+    Returns
+    -------
+    dict with key:
+        ``segments`` — list of validated narration segment dicts, each with
+        ``card_id``, ``title``, and ``narration``.
+
+    Raises
+    ------
+    ValueError
+        If the API key is missing, the API call fails, or the response
+        is not valid JSON / contains no valid segments.
+    """
+    # Validate cards before making API call
+    cards = dashboard_config.get("cards_json", {})
+    if not isinstance(cards, dict) or len(cards) == 0:
+        raise ValueError("Dashboard must have at least one card in cards_json")
+
+    client = _get_client()
+
+    card_descriptions: list[str] = []
+    for card_id, card_config in cards.items():
+        title = card_config.get("title", "Untitled")
+        chart_type = card_config.get("chartType", "unknown")
+        desc = f"Card ID: {card_id}\n  Title: {title}\n  Chart type: {chart_type}"
+
+        result = query_results.get(card_id, {})
+        columns = result.get("columns", [])
+        rows = result.get("rows", [])
+        if columns and rows:
+            desc += f"\n  Columns: {columns}"
+            sample = rows[:10]
+            desc += f"\n  Data ({len(rows)} rows, showing first {len(sample)}):"
+            for row in sample:
+                desc += f"\n    {row}"
+            if len(rows) > 10:
+                desc += f"\n    ... ({len(rows)} total rows)"
+        else:
+            desc += "\n  Data: (no results)"
+
+        card_descriptions.append(desc)
+
+    dashboard_name = dashboard_config.get("name", "Untitled Dashboard")
+    user_message = (
+        f"Dashboard: {dashboard_name}\n\n"
+        f"Cards:\n{''.join(chr(10) + d for d in card_descriptions)}\n\n"
+        "Generate a spoken narration for each card. Return only the JSON object."
+    )
+
+    try:
+        response = client.messages.create(
+            model=_get_model(),
+            max_tokens=4096,
+            system=NARRATION_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_message}],
+        )
+    except anthropic.APIError as exc:
+        raise ValueError(f"Claude API error: {exc}") from exc
+
+    raw = ""
+    for block in response.content:
+        if block.type == "text":
+            raw = block.text.strip()
+            break
+
+    raw = _extract_json(raw)
+
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Claude returned invalid JSON: {exc}") from exc
+
+    segments = _validate_narration(parsed)
+
+    return {"segments": segments}

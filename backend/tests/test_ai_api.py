@@ -1959,3 +1959,235 @@ class TestClassifyIntentEndpoint:
         )
 
         assert resp.status_code == 502
+
+
+# --- POST /api/ai/narrate-dashboard ---
+
+
+class TestNarrateDashboardEndpoint:
+    """Tests for POST /api/ai/narrate-dashboard."""
+
+    def test_requires_authentication(self, client: TestClient) -> None:
+        """Returns 422 without auth header."""
+        resp = client.post(
+            "/api/ai/narrate-dashboard",
+            json={
+                "dashboard_id": "00000000-0000-0000-0000-000000000000",
+                "workspace_id": "00000000-0000-0000-0000-000000000000",
+            },
+        )
+        assert resp.status_code in (401, 422)
+
+    def test_invalid_workspace(self, client: TestClient) -> None:
+        """Returns 404 for non-existent workspace."""
+        token = _register_and_login(client)
+        resp = client.post(
+            "/api/ai/narrate-dashboard",
+            json={
+                "dashboard_id": "00000000-0000-0000-0000-000000000000",
+                "workspace_id": "00000000-0000-0000-0000-000000000000",
+            },
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+
+    def test_invalid_dashboard_uuid(self, client: TestClient) -> None:
+        """Returns 404 for invalid dashboard UUID."""
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+        resp = client.post(
+            "/api/ai/narrate-dashboard",
+            json={
+                "dashboard_id": "not-a-uuid",
+                "workspace_id": workspace_id,
+            },
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+
+    def test_dashboard_not_found(self, client: TestClient) -> None:
+        """Returns 404 for non-existent dashboard."""
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/narrate-dashboard",
+            json={
+                "dashboard_id": "00000000-0000-0000-0000-000000000000",
+                "workspace_id": workspace_id,
+            },
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+        assert "Dashboard not found" in resp.json()["detail"]
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_narrate_dashboard")
+    def test_returns_narration_segments(
+        self,
+        mock_narrate: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Returns narration segments on success."""
+        mock_narrate.return_value = {
+            "segments": [
+                {
+                    "card_id": "card_1",
+                    "title": "Revenue by Region",
+                    "narration": "This chart shows revenue by region.",
+                },
+            ],
+        }
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        # Create a dashboard
+        dash_resp = client.post(
+            "/api/dashboards/",
+            json={
+                "workspace_id": workspace_id,
+                "name": "Test Dashboard",
+                "layout_json": {},
+                "cards_json": {
+                    "card_1": {
+                        "title": "Revenue by Region",
+                        "chartType": "bar",
+                    },
+                },
+                "filters_json": {},
+            },
+            headers=_auth_headers(token),
+        )
+        dashboard_id = dash_resp.json()["id"]
+
+        resp = client.post(
+            "/api/ai/narrate-dashboard",
+            json={
+                "dashboard_id": dashboard_id,
+                "workspace_id": workspace_id,
+                "query_results": {
+                    "card_1": {
+                        "columns": ["region", "revenue"],
+                        "rows": [["North", 1500.0], ["South", 2300.0]],
+                    },
+                },
+            },
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["segments"]) == 1
+        assert data["segments"][0]["card_id"] == "card_1"
+        assert "revenue" in data["segments"][0]["narration"].lower()
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_narrate_dashboard")
+    def test_empty_cards_returns_400(
+        self,
+        mock_narrate: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Returns 400 when dashboard has no cards."""
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        # Create a dashboard with no cards
+        dash_resp = client.post(
+            "/api/dashboards/",
+            json={
+                "workspace_id": workspace_id,
+                "name": "Empty Dashboard",
+                "layout_json": {},
+                "cards_json": {},
+                "filters_json": {},
+            },
+            headers=_auth_headers(token),
+        )
+        dashboard_id = dash_resp.json()["id"]
+
+        resp = client.post(
+            "/api/ai/narrate-dashboard",
+            json={
+                "dashboard_id": dashboard_id,
+                "workspace_id": workspace_id,
+            },
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 400
+        assert "no chart cards" in resp.json()["detail"].lower()
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_narrate_dashboard")
+    def test_ai_error_returns_502(
+        self,
+        mock_narrate: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Claude API error returns 502."""
+        mock_narrate.side_effect = ValueError("Claude API error: unavailable")
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        # Create a dashboard
+        dash_resp = client.post(
+            "/api/dashboards/",
+            json={
+                "workspace_id": workspace_id,
+                "name": "Test Dashboard",
+                "layout_json": {},
+                "cards_json": {
+                    "card_1": {
+                        "title": "Revenue",
+                        "chartType": "bar",
+                    },
+                },
+                "filters_json": {},
+            },
+            headers=_auth_headers(token),
+        )
+        dashboard_id = dash_resp.json()["id"]
+
+        resp = client.post(
+            "/api/ai/narrate-dashboard",
+            json={
+                "dashboard_id": dashboard_id,
+                "workspace_id": workspace_id,
+                "query_results": {
+                    "card_1": {
+                        "columns": ["region"],
+                        "rows": [["North"]],
+                    },
+                },
+            },
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 502

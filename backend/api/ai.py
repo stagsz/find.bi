@@ -19,6 +19,7 @@ from services.ai_service import classify_voice_intent as ai_classify_intent
 from services.ai_service import detect_geo_columns as ai_detect_geo_columns
 from services.ai_service import generate_deck as ai_generate_deck
 from services.ai_service import generate_insights, text_to_sql
+from services.ai_service import narrate_dashboard as ai_narrate_dashboard
 from services.duckdb_service import list_tables
 
 DUCKDB_PATH = os.environ.get("DUCKDB_PATH", "/data/workspaces")
@@ -494,3 +495,99 @@ def classify_intent_endpoint(
         raise HTTPException(status_code=502, detail=str(e)) from e
 
     return ClassifyIntentResponse(**result)
+
+
+class NarrateDashboardRequest(BaseModel):
+    dashboard_id: str
+    workspace_id: str
+    query_results: dict[str, Any] = {}
+
+
+class NarrationSegment(BaseModel):
+    card_id: str
+    title: str
+    narration: str
+
+
+class NarrateDashboardResponse(BaseModel):
+    segments: list[NarrationSegment]
+
+
+@router.post("/narrate-dashboard", response_model=NarrateDashboardResponse)
+def narrate_dashboard_endpoint(
+    body: NarrateDashboardRequest,
+    user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> NarrateDashboardResponse:
+    """Generate spoken narration for each chart in a dashboard.
+
+    Fetches the dashboard configuration from the database, then uses
+    Claude to generate a narration segment for each chart card —
+    describing what it shows, key takeaways, and recommendations.
+    """
+    db_path = _get_workspace_db_path(body.workspace_id, user, db)
+
+    # Fetch the dashboard
+    from models.dashboard import Dashboard
+
+    try:
+        dash_uuid = _uuid.UUID(body.dashboard_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Dashboard not found")
+
+    dashboard = (
+        db.query(Dashboard)
+        .filter(
+            Dashboard.id == dash_uuid,
+            Dashboard.workspace_id == _uuid.UUID(body.workspace_id),
+        )
+        .first()
+    )
+    if dashboard is None:
+        raise HTTPException(status_code=404, detail="Dashboard not found")
+
+    dashboard_config: dict[str, Any] = {
+        "name": dashboard.name,
+        "cards_json": dashboard.cards_json or {},
+        "layout_json": dashboard.layout_json or {},
+        "filters_json": dashboard.filters_json or {},
+    }
+
+    if not dashboard_config["cards_json"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Dashboard has no chart cards to narrate.",
+        )
+
+    # If no query_results provided, fetch sample data for each card
+    query_results = body.query_results
+    if not query_results and os.path.isfile(db_path):
+        cards = dashboard_config["cards_json"]
+        for card_id, card_config in cards.items():
+            sql = card_config.get("sql", "")
+            if not sql:
+                continue
+            try:
+                conn = duckdb.connect(db_path, read_only=True)
+                try:
+                    rows_raw = conn.execute(sql).fetchall()
+                    columns = [
+                        desc[0] for desc in conn.description or []
+                    ]
+                    query_results[card_id] = {
+                        "columns": columns,
+                        "rows": [list(row) for row in rows_raw[:100]],
+                    }
+                finally:
+                    conn.close()
+            except duckdb.Error:
+                query_results[card_id] = {"columns": [], "rows": []}
+
+    try:
+        narration = ai_narrate_dashboard(dashboard_config, query_results)
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+    return NarrateDashboardResponse(
+        segments=[NarrationSegment(**s) for s in narration["segments"]],
+    )
