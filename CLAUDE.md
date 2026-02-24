@@ -76,8 +76,9 @@ cd frontend && npm run dev        # dev server (Vite)
 cd frontend && npm run build      # production build
 cd frontend && npm run typecheck  # TypeScript check
 cd frontend && npm run lint       # ESLint
-cd frontend && npm test           # Vitest
-cd frontend && npx vitest run path/to/file.test.ts  # single test file
+cd frontend && node node_modules/vitest/vitest.mjs run                        # Vitest (all tests)
+cd frontend && node node_modules/vitest/vitest.mjs run path/to/file.test.ts   # single test file
+# NOTE: npm test / npx vitest do not work in this bash-on-Windows environment
 ```
 
 ### Once backend is scaffolded

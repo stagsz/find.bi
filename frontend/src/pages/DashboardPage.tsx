@@ -7,6 +7,9 @@ import CardRenderer from "@/components/dashboard/CardRenderer";
 import ChartConfigDialog from "@/components/dashboard/ChartConfigDialog";
 import FilterBar from "@/components/dashboard/FilterBar";
 import DeckGeneratorModal from "@/components/ai/DeckGeneratorModal";
+import NarrationPlayback from "@/components/voice/NarrationPlayback";
+import { NarrationProvider } from "@/contexts/NarrationContext";
+import { useNarration } from "@/hooks/useNarration";
 import { FiltersProvider, useFiltersOptional } from "@/hooks/useFilters";
 import useDashboardCards from "@/hooks/useDashboardCards";
 import useDashboardPersistence from "@/hooks/useDashboardPersistence";
@@ -51,6 +54,7 @@ function DashboardPageInner() {
     null,
   );
   const [deckModalOpen, setDeckModalOpen] = useState(false);
+  const narration = useNarration();
 
   const handleAddCard = useCallback(() => {
     setEditingCard(null);
@@ -191,6 +195,32 @@ function DashboardPageInner() {
               Export
             </button>
           )}
+          {/* Narrate button */}
+          {id && dashboard?.workspace_id && cards.length > 0 && (
+            <button
+              data-testid="narrate-button"
+              type="button"
+              disabled={narration.isLoading || narration.isPlaying}
+              className="inline-flex items-center gap-1.5 rounded-md border border-[#F5A623]/40 bg-[#F5A623]/10 px-3 py-1.5 font-mono text-[0.65rem] font-semibold uppercase tracking-wider text-[#F5A623] transition-colors hover:bg-[#F5A623]/20 hover:text-[#FFB84D] disabled:opacity-50"
+              onClick={() => void narration.startNarration(id, dashboard.workspace_id)}
+            >
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+              </svg>
+              Narrate
+            </button>
+          )}
           {/* Generate Analysis Deck button */}
           {dashboard?.workspace_id && (
             <button
@@ -309,6 +339,7 @@ function DashboardPageInner() {
             editMode={editMode}
             onLayoutChange={onLayoutChange}
             renderCard={renderCard}
+            highlightedCardId={narration.activeCardId}
           />
         )}
       </div>
@@ -327,6 +358,9 @@ function DashboardPageInner() {
         open={deckModalOpen}
         onClose={() => setDeckModalOpen(false)}
       />
+
+      {/* Narration playback controls */}
+      <NarrationPlayback />
     </div>
   );
 }
@@ -334,7 +368,9 @@ function DashboardPageInner() {
 function DashboardPage() {
   return (
     <FiltersProvider>
-      <DashboardPageInner />
+      <NarrationProvider>
+        <DashboardPageInner />
+      </NarrationProvider>
     </FiltersProvider>
   );
 }

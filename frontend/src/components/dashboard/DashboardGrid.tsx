@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ResponsiveGridLayout,
   useContainerWidth,
@@ -56,6 +56,8 @@ export interface DashboardGridProps {
   rowHeight?: number;
   /** Custom className */
   className?: string;
+  /** Card ID to highlight during narration playback */
+  highlightedCardId?: string | null;
 }
 
 function DashboardGrid({
@@ -66,6 +68,7 @@ function DashboardGrid({
   renderCard,
   rowHeight = 120,
   className,
+  highlightedCardId,
 }: DashboardGridProps) {
   const [currentBreakpoint, setCurrentBreakpoint] = useState("lg");
   const { width, containerRef, mounted } = useContainerWidth();
@@ -102,8 +105,28 @@ function DashboardGrid({
     return map;
   }, [cards]);
 
+  // Scroll highlighted card into view
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!highlightedCardId || !gridRef.current) return;
+    const el = gridRef.current.querySelector(
+      `[data-card-id="${CSS.escape(highlightedCardId)}"]`,
+    );
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [highlightedCardId]);
+
   return (
-    <div data-testid="dashboard-grid" className={className} ref={containerRef as React.RefObject<HTMLDivElement>}>
+    <div
+      data-testid="dashboard-grid"
+      className={className}
+      ref={(node) => {
+        // Merge both refs
+        (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+        gridRef.current = node;
+      }}
+    >
       {mounted && (
         <ResponsiveGridLayout
           width={width}
@@ -121,13 +144,18 @@ function DashboardGrid({
         >
           {layout.map((item) => {
             const card = cardMap.get(item.i);
+            const isHighlighted = highlightedCardId === item.i;
             return (
               <div
                 key={item.i}
                 data-testid={`grid-item-${item.i}`}
                 data-card-id={item.i}
                 data-breakpoint={currentBreakpoint}
-                className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
+                className={`overflow-hidden rounded-lg border bg-white shadow-sm transition-all duration-300 ${
+                  isHighlighted
+                    ? "border-[#F5A623] ring-2 ring-[#F5A623]/30 shadow-[0_0_20px_rgba(245,166,35,0.15)]"
+                    : "border-gray-200"
+                }`}
               >
                 {card && renderCard ? renderCard(card) : (
                   <div className="flex h-full items-center justify-center text-sm text-gray-400">

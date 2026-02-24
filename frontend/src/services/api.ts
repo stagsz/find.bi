@@ -55,4 +55,47 @@ export async function classifyIntent(
   return res.data;
 }
 
+// ─── Narration Helpers ───────────────────────────────────────────────
+
+export interface NarrationSegment {
+  card_id: string;
+  title: string;
+  narration: string;
+}
+
+export interface NarrateDashboardResponse {
+  segments: NarrationSegment[];
+}
+
+export async function narrateDashboard(
+  dashboardId: string,
+  workspaceId: string,
+): Promise<NarrateDashboardResponse> {
+  const res = await api.post<NarrateDashboardResponse>(
+    "/api/ai/narrate-dashboard",
+    { dashboard_id: dashboardId, workspace_id: workspaceId },
+  );
+  return res.data;
+}
+
+/**
+ * Fetch TTS audio for a narration text segment.
+ * Returns a Blob containing audio data (mp3 by default).
+ */
+export async function fetchTTSAudio(
+  text: string,
+  voice: string = "alloy",
+  format: string = "mp3",
+): Promise<Blob> {
+  const params = new URLSearchParams({
+    text,
+    voice,
+    response_format: format,
+  });
+  const res = await api.post(`/api/narration/tts?${params.toString()}`, null, {
+    responseType: "blob",
+  });
+  return res.data as Blob;
+}
+
 export default api;

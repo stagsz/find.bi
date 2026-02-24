@@ -208,7 +208,7 @@
 ### 3.4 Dashboard Narration (F018)
 
 - [x] VOICE-08: Create narration service — Extend AI service with `narrate_dashboard(dashboard_config, query_results)`. Claude generates spoken narrative per chart: what it shows, key takeaways, recommendations. Return as text segments. *(af81265)*
-- [ ] VOICE-09: Create narration playback — Use OpenAI TTS API (streaming) to convert narration text to speech. Play chart-by-chart with visual highlighting of current chart. Pause/resume controls.
+- [x] VOICE-09: Create narration playback — Use OpenAI TTS API (streaming) to convert narration text to speech. Play chart-by-chart with visual highlighting of current chart. Pause/resume controls.
 
 ### 3.5 Voice Transcript Panel (F019)
 
