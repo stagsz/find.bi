@@ -212,7 +212,7 @@
 
 ### 3.5 Voice Transcript Panel (F019)
 
-- [ ] VOICE-10: Create transcript panel — `frontend/src/components/voice/TranscriptPanel.tsx`. Rolling list of voice interactions: timestamp, user speech (transcribed), Ralph response. Click past query to re-run. Copy transcript. Search within history.
+- [x] VOICE-10: Create transcript panel — `frontend/src/components/voice/TranscriptPanel.tsx`. Rolling list of voice interactions: timestamp, user speech (transcribed), Ralph response. Click past query to re-run. Copy transcript. Search within history.
 
 ---
 

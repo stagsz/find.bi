@@ -83,11 +83,11 @@ cd frontend && node node_modules/vitest/vitest.mjs run path/to/file.test.ts   # 
 
 ### Once backend is scaffolded
 ```bash
-cd backend && uvicorn main:app --reload   # dev server
-cd backend && pytest                      # all tests
-cd backend && pytest tests/test_auth.py  # single test file
-cd backend && mypy .                     # type check
-cd backend && ruff check .               # lint
+cd backend && python -m uvicorn main:app --reload   # dev server (uvicorn not on PATH on Windows, use python -m)
+cd backend && python -m pytest -x -q --tb=short     # all tests
+cd backend && python -m pytest tests/test_auth.py  # single test file
+cd backend && python -m mypy .                     # type check
+cd backend && python -m ruff check .               # lint
 ```
 
 ### Docker (full stack)

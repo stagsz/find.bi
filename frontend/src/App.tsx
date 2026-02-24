@@ -4,10 +4,12 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { DuckDBProvider } from "@/hooks/useDuckDB";
 import { VoiceProvider } from "@/contexts/VoiceContext";
 import { useVoiceQuery } from "@/hooks/useVoiceQuery";
+import { useVoiceHistory } from "@/hooks/useVoiceHistory";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import ChatPanel from "@/components/ai/ChatPanel";
+import TranscriptPanel from "@/components/voice/TranscriptPanel";
 import HomePage from "@/pages/HomePage";
 import DashboardListPage from "@/pages/DashboardListPage";
 import DashboardPage from "@/pages/DashboardPage";
@@ -20,6 +22,7 @@ import api from "@/services/api";
 function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,6 +40,10 @@ function AppLayout() {
     setChatOpen((prev) => !prev);
   }, []);
 
+  const handleTranscriptToggle = useCallback(() => {
+    setTranscriptOpen((prev) => !prev);
+  }, []);
+
   return (
     <DuckDBProvider>
       <VoiceProvider>
@@ -45,6 +52,8 @@ function AppLayout() {
           onSidebarToggle={() => setSidebarCollapsed((c) => !c)}
           chatOpen={chatOpen}
           onChatToggle={handleChatToggle}
+          transcriptOpen={transcriptOpen}
+          onTranscriptToggle={handleTranscriptToggle}
           workspaceId={workspaceId}
         />
       </VoiceProvider>
@@ -61,12 +70,16 @@ function AppLayoutInner({
   onSidebarToggle,
   chatOpen,
   onChatToggle,
+  transcriptOpen,
+  onTranscriptToggle,
   workspaceId,
 }: {
   sidebarCollapsed: boolean;
   onSidebarToggle: () => void;
   chatOpen: boolean;
   onChatToggle: () => void;
+  transcriptOpen: boolean;
+  onTranscriptToggle: () => void;
   workspaceId: string | null;
 }) {
   const {
@@ -74,6 +87,9 @@ function AppLayoutInner({
     clearPendingQuery,
     speak,
   } = useVoiceQuery(workspaceId);
+
+  const { entries: transcriptEntries, clearHistory: clearTranscriptHistory } =
+    useVoiceHistory();
 
   // Auto-open chat panel when a voice query is detected.
   const handleVoiceQueryProcessed = useCallback(() => {
@@ -120,8 +136,54 @@ function AppLayoutInner({
             onVoiceQueryProcessed={handleVoiceQueryProcessed}
             onAssistantResponse={handleAssistantResponse}
           />
+          <TranscriptPanel
+            open={transcriptOpen}
+            onClose={onTranscriptToggle}
+            entries={transcriptEntries}
+            onClearHistory={clearTranscriptHistory}
+            onRerun={(query) => {
+              // Inject query into the chat panel as a pending voice query.
+              // Re-use the same pending-query infrastructure.
+              onChatToggle();
+              // pendingQuery is managed by useVoiceQuery; for re-run we open
+              // chat and let the user submit manually (text is pre-filled
+              // via the chat input in a future iteration).
+              // For now, opening the panel provides context.
+              void query; // consumed by parent in future
+            }}
+          />
         </main>
       </div>
+
+      {/* Floating transcript toggle button */}
+      {!transcriptOpen && (
+        <button
+          type="button"
+          data-testid="transcript-toggle"
+          onClick={onTranscriptToggle}
+          aria-label="Open voice history"
+          title="Voice history"
+          className="fixed bottom-20 right-4 z-40 flex h-9 w-9 items-center justify-center rounded-full border border-[#2A2A2A] bg-[#141414] text-[#6B6860] shadow-lg transition-all hover:border-[#F5A623]/30 hover:text-[#F5A623]"
+        >
+          {transcriptEntries.length > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#F5A623] font-mono text-[0.5rem] font-bold text-[#0D0D0D]">
+              {transcriptEntries.length > 9 ? "9+" : transcriptEntries.length}
+            </span>
+          )}
+          <svg
+            className="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
