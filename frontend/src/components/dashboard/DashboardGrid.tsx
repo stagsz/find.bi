@@ -31,7 +31,8 @@ export interface DashboardCardConfig {
   /** Unique identifier for the card */
   id: string;
   /** Chart type to render */
-  type: "bar" | "line" | "area" | "scatter" | "pie" | "radar" | "kpi" | "table" | "text";
+  type: "bar" | "line" | "area" | "scatter" | "pie" | "radar" | "kpi" | "table" | "text"
+    | "map-scatterplot" | "map-hexagon" | "map-heatmap" | "map-arc" | "map-geojson";
   /** Display title for the card */
   title: string;
   /** SQL query that produces the card's data */

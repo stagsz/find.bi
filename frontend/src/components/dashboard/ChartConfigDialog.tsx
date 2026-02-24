@@ -12,6 +12,11 @@ import RadarChart from "@/components/charts/RadarChart";
 import KPICard from "@/components/charts/KPICard";
 import DataTable from "@/components/charts/DataTable";
 import type { ColumnDef } from "@/components/charts/DataTable";
+import ScatterplotMap from "@/components/geo/ScatterplotMap";
+import HexagonMap from "@/components/geo/HexagonMap";
+import HeatmapMap from "@/components/geo/HeatmapMap";
+import ArcMap from "@/components/geo/ArcMap";
+import GeoJsonMap from "@/components/geo/GeoJsonMap";
 
 type ChartType = DashboardCardConfig["type"];
 
@@ -25,7 +30,22 @@ const CHART_TYPES: { value: ChartType; label: string }[] = [
   { value: "kpi", label: "KPI" },
   { value: "table", label: "Table" },
   { value: "text", label: "Text" },
+  { value: "map-scatterplot", label: "Map" },
 ];
+
+/** Map sub-type options shown when "Map" is selected */
+const MAP_SUB_TYPES: { value: ChartType; label: string }[] = [
+  { value: "map-scatterplot", label: "Scatterplot" },
+  { value: "map-hexagon", label: "Hexagon" },
+  { value: "map-heatmap", label: "Heatmap" },
+  { value: "map-arc", label: "Arc" },
+  { value: "map-geojson", label: "GeoJSON" },
+];
+
+/** Whether a chart type is a map type */
+function isMapType(type: ChartType): boolean {
+  return type.startsWith("map-");
+}
 
 interface MappingFieldDef {
   key: string;
@@ -68,6 +88,35 @@ const MAPPING_FIELDS: Record<ChartType, MappingFieldDef[]> = {
   ],
   table: [],
   text: [],
+  "map-scatterplot": [
+    { key: "latField", label: "Latitude", type: "column", required: true },
+    { key: "lonField", label: "Longitude", type: "column", required: true },
+    { key: "colorField", label: "Color Field", type: "column" },
+    { key: "sizeField", label: "Size Field", type: "column" },
+  ],
+  "map-hexagon": [
+    { key: "latField", label: "Latitude", type: "column", required: true },
+    { key: "lonField", label: "Longitude", type: "column", required: true },
+    { key: "weightField", label: "Weight Field", type: "column" },
+    { key: "extruded", label: "3D Extrusion", type: "toggle" },
+  ],
+  "map-heatmap": [
+    { key: "latField", label: "Latitude", type: "column", required: true },
+    { key: "lonField", label: "Longitude", type: "column", required: true },
+    { key: "weightField", label: "Weight Field", type: "column" },
+  ],
+  "map-arc": [
+    { key: "originLat", label: "Origin Latitude", type: "column", required: true },
+    { key: "originLon", label: "Origin Longitude", type: "column", required: true },
+    { key: "destLat", label: "Destination Latitude", type: "column", required: true },
+    { key: "destLon", label: "Destination Longitude", type: "column", required: true },
+    { key: "colorField", label: "Color Field", type: "column" },
+  ],
+  "map-geojson": [
+    { key: "geojsonColumn", label: "GeoJSON Geometry Column", type: "column", required: true },
+    { key: "fillField", label: "Fill Color Field", type: "column" },
+    { key: "strokeField", label: "Stroke Color Field", type: "column" },
+  ],
 };
 
 /** Whether the chart type needs an SQL query */
@@ -309,6 +358,82 @@ function ChartConfigDialog({
           <DataTable columns={colDefs} rows={records} sortable pageSize={10} />
         );
       }
+      case "map-scatterplot":
+        if (!m.latField || !m.lonField) return null;
+        return (
+          <ScatterplotMap
+            data={records}
+            latField={m.latField}
+            lonField={m.lonField}
+            colorField={m.colorField || undefined}
+            sizeField={m.sizeField || undefined}
+            style={style}
+          />
+        );
+      case "map-hexagon":
+        if (!m.latField || !m.lonField) return null;
+        return (
+          <HexagonMap
+            data={records}
+            latField={m.latField}
+            lonField={m.lonField}
+            weightField={m.weightField || undefined}
+            extruded={m.extruded === "true"}
+            style={style}
+          />
+        );
+      case "map-heatmap":
+        if (!m.latField || !m.lonField) return null;
+        return (
+          <HeatmapMap
+            data={records}
+            latField={m.latField}
+            lonField={m.lonField}
+            weightField={m.weightField || undefined}
+            style={style}
+          />
+        );
+      case "map-arc":
+        if (!m.originLat || !m.originLon || !m.destLat || !m.destLon) return null;
+        return (
+          <ArcMap
+            data={records}
+            originLat={m.originLat}
+            originLon={m.originLon}
+            destLat={m.destLat}
+            destLon={m.destLon}
+            colorField={m.colorField || undefined}
+            style={style}
+          />
+        );
+      case "map-geojson": {
+        if (!m.geojsonColumn) return null;
+        const features = records
+          .map((r) => {
+            try {
+              const geom = typeof r[m.geojsonColumn] === "string"
+                ? JSON.parse(r[m.geojsonColumn] as string)
+                : r[m.geojsonColumn];
+              const properties: Record<string, unknown> = {};
+              for (const col of availableColumns) {
+                if (col !== m.geojsonColumn) properties[col] = r[col];
+              }
+              return { type: "Feature" as const, geometry: geom, properties };
+            } catch {
+              return null;
+            }
+          })
+          .filter((f) => f !== null) as GeoJSON.Feature[];
+        const fc: GeoJSON.FeatureCollection = { type: "FeatureCollection", features };
+        return (
+          <GeoJsonMap
+            geojsonData={fc}
+            fillField={m.fillField || undefined}
+            strokeField={m.strokeField || undefined}
+            style={style}
+          />
+        );
+      }
       default:
         return null;
     }
@@ -392,27 +517,65 @@ function ChartConfigDialog({
               data-testid="config-chart-types"
               className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5"
             >
-              {CHART_TYPES.map((ct) => (
-                <button
-                  key={ct.value}
-                  data-testid={`chart-type-${ct.value}`}
-                  type="button"
-                  className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-                    chartType === ct.value
-                      ? "border-blue-500 bg-blue-50 text-blue-700"
-                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
-                  }`}
-                  onClick={() => {
-                    setChartType(ct.value);
-                    setColumnMappings({});
-                    setShowPreview(false);
-                  }}
-                >
-                  {ct.label}
-                </button>
-              ))}
+              {CHART_TYPES.map((ct) => {
+                const isSelected = ct.value === "map-scatterplot"
+                  ? isMapType(chartType)
+                  : chartType === ct.value;
+                return (
+                  <button
+                    key={ct.value}
+                    data-testid={`chart-type-${ct.value}`}
+                    type="button"
+                    className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                      isSelected
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                    }`}
+                    onClick={() => {
+                      setChartType(ct.value);
+                      setColumnMappings({});
+                      setShowPreview(false);
+                    }}
+                  >
+                    {ct.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
+
+          {/* Map sub-type selector */}
+          {isMapType(chartType) && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Map Layer Type
+              </label>
+              <div
+                data-testid="config-map-subtypes"
+                className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5"
+              >
+                {MAP_SUB_TYPES.map((st) => (
+                  <button
+                    key={st.value}
+                    data-testid={`map-subtype-${st.value}`}
+                    type="button"
+                    className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                      chartType === st.value
+                        ? "border-amber-500 bg-amber-50 text-amber-700"
+                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                    }`}
+                    onClick={() => {
+                      setChartType(st.value);
+                      setColumnMappings({});
+                      setShowPreview(false);
+                    }}
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* SQL Query */}
           {showQuerySection && (
@@ -638,5 +801,5 @@ function ChartConfigDialog({
 }
 
 export default ChartConfigDialog;
-export { CHART_TYPES, MAPPING_FIELDS, needsQuery, needsMappings };
+export { CHART_TYPES, MAP_SUB_TYPES, MAPPING_FIELDS, needsQuery, needsMappings, isMapType };
 export type { ChartType, MappingFieldDef };

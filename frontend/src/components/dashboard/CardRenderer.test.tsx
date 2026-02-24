@@ -82,6 +82,37 @@ vi.mock("@/components/charts/DataTable", () => ({
   ),
 }));
 
+// Mock geo map components
+vi.mock("@/components/geo/ScatterplotMap", () => ({
+  default: (props: Record<string, unknown>) => (
+    <div data-testid="chart-map-scatterplot" data-lat={props.latField} data-lon={props.lonField} data-color={props.colorField} data-size={props.sizeField} />
+  ),
+}));
+
+vi.mock("@/components/geo/HexagonMap", () => ({
+  default: (props: Record<string, unknown>) => (
+    <div data-testid="chart-map-hexagon" data-lat={props.latField} data-lon={props.lonField} data-weight={props.weightField} data-extruded={String(props.extruded)} />
+  ),
+}));
+
+vi.mock("@/components/geo/HeatmapMap", () => ({
+  default: (props: Record<string, unknown>) => (
+    <div data-testid="chart-map-heatmap" data-lat={props.latField} data-lon={props.lonField} data-weight={props.weightField} />
+  ),
+}));
+
+vi.mock("@/components/geo/ArcMap", () => ({
+  default: (props: Record<string, unknown>) => (
+    <div data-testid="chart-map-arc" data-origin-lat={props.originLat} data-origin-lon={props.originLon} data-dest-lat={props.destLat} data-dest-lon={props.destLon} data-color={props.colorField} />
+  ),
+}));
+
+vi.mock("@/components/geo/GeoJsonMap", () => ({
+  default: (props: Record<string, unknown>) => (
+    <div data-testid="chart-map-geojson" data-fill={props.fillField} data-stroke={props.strokeField} />
+  ),
+}));
+
 import CardRenderer from "./CardRenderer";
 import type { DashboardCardConfig } from "./DashboardGrid";
 
@@ -528,5 +559,194 @@ describe("CardRenderer", () => {
 
     expect(screen.getByTestId("card-renderer-text")).toBeInTheDocument();
     expect(mocks.query).not.toHaveBeenCalled();
+  });
+
+  // --- Map: Scatterplot ---
+
+  it("renders a scatterplot map with lat/lon fields", async () => {
+    const geoResult = {
+      columns: ["lat", "lon", "value"],
+      rows: [[40.7, -74.0, 100], [34.0, -118.2, 200]],
+      duration: 3,
+    };
+    mocks.query.mockResolvedValue(geoResult);
+    const config = makeConfig({
+      type: "map-scatterplot",
+      query: "SELECT lat, lon, value FROM geo",
+      columnMappings: { latField: "lat", lonField: "lon" },
+    });
+    render(<CardRenderer config={config} />);
+    await waitFor(() => {
+      const chart = screen.getByTestId("chart-map-scatterplot");
+      expect(chart).toHaveAttribute("data-lat", "lat");
+      expect(chart).toHaveAttribute("data-lon", "lon");
+    });
+  });
+
+  it("passes optional colorField and sizeField to scatterplot map", async () => {
+    const geoResult = {
+      columns: ["lat", "lon", "cat", "pop"],
+      rows: [[40.7, -74.0, "A", 100]],
+      duration: 2,
+    };
+    mocks.query.mockResolvedValue(geoResult);
+    const config = makeConfig({
+      type: "map-scatterplot",
+      query: "SELECT lat, lon, cat, pop FROM geo",
+      columnMappings: { latField: "lat", lonField: "lon", colorField: "cat", sizeField: "pop" },
+    });
+    render(<CardRenderer config={config} />);
+    await waitFor(() => {
+      const chart = screen.getByTestId("chart-map-scatterplot");
+      expect(chart).toHaveAttribute("data-color", "cat");
+      expect(chart).toHaveAttribute("data-size", "pop");
+    });
+  });
+
+  it("returns null for map-scatterplot with missing latField", async () => {
+    mocks.query.mockResolvedValue(queryResultFixture);
+    const config = makeConfig({
+      type: "map-scatterplot",
+      columnMappings: { lonField: "lon" },
+    });
+    const { container } = render(<CardRenderer config={config} />);
+    await waitFor(() => {
+      expect(container.firstChild).toBeNull();
+    });
+  });
+
+  // --- Map: Hexagon ---
+
+  it("renders a hexagon map", async () => {
+    const geoResult = {
+      columns: ["lat", "lon"],
+      rows: [[40.7, -74.0], [34.0, -118.2]],
+      duration: 2,
+    };
+    mocks.query.mockResolvedValue(geoResult);
+    const config = makeConfig({
+      type: "map-hexagon",
+      query: "SELECT lat, lon FROM geo",
+      columnMappings: { latField: "lat", lonField: "lon" },
+    });
+    render(<CardRenderer config={config} />);
+    await waitFor(() => {
+      const chart = screen.getByTestId("chart-map-hexagon");
+      expect(chart).toHaveAttribute("data-lat", "lat");
+      expect(chart).toHaveAttribute("data-lon", "lon");
+    });
+  });
+
+  it("passes extruded flag to hexagon map", async () => {
+    const geoResult = {
+      columns: ["lat", "lon"],
+      rows: [[40.7, -74.0]],
+      duration: 1,
+    };
+    mocks.query.mockResolvedValue(geoResult);
+    const config = makeConfig({
+      type: "map-hexagon",
+      query: "SELECT lat, lon FROM geo",
+      columnMappings: { latField: "lat", lonField: "lon", extruded: "true" },
+    });
+    render(<CardRenderer config={config} />);
+    await waitFor(() => {
+      expect(screen.getByTestId("chart-map-hexagon")).toHaveAttribute("data-extruded", "true");
+    });
+  });
+
+  // --- Map: Heatmap ---
+
+  it("renders a heatmap map", async () => {
+    const geoResult = {
+      columns: ["lat", "lon", "weight"],
+      rows: [[40.7, -74.0, 50], [34.0, -118.2, 80]],
+      duration: 2,
+    };
+    mocks.query.mockResolvedValue(geoResult);
+    const config = makeConfig({
+      type: "map-heatmap",
+      query: "SELECT lat, lon, weight FROM geo",
+      columnMappings: { latField: "lat", lonField: "lon", weightField: "weight" },
+    });
+    render(<CardRenderer config={config} />);
+    await waitFor(() => {
+      const chart = screen.getByTestId("chart-map-heatmap");
+      expect(chart).toHaveAttribute("data-lat", "lat");
+      expect(chart).toHaveAttribute("data-lon", "lon");
+      expect(chart).toHaveAttribute("data-weight", "weight");
+    });
+  });
+
+  // --- Map: Arc ---
+
+  it("renders an arc map with origin/destination fields", async () => {
+    const arcResult = {
+      columns: ["olat", "olon", "dlat", "dlon"],
+      rows: [[40.7, -74.0, 34.0, -118.2]],
+      duration: 2,
+    };
+    mocks.query.mockResolvedValue(arcResult);
+    const config = makeConfig({
+      type: "map-arc",
+      query: "SELECT olat, olon, dlat, dlon FROM arcs",
+      columnMappings: { originLat: "olat", originLon: "olon", destLat: "dlat", destLon: "dlon" },
+    });
+    render(<CardRenderer config={config} />);
+    await waitFor(() => {
+      const chart = screen.getByTestId("chart-map-arc");
+      expect(chart).toHaveAttribute("data-origin-lat", "olat");
+      expect(chart).toHaveAttribute("data-origin-lon", "olon");
+      expect(chart).toHaveAttribute("data-dest-lat", "dlat");
+      expect(chart).toHaveAttribute("data-dest-lon", "dlon");
+    });
+  });
+
+  it("returns null for map-arc with missing destination fields", async () => {
+    mocks.query.mockResolvedValue(queryResultFixture);
+    const config = makeConfig({
+      type: "map-arc",
+      columnMappings: { originLat: "olat", originLon: "olon" },
+    });
+    const { container } = render(<CardRenderer config={config} />);
+    await waitFor(() => {
+      expect(container.firstChild).toBeNull();
+    });
+  });
+
+  // --- Map: GeoJSON ---
+
+  it("renders a geojson map from query results", async () => {
+    const geojsonResult = {
+      columns: ["geom", "name", "value"],
+      rows: [
+        [JSON.stringify({ type: "Point", coordinates: [-74, 40.7] }), "NYC", 100],
+        [JSON.stringify({ type: "Point", coordinates: [-118.2, 34] }), "LA", 200],
+      ],
+      duration: 3,
+    };
+    mocks.query.mockResolvedValue(geojsonResult);
+    const config = makeConfig({
+      type: "map-geojson",
+      query: "SELECT geom, name, value FROM regions",
+      columnMappings: { geojsonColumn: "geom", fillField: "name" },
+    });
+    render(<CardRenderer config={config} />);
+    await waitFor(() => {
+      const chart = screen.getByTestId("chart-map-geojson");
+      expect(chart).toHaveAttribute("data-fill", "name");
+    });
+  });
+
+  it("returns null for map-geojson with missing geojsonColumn", async () => {
+    mocks.query.mockResolvedValue(queryResultFixture);
+    const config = makeConfig({
+      type: "map-geojson",
+      columnMappings: {},
+    });
+    const { container } = render(<CardRenderer config={config} />);
+    await waitFor(() => {
+      expect(container.firstChild).toBeNull();
+    });
   });
 });

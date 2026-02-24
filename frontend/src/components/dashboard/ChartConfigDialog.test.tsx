@@ -65,11 +65,44 @@ vi.mock("@/components/charts/DataTable", () => ({
   default: () => <div data-testid="preview-table" />,
 }));
 
+// Mock geo map components
+vi.mock("@/components/geo/ScatterplotMap", () => ({
+  default: (props: Record<string, unknown>) => (
+    <div data-testid="preview-map-scatterplot" data-lat={props.latField} data-lon={props.lonField} data-color={props.colorField} data-size={props.sizeField} />
+  ),
+}));
+
+vi.mock("@/components/geo/HexagonMap", () => ({
+  default: (props: Record<string, unknown>) => (
+    <div data-testid="preview-map-hexagon" data-lat={props.latField} data-lon={props.lonField} data-weight={props.weightField} data-extruded={String(props.extruded)} />
+  ),
+}));
+
+vi.mock("@/components/geo/HeatmapMap", () => ({
+  default: (props: Record<string, unknown>) => (
+    <div data-testid="preview-map-heatmap" data-lat={props.latField} data-lon={props.lonField} data-weight={props.weightField} />
+  ),
+}));
+
+vi.mock("@/components/geo/ArcMap", () => ({
+  default: (props: Record<string, unknown>) => (
+    <div data-testid="preview-map-arc" data-origin-lat={props.originLat} data-origin-lon={props.originLon} data-dest-lat={props.destLat} data-dest-lon={props.destLon} />
+  ),
+}));
+
+vi.mock("@/components/geo/GeoJsonMap", () => ({
+  default: (props: Record<string, unknown>) => (
+    <div data-testid="preview-map-geojson" data-fill={props.fillField} data-stroke={props.strokeField} />
+  ),
+}));
+
 import ChartConfigDialog, {
   CHART_TYPES,
+  MAP_SUB_TYPES,
   MAPPING_FIELDS,
   needsQuery,
   needsMappings,
+  isMapType,
 } from "./ChartConfigDialog";
 import type { ChartConfigDialogProps } from "./ChartConfigDialog";
 import type { DashboardCardConfig } from "./DashboardGrid";
@@ -199,7 +232,7 @@ describe("ChartConfigDialog", () => {
 
   // --- Chart type selection ---
 
-  it("renders all 9 chart type buttons", () => {
+  it("renders all 10 chart type buttons", () => {
     renderDialog();
     for (const ct of CHART_TYPES) {
       expect(screen.getByTestId(`chart-type-${ct.value}`)).toBeInTheDocument();
@@ -794,6 +827,11 @@ describe("ChartConfigDialog", () => {
     expect(needsQuery("table")).toBe(true);
     expect(needsQuery("kpi")).toBe(true);
     expect(needsQuery("text")).toBe(false);
+    expect(needsQuery("map-scatterplot")).toBe(true);
+    expect(needsQuery("map-hexagon")).toBe(true);
+    expect(needsQuery("map-heatmap")).toBe(true);
+    expect(needsQuery("map-arc")).toBe(true);
+    expect(needsQuery("map-geojson")).toBe(true);
   });
 
   it("needsMappings returns false for radar, table, text", () => {
@@ -805,10 +843,15 @@ describe("ChartConfigDialog", () => {
     expect(needsMappings("radar")).toBe(false);
     expect(needsMappings("table")).toBe(false);
     expect(needsMappings("text")).toBe(false);
+    expect(needsMappings("map-scatterplot")).toBe(true);
+    expect(needsMappings("map-hexagon")).toBe(true);
+    expect(needsMappings("map-heatmap")).toBe(true);
+    expect(needsMappings("map-arc")).toBe(true);
+    expect(needsMappings("map-geojson")).toBe(true);
   });
 
-  it("CHART_TYPES contains all 9 types", () => {
-    expect(CHART_TYPES).toHaveLength(9);
+  it("CHART_TYPES contains all 10 types (9 standard + Map)", () => {
+    expect(CHART_TYPES).toHaveLength(10);
     const values = CHART_TYPES.map((ct) => ct.value);
     expect(values).toContain("bar");
     expect(values).toContain("line");
@@ -819,11 +862,15 @@ describe("ChartConfigDialog", () => {
     expect(values).toContain("kpi");
     expect(values).toContain("table");
     expect(values).toContain("text");
+    expect(values).toContain("map-scatterplot");
   });
 
-  it("MAPPING_FIELDS has entries for all chart types", () => {
+  it("MAPPING_FIELDS has entries for all chart types and map sub-types", () => {
     for (const ct of CHART_TYPES) {
       expect(MAPPING_FIELDS[ct.value]).toBeDefined();
+    }
+    for (const st of MAP_SUB_TYPES) {
+      expect(MAPPING_FIELDS[st.value]).toBeDefined();
     }
   });
 
@@ -846,5 +893,281 @@ describe("ChartConfigDialog", () => {
     const info = screen.getByTestId("config-query-info");
     expect(info).toHaveTextContent("1 row,");
     expect(info).toHaveTextContent("1 column");
+  });
+
+  // --- Map type selection ---
+
+  it("isMapType identifies map types correctly", () => {
+    expect(isMapType("map-scatterplot")).toBe(true);
+    expect(isMapType("map-hexagon")).toBe(true);
+    expect(isMapType("map-heatmap")).toBe(true);
+    expect(isMapType("map-arc")).toBe(true);
+    expect(isMapType("map-geojson")).toBe(true);
+    expect(isMapType("bar")).toBe(false);
+    expect(isMapType("line")).toBe(false);
+    expect(isMapType("text")).toBe(false);
+  });
+
+  it("MAP_SUB_TYPES contains all 5 map layer types", () => {
+    expect(MAP_SUB_TYPES).toHaveLength(5);
+    const values = MAP_SUB_TYPES.map((st) => st.value);
+    expect(values).toContain("map-scatterplot");
+    expect(values).toContain("map-hexagon");
+    expect(values).toContain("map-heatmap");
+    expect(values).toContain("map-arc");
+    expect(values).toContain("map-geojson");
+  });
+
+  it("shows map sub-type selector when Map is clicked", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.click(screen.getByTestId("chart-type-map-scatterplot"));
+    expect(screen.getByTestId("config-map-subtypes")).toBeInTheDocument();
+    for (const st of MAP_SUB_TYPES) {
+      expect(screen.getByTestId(`map-subtype-${st.value}`)).toBeInTheDocument();
+    }
+  });
+
+  it("does not show map sub-type selector for non-map types", () => {
+    renderDialog();
+    expect(screen.queryByTestId("config-map-subtypes")).not.toBeInTheDocument();
+  });
+
+  it("highlights Map button when any map sub-type is selected", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.click(screen.getByTestId("chart-type-map-scatterplot"));
+    await user.click(screen.getByTestId("map-subtype-map-hexagon"));
+    expect(screen.getByTestId("chart-type-map-scatterplot")).toHaveClass("border-blue-500");
+  });
+
+  it("highlights selected map sub-type with amber", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.click(screen.getByTestId("chart-type-map-scatterplot"));
+    expect(screen.getByTestId("map-subtype-map-scatterplot")).toHaveClass("border-amber-500");
+    await user.click(screen.getByTestId("map-subtype-map-hexagon"));
+    expect(screen.getByTestId("map-subtype-map-hexagon")).toHaveClass("border-amber-500");
+    expect(screen.getByTestId("map-subtype-map-scatterplot")).not.toHaveClass("border-amber-500");
+  });
+
+  it("resets column mappings when switching map sub-types", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.click(screen.getByTestId("chart-type-map-scatterplot"));
+
+    const geoQueryResult = {
+      columns: ["lat", "lon", "value", "category"],
+      rows: [[40.7, -74.0, 100, "A"], [34.0, -118.2, 200, "B"]],
+      duration: 5,
+    };
+    mocks.query.mockResolvedValueOnce(geoQueryResult);
+    const textarea = screen.getByTestId("config-query");
+    await user.clear(textarea);
+    await user.type(textarea, "SELECT lat, lon, value FROM geo");
+    await user.click(screen.getByTestId("config-run-query"));
+    await screen.findByTestId("config-query-info");
+
+    await user.selectOptions(screen.getByTestId("mapping-select-latField"), "lat");
+    expect(screen.getByTestId("mapping-select-latField")).toHaveValue("lat");
+
+    await user.click(screen.getByTestId("map-subtype-map-hexagon"));
+    expect(screen.getByTestId("mapping-select-latField")).toHaveValue("");
+  });
+
+  // --- Map column mappings ---
+
+  it("shows scatterplot map mapping fields", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.click(screen.getByTestId("chart-type-map-scatterplot"));
+    await runQueryAndGetColumns(user);
+
+    expect(screen.getByTestId("mapping-select-latField")).toBeInTheDocument();
+    expect(screen.getByTestId("mapping-select-lonField")).toBeInTheDocument();
+    expect(screen.getByTestId("mapping-select-colorField")).toBeInTheDocument();
+    expect(screen.getByTestId("mapping-select-sizeField")).toBeInTheDocument();
+  });
+
+  it("shows hexagon map mapping fields with extruded toggle", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.click(screen.getByTestId("chart-type-map-scatterplot"));
+    await user.click(screen.getByTestId("map-subtype-map-hexagon"));
+    await runQueryAndGetColumns(user);
+
+    expect(screen.getByTestId("mapping-select-latField")).toBeInTheDocument();
+    expect(screen.getByTestId("mapping-select-lonField")).toBeInTheDocument();
+    expect(screen.getByTestId("mapping-select-weightField")).toBeInTheDocument();
+    expect(screen.getByTestId("mapping-toggle-extruded")).toBeInTheDocument();
+  });
+
+  it("shows arc map mapping fields with 4 required columns", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.click(screen.getByTestId("chart-type-map-scatterplot"));
+    await user.click(screen.getByTestId("map-subtype-map-arc"));
+    await runQueryAndGetColumns(user);
+
+    expect(screen.getByTestId("mapping-select-originLat")).toBeInTheDocument();
+    expect(screen.getByTestId("mapping-select-originLon")).toBeInTheDocument();
+    expect(screen.getByTestId("mapping-select-destLat")).toBeInTheDocument();
+    expect(screen.getByTestId("mapping-select-destLon")).toBeInTheDocument();
+    expect(screen.getByTestId("mapping-select-colorField")).toBeInTheDocument();
+  });
+
+  it("shows geojson map mapping fields", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.click(screen.getByTestId("chart-type-map-scatterplot"));
+    await user.click(screen.getByTestId("map-subtype-map-geojson"));
+    await runQueryAndGetColumns(user);
+
+    expect(screen.getByTestId("mapping-select-geojsonColumn")).toBeInTheDocument();
+    expect(screen.getByTestId("mapping-select-fillField")).toBeInTheDocument();
+    expect(screen.getByTestId("mapping-select-strokeField")).toBeInTheDocument();
+  });
+
+  // --- Map save validation ---
+
+  it("disables save for map-scatterplot without required latField/lonField", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.click(screen.getByTestId("chart-type-map-scatterplot"));
+    const textarea = screen.getByTestId("config-query");
+    await user.type(textarea, "SELECT 1");
+    expect(screen.getByTestId("config-save")).toBeDisabled();
+  });
+
+  it("saves map-scatterplot config with correct type and mappings", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    renderDialog({ onSave });
+    await user.click(screen.getByTestId("chart-type-map-scatterplot"));
+    await runQueryAndGetColumns(user);
+
+    await user.selectOptions(screen.getByTestId("mapping-select-latField"), "region");
+    await user.selectOptions(screen.getByTestId("mapping-select-lonField"), "revenue");
+    await user.click(screen.getByTestId("config-save"));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "map-scatterplot",
+        columnMappings: expect.objectContaining({
+          latField: "region",
+          lonField: "revenue",
+        }),
+      }),
+    );
+  });
+
+  it("saves map-arc config with all 4 required fields", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    renderDialog({ onSave });
+    await user.click(screen.getByTestId("chart-type-map-scatterplot"));
+    await user.click(screen.getByTestId("map-subtype-map-arc"));
+    await runQueryAndGetColumns(user);
+
+    await user.selectOptions(screen.getByTestId("mapping-select-originLat"), "region");
+    await user.selectOptions(screen.getByTestId("mapping-select-originLon"), "revenue");
+    await user.selectOptions(screen.getByTestId("mapping-select-destLat"), "count");
+    await user.selectOptions(screen.getByTestId("mapping-select-destLon"), "region");
+    await user.click(screen.getByTestId("config-save"));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "map-arc",
+        columnMappings: expect.objectContaining({
+          originLat: "region",
+          originLon: "revenue",
+          destLat: "count",
+          destLon: "region",
+        }),
+      }),
+    );
+  });
+
+  // --- Map preview ---
+
+  it("renders scatterplot map preview with correct props", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.click(screen.getByTestId("chart-type-map-scatterplot"));
+    await runQueryAndGetColumns(user);
+
+    await user.selectOptions(screen.getByTestId("mapping-select-latField"), "region");
+    await user.selectOptions(screen.getByTestId("mapping-select-lonField"), "revenue");
+
+    await user.click(screen.getByTestId("config-preview-btn"));
+    const preview = screen.getByTestId("preview-map-scatterplot");
+    expect(preview).toHaveAttribute("data-lat", "region");
+    expect(preview).toHaveAttribute("data-lon", "revenue");
+  });
+
+  it("renders hexagon map preview", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.click(screen.getByTestId("chart-type-map-scatterplot"));
+    await user.click(screen.getByTestId("map-subtype-map-hexagon"));
+    await runQueryAndGetColumns(user);
+
+    await user.selectOptions(screen.getByTestId("mapping-select-latField"), "region");
+    await user.selectOptions(screen.getByTestId("mapping-select-lonField"), "revenue");
+
+    await user.click(screen.getByTestId("config-preview-btn"));
+    expect(screen.getByTestId("preview-map-hexagon")).toBeInTheDocument();
+  });
+
+  it("renders arc map preview", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.click(screen.getByTestId("chart-type-map-scatterplot"));
+    await user.click(screen.getByTestId("map-subtype-map-arc"));
+    await runQueryAndGetColumns(user);
+
+    await user.selectOptions(screen.getByTestId("mapping-select-originLat"), "region");
+    await user.selectOptions(screen.getByTestId("mapping-select-originLon"), "revenue");
+    await user.selectOptions(screen.getByTestId("mapping-select-destLat"), "count");
+    await user.selectOptions(screen.getByTestId("mapping-select-destLon"), "region");
+
+    await user.click(screen.getByTestId("config-preview-btn"));
+    const preview = screen.getByTestId("preview-map-arc");
+    expect(preview).toHaveAttribute("data-origin-lat", "region");
+    expect(preview).toHaveAttribute("data-dest-lon", "region");
+  });
+
+  // --- Map initial config ---
+
+  it("populates form from map-scatterplot initialConfig", () => {
+    const config: DashboardCardConfig = {
+      id: "c1",
+      type: "map-scatterplot",
+      title: "Points Map",
+      query: "SELECT lat, lon FROM geo",
+      columnMappings: { latField: "lat", lonField: "lon" },
+    };
+    renderDialog({ initialConfig: config });
+
+    expect(screen.getByTestId("config-title")).toHaveValue("Points Map");
+    expect(screen.getByTestId("chart-type-map-scatterplot")).toHaveClass("border-blue-500");
+    expect(screen.getByTestId("config-map-subtypes")).toBeInTheDocument();
+    expect(screen.getByTestId("map-subtype-map-scatterplot")).toHaveClass("border-amber-500");
+  });
+
+  it("populates form from map-arc initialConfig and shows sub-type selector", () => {
+    const config: DashboardCardConfig = {
+      id: "c2",
+      type: "map-arc",
+      title: "Flows",
+      query: "SELECT * FROM arcs",
+      columnMappings: { originLat: "olat", originLon: "olon", destLat: "dlat", destLon: "dlon" },
+    };
+    renderDialog({ initialConfig: config });
+
+    expect(screen.getByTestId("chart-type-map-scatterplot")).toHaveClass("border-blue-500");
+    expect(screen.getByTestId("config-map-subtypes")).toBeInTheDocument();
+    expect(screen.getByTestId("map-subtype-map-arc")).toHaveClass("border-amber-500");
   });
 });

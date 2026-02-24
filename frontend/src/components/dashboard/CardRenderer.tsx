@@ -14,6 +14,11 @@ import RadarChart from "@/components/charts/RadarChart";
 import KPICard from "@/components/charts/KPICard";
 import DataTable from "@/components/charts/DataTable";
 import type { ColumnDef } from "@/components/charts/DataTable";
+import ScatterplotMap from "@/components/geo/ScatterplotMap";
+import HexagonMap from "@/components/geo/HexagonMap";
+import HeatmapMap from "@/components/geo/HeatmapMap";
+import ArcMap from "@/components/geo/ArcMap";
+import GeoJsonMap from "@/components/geo/GeoJsonMap";
 
 export interface CardRendererProps {
   config: DashboardCardConfig;
@@ -270,6 +275,92 @@ function CardRenderer({ config, className, style }: CardRendererProps) {
           pageSize={50}
           className={className}
           style={style}
+        />
+      );
+    }
+
+    case "map-scatterplot":
+      if (!m.latField || !m.lonField) return null;
+      return (
+        <ScatterplotMap
+          data={records}
+          latField={m.latField}
+          lonField={m.lonField}
+          colorField={m.colorField || undefined}
+          sizeField={m.sizeField || undefined}
+          className={className}
+          style={chartStyle}
+        />
+      );
+
+    case "map-hexagon":
+      if (!m.latField || !m.lonField) return null;
+      return (
+        <HexagonMap
+          data={records}
+          latField={m.latField}
+          lonField={m.lonField}
+          weightField={m.weightField || undefined}
+          extruded={m.extruded === "true"}
+          className={className}
+          style={chartStyle}
+        />
+      );
+
+    case "map-heatmap":
+      if (!m.latField || !m.lonField) return null;
+      return (
+        <HeatmapMap
+          data={records}
+          latField={m.latField}
+          lonField={m.lonField}
+          weightField={m.weightField || undefined}
+          className={className}
+          style={chartStyle}
+        />
+      );
+
+    case "map-arc":
+      if (!m.originLat || !m.originLon || !m.destLat || !m.destLon) return null;
+      return (
+        <ArcMap
+          data={records}
+          originLat={m.originLat}
+          originLon={m.originLon}
+          destLat={m.destLat}
+          destLon={m.destLon}
+          colorField={m.colorField || undefined}
+          className={className}
+          style={chartStyle}
+        />
+      );
+
+    case "map-geojson": {
+      if (!m.geojsonColumn) return null;
+      const features = records
+        .map((r) => {
+          try {
+            const geom = typeof r[m.geojsonColumn] === "string"
+              ? JSON.parse(r[m.geojsonColumn] as string)
+              : r[m.geojsonColumn];
+            const properties: Record<string, unknown> = {};
+            for (const col of columns) {
+              if (col !== m.geojsonColumn) properties[col] = r[col];
+            }
+            return { type: "Feature" as const, geometry: geom, properties };
+          } catch {
+            return null;
+          }
+        })
+        .filter((f) => f !== null) as GeoJSON.Feature[];
+      const fc: GeoJSON.FeatureCollection = { type: "FeatureCollection", features };
+      return (
+        <GeoJsonMap
+          geojsonData={fc}
+          fillField={m.fillField || undefined}
+          strokeField={m.strokeField || undefined}
+          className={className}
+          style={chartStyle}
         />
       );
     }
