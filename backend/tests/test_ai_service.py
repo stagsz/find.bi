@@ -2245,3 +2245,455 @@ class TestGenerateDeck:
         chart_slide = result["slides"][1]
         assert chart_slide["plot_spec"] is not None
         assert chart_slide["plot_spec"]["marks"][0]["type"] == "barY"
+
+
+# ---------------------------------------------------------------------------
+# detect_geo_columns tests
+# ---------------------------------------------------------------------------
+
+GEO_SCHEMA: list[dict[str, Any]] = [
+    {
+        "table_name": "locations",
+        "columns": [
+            {"name": "city", "type": "string"},
+            {"name": "latitude", "type": "float"},
+            {"name": "longitude", "type": "float"},
+            {"name": "country", "type": "string"},
+            {"name": "population", "type": "integer"},
+        ],
+        "row_count": 500,
+    },
+]
+
+GEO_ROWS: dict[str, list[dict[str, Any]]] = {
+    "locations": [
+        {
+            "city": "Stockholm",
+            "latitude": 59.3293,
+            "longitude": 18.0686,
+            "country": "Sweden",
+            "population": 975000,
+        },
+        {
+            "city": "Oslo",
+            "latitude": 59.9139,
+            "longitude": 10.7522,
+            "country": "Norway",
+            "population": 694000,
+        },
+    ],
+}
+
+VALID_GEO_COLUMNS_JSON = json.dumps({
+    "geo_columns": [
+        {
+            "type": "lat-lon-pair",
+            "lat_column": "latitude",
+            "lon_column": "longitude",
+            "table": "locations",
+            "suggested_map_type": "map-scatterplot",
+        },
+        {
+            "type": "country",
+            "column": "country",
+            "table": "locations",
+            "suggested_map_type": "map-geojson",
+        },
+    ],
+})
+
+
+class TestDetectGeoColumns:
+    """Tests for the detect_geo_columns function."""
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_returns_lat_lon_and_country(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """detect_geo_columns returns lat-lon pairs and country columns."""
+        from services.ai_service import detect_geo_columns
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_GEO_COLUMNS_JSON,
+        )
+
+        result = detect_geo_columns(GEO_SCHEMA, GEO_ROWS)
+
+        assert "geo_columns" in result
+        assert len(result["geo_columns"]) == 2
+        assert result["geo_columns"][0]["type"] == "lat-lon-pair"
+        assert result["geo_columns"][0]["lat_column"] == "latitude"
+        assert result["geo_columns"][0]["lon_column"] == "longitude"
+        assert result["geo_columns"][1]["type"] == "country"
+        assert result["geo_columns"][1]["column"] == "country"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_returns_empty_when_no_geo_columns(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Returns empty list when no geographic columns detected."""
+        from services.ai_service import detect_geo_columns
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({"geo_columns": []}),
+        )
+
+        result = detect_geo_columns(SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert result["geo_columns"] == []
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_strips_markdown_fences(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Markdown code fences around JSON are stripped."""
+        from services.ai_service import detect_geo_columns
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        fenced = f"```json\n{VALID_GEO_COLUMNS_JSON}\n```"
+        mock_client.messages.create.return_value = _mock_response(fenced)
+
+        result = detect_geo_columns(GEO_SCHEMA, GEO_ROWS)
+
+        assert len(result["geo_columns"]) == 2
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_filters_invalid_types(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Geo columns with invalid types are filtered out."""
+        from services.ai_service import detect_geo_columns
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mixed = json.dumps({
+            "geo_columns": [
+                {
+                    "type": "lat-lon-pair",
+                    "lat_column": "latitude",
+                    "lon_column": "longitude",
+                    "table": "locations",
+                    "suggested_map_type": "map-scatterplot",
+                },
+                {
+                    "type": "zipcode",
+                    "column": "zip",
+                    "table": "locations",
+                    "suggested_map_type": "map-geojson",
+                },
+            ],
+        })
+        mock_client.messages.create.return_value = _mock_response(mixed)
+
+        result = detect_geo_columns(GEO_SCHEMA, GEO_ROWS)
+
+        assert len(result["geo_columns"]) == 1
+        assert result["geo_columns"][0]["type"] == "lat-lon-pair"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_filters_invalid_map_types(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Geo columns with invalid suggested_map_type are filtered out."""
+        from services.ai_service import detect_geo_columns
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        bad_map = json.dumps({
+            "geo_columns": [
+                {
+                    "type": "country",
+                    "column": "country",
+                    "table": "locations",
+                    "suggested_map_type": "bar-chart",
+                },
+            ],
+        })
+        mock_client.messages.create.return_value = _mock_response(bad_map)
+
+        result = detect_geo_columns(GEO_SCHEMA, GEO_ROWS)
+
+        assert len(result["geo_columns"]) == 0
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_filters_lat_lon_missing_columns(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """lat-lon-pair entries missing lat_column or lon_column are filtered."""
+        from services.ai_service import detect_geo_columns
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        missing_lon = json.dumps({
+            "geo_columns": [
+                {
+                    "type": "lat-lon-pair",
+                    "lat_column": "latitude",
+                    "table": "locations",
+                    "suggested_map_type": "map-scatterplot",
+                },
+            ],
+        })
+        mock_client.messages.create.return_value = _mock_response(missing_lon)
+
+        result = detect_geo_columns(GEO_SCHEMA, GEO_ROWS)
+
+        assert len(result["geo_columns"]) == 0
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_filters_country_missing_column(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """country/region entries missing column field are filtered."""
+        from services.ai_service import detect_geo_columns
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        missing_col = json.dumps({
+            "geo_columns": [
+                {
+                    "type": "country",
+                    "table": "locations",
+                    "suggested_map_type": "map-geojson",
+                },
+            ],
+        })
+        mock_client.messages.create.return_value = _mock_response(missing_col)
+
+        result = detect_geo_columns(GEO_SCHEMA, GEO_ROWS)
+
+        assert len(result["geo_columns"]) == 0
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_raises_on_invalid_json(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Raises ValueError when Claude returns non-JSON."""
+        from services.ai_service import detect_geo_columns
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            "This is not JSON",
+        )
+
+        with pytest.raises(ValueError, match="invalid JSON"):
+            detect_geo_columns(GEO_SCHEMA, GEO_ROWS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""})
+    def test_raises_without_api_key(self) -> None:
+        """Raises ValueError when API key is not set."""
+        from services.ai_service import detect_geo_columns
+
+        with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
+            detect_geo_columns(GEO_SCHEMA, GEO_ROWS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_raises_on_api_error(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Raises ValueError when Claude API returns an error."""
+        import anthropic as anthropic_mod
+
+        from services.ai_service import detect_geo_columns
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.side_effect = anthropic_mod.APIError(
+            message="rate limited",
+            request=MagicMock(),
+            body=None,
+        )
+
+        with pytest.raises(ValueError, match="Claude API error"):
+            detect_geo_columns(GEO_SCHEMA, GEO_ROWS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_sends_geo_system_prompt(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Verifies the geo column system prompt is sent."""
+        from services.ai_service import detect_geo_columns
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_GEO_COLUMNS_JSON,
+        )
+
+        detect_geo_columns(GEO_SCHEMA, GEO_ROWS)
+
+        call_args = mock_client.messages.create.call_args
+        system = call_args.kwargs["system"]
+        assert "geographic" in system.lower()
+        assert "lat-lon-pair" in system
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_sends_schema_in_prompt(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Verifies the schema context is included in the API call."""
+        from services.ai_service import detect_geo_columns
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_GEO_COLUMNS_JSON,
+        )
+
+        detect_geo_columns(GEO_SCHEMA, GEO_ROWS)
+
+        call_args = mock_client.messages.create.call_args
+        user_content = call_args.kwargs["messages"][0]["content"]
+        assert "locations" in user_content
+        assert "latitude" in user_content
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_single_api_call(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """detect_geo_columns makes exactly one API call."""
+        from services.ai_service import detect_geo_columns
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_GEO_COLUMNS_JSON,
+        )
+
+        detect_geo_columns(GEO_SCHEMA, GEO_ROWS)
+
+        assert mock_client.messages.create.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# _validate_geo_columns tests
+# ---------------------------------------------------------------------------
+
+
+class TestValidateGeoColumns:
+    """Tests for the geo column validator."""
+
+    def test_valid_lat_lon_pair(self) -> None:
+        """Valid lat-lon-pair passes validation."""
+        from services.ai_service import _validate_geo_columns
+
+        parsed = {
+            "geo_columns": [
+                {
+                    "type": "lat-lon-pair",
+                    "lat_column": "lat",
+                    "lon_column": "lon",
+                    "table": "t",
+                    "suggested_map_type": "map-scatterplot",
+                },
+            ],
+        }
+        result = _validate_geo_columns(parsed)
+        assert len(result) == 1
+
+    def test_valid_country(self) -> None:
+        """Valid country column passes validation."""
+        from services.ai_service import _validate_geo_columns
+
+        parsed = {
+            "geo_columns": [
+                {
+                    "type": "country",
+                    "column": "country_name",
+                    "table": "t",
+                    "suggested_map_type": "map-geojson",
+                },
+            ],
+        }
+        result = _validate_geo_columns(parsed)
+        assert len(result) == 1
+
+    def test_valid_region(self) -> None:
+        """Valid region column passes validation."""
+        from services.ai_service import _validate_geo_columns
+
+        parsed = {
+            "geo_columns": [
+                {
+                    "type": "region",
+                    "column": "state",
+                    "table": "t",
+                    "suggested_map_type": "map-geojson",
+                },
+            ],
+        }
+        result = _validate_geo_columns(parsed)
+        assert len(result) == 1
+
+    def test_rejects_non_dict(self) -> None:
+        """Raises ValueError for non-dict input."""
+        from services.ai_service import _validate_geo_columns
+
+        with pytest.raises(ValueError, match="JSON object"):
+            _validate_geo_columns("not a dict")
+
+    def test_rejects_missing_geo_columns_key(self) -> None:
+        """Raises ValueError when geo_columns key is missing."""
+        from services.ai_service import _validate_geo_columns
+
+        with pytest.raises(ValueError, match="geo_columns"):
+            _validate_geo_columns({"other": []})
+
+    def test_empty_geo_columns_is_valid(self) -> None:
+        """Empty geo_columns list is valid (dataset may have no geo data)."""
+        from services.ai_service import _validate_geo_columns
+
+        result = _validate_geo_columns({"geo_columns": []})
+        assert result == []
+
+    def test_filters_non_dict_items(self) -> None:
+        """Non-dict items in the array are skipped."""
+        from services.ai_service import _validate_geo_columns
+
+        parsed = {
+            "geo_columns": [
+                "not a dict",
+                {
+                    "type": "country",
+                    "column": "country",
+                    "table": "t",
+                    "suggested_map_type": "map-geojson",
+                },
+            ],
+        }
+        result = _validate_geo_columns(parsed)
+        assert len(result) == 1
+
+    def test_filters_missing_table(self) -> None:
+        """Entries without table field are filtered out."""
+        from services.ai_service import _validate_geo_columns
+
+        parsed = {
+            "geo_columns": [
+                {
+                    "type": "country",
+                    "column": "country",
+                    "suggested_map_type": "map-geojson",
+                },
+            ],
+        }
+        result = _validate_geo_columns(parsed)
+        assert len(result) == 0

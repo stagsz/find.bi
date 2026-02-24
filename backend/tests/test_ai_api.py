@@ -1610,3 +1610,230 @@ class TestDeckEndpoint:
 
         assert resp.status_code == 404
         assert "Workspace not found" in resp.json()["detail"]
+
+
+# --- POST /api/ai/geo-columns ---
+
+
+def _create_duckdb_with_geo_table(db_path: str) -> None:
+    """Create a DuckDB file with a table containing geographic columns."""
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    conn = duckdb.connect(db_path)
+    conn.execute(
+        "CREATE TABLE locations ("
+        "  city VARCHAR, latitude DOUBLE, longitude DOUBLE,"
+        "  country VARCHAR, population INTEGER"
+        ")"
+    )
+    conn.execute(
+        "INSERT INTO locations VALUES "
+        "('Stockholm', 59.3293, 18.0686, 'Sweden', 975000), "
+        "('Oslo', 59.9139, 10.7522, 'Norway', 694000), "
+        "('Helsinki', 60.1699, 24.9384, 'Finland', 656000)"
+    )
+    conn.close()
+
+
+class TestGeoColumnsEndpoint:
+    """Tests for POST /api/ai/geo-columns."""
+
+    def test_requires_authentication(self, client: TestClient) -> None:
+        """Returns 422 without auth header."""
+        resp = client.post(
+            "/api/ai/geo-columns",
+            json={"workspace_id": "x"},
+        )
+        assert resp.status_code == 422
+
+    def test_invalid_auth_token(self, client: TestClient) -> None:
+        """Returns 401 with an invalid token."""
+        resp = client.post(
+            "/api/ai/geo-columns",
+            json={"workspace_id": "x"},
+            headers={"Authorization": "Bearer invalid-token"},
+        )
+        assert resp.status_code == 401
+
+    def test_workspace_not_found(self, client: TestClient) -> None:
+        """Returns 404 for non-existent workspace."""
+        token = _register_and_login(client, "geo1@test.com")
+        resp = client.post(
+            "/api/ai/geo-columns",
+            json={
+                "workspace_id": "00000000-0000-0000-0000-000000000000",
+            },
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+        assert "Workspace not found" in resp.json()["detail"]
+
+    def test_no_tables_in_workspace(self, client: TestClient) -> None:
+        """Returns 400 when workspace has no data tables."""
+        token = _register_and_login(client, "geo2@test.com")
+        workspace_id = _get_workspace_id(client, token)
+        resp = client.post(
+            "/api/ai/geo-columns",
+            json={"workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 400
+        assert "No data tables" in resp.json()["detail"]
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_detect_geo_columns")
+    def test_returns_geo_columns(
+        self,
+        mock_detect: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Returns detected geo columns on success."""
+        mock_detect.return_value = {
+            "geo_columns": [
+                {
+                    "type": "lat-lon-pair",
+                    "lat_column": "latitude",
+                    "lon_column": "longitude",
+                    "table": "locations",
+                    "suggested_map_type": "map-scatterplot",
+                },
+                {
+                    "type": "country",
+                    "column": "country",
+                    "table": "locations",
+                    "suggested_map_type": "map-geojson",
+                },
+            ],
+        }
+
+        token = _register_and_login(client, "geo3@test.com")
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_geo_table(db_path)
+
+        resp = client.post(
+            "/api/ai/geo-columns",
+            json={"workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "geo_columns" in data
+        assert len(data["geo_columns"]) == 2
+        assert data["geo_columns"][0]["type"] == "lat-lon-pair"
+        assert data["geo_columns"][0]["lat_column"] == "latitude"
+        assert data["geo_columns"][1]["type"] == "country"
+        assert data["geo_columns"][1]["column"] == "country"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_detect_geo_columns")
+    def test_returns_empty_geo_columns(
+        self,
+        mock_detect: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Returns empty list when no geo columns detected."""
+        mock_detect.return_value = {"geo_columns": []}
+
+        token = _register_and_login(client, "geo4@test.com")
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/geo-columns",
+            json={"workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        assert resp.json()["geo_columns"] == []
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_detect_geo_columns")
+    def test_passes_schema_to_service(
+        self,
+        mock_detect: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Verifies schema and sample rows are passed to detect_geo_columns."""
+        mock_detect.return_value = {"geo_columns": []}
+
+        token = _register_and_login(client, "geo5@test.com")
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_geo_table(db_path)
+
+        client.post(
+            "/api/ai/geo-columns",
+            json={"workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+
+        mock_detect.assert_called_once()
+        call_args = mock_detect.call_args
+        schema_arg = call_args[0][0]
+        sample_rows_arg = call_args[0][1]
+
+        assert len(schema_arg) == 1
+        assert schema_arg[0]["table_name"] == "locations"
+        assert "locations" in sample_rows_arg
+        assert len(sample_rows_arg["locations"]) == 3
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_detect_geo_columns")
+    def test_handles_service_error(
+        self,
+        mock_detect: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Returns 502 when AI service raises ValueError."""
+        mock_detect.side_effect = ValueError("Claude API error: rate limited")
+
+        token = _register_and_login(client, "geo6@test.com")
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_geo_table(db_path)
+
+        resp = client.post(
+            "/api/ai/geo-columns",
+            json={"workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 502
+        assert "Claude API error" in resp.json()["detail"]
+
+    def test_other_user_cannot_access_workspace(
+        self, client: TestClient,
+    ) -> None:
+        """Returns 404 when trying to use another user's workspace."""
+        token_a = _register_and_login(client, "geoA@test.com")
+        token_b = _register_and_login(client, "geoB@test.com")
+
+        workspace_id_a = _get_workspace_id(client, token_a)
+
+        resp = client.post(
+            "/api/ai/geo-columns",
+            json={"workspace_id": workspace_id_a},
+            headers=_auth_headers(token_b),
+        )
+
+        assert resp.status_code == 404
+        assert "Workspace not found" in resp.json()["detail"]

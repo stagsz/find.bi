@@ -133,6 +133,12 @@ Rules:
 VALID_INSIGHT_TYPES: set[str] = {"trend", "anomaly", "correlation", "outlier"}
 VALID_SEVERITY_LEVELS: set[str] = {"info", "warning", "important"}
 
+# Geo column detection constants
+VALID_GEO_COLUMN_TYPES: set[str] = {"lat-lon-pair", "country", "region"}
+VALID_MAP_TYPES: set[str] = {
+    "map-scatterplot", "map-hexagon", "map-heatmap", "map-arc", "map-geojson",
+}
+
 INSIGHTS_SYSTEM_PROMPT = """\
 You are a data analyst assistant for a Business Intelligence application.
 Given a database schema and sample data, generate actionable insights about
@@ -156,6 +162,61 @@ Rules:
 - Each insight must reference real table and column names from the schema.
 - Use "important" severity sparingly — only for critical findings.
 - Metrics should contain numeric values that support the insight.
+"""
+
+GEO_COLUMNS_SYSTEM_PROMPT = """\
+You are a geographic data analysis assistant for a Business Intelligence
+application. Given a database schema and sample data, identify columns that
+contain geographic data.
+
+Return ONLY valid JSON with this structure:
+{
+  "geo_columns": [
+    {
+      "type": "lat-lon-pair",
+      "lat_column": "column_name",
+      "lon_column": "column_name",
+      "table": "table_name",
+      "suggested_map_type": "map-scatterplot"
+    },
+    {
+      "type": "country",
+      "column": "column_name",
+      "table": "table_name",
+      "suggested_map_type": "map-geojson"
+    },
+    {
+      "type": "region",
+      "column": "column_name",
+      "table": "table_name",
+      "suggested_map_type": "map-geojson"
+    }
+  ]
+}
+
+Types:
+- "lat-lon-pair": Two numeric columns that form a latitude/longitude pair.
+  Include "lat_column" and "lon_column" fields.
+  Suggested map type: "map-scatterplot" (or "map-hexagon"/"map-heatmap" for
+  large datasets).
+- "country": A string column containing country names or ISO country codes.
+  Include "column" field.
+  Suggested map type: "map-geojson".
+- "region": A string column containing state/province names or region codes.
+  Include "column" field.
+  Suggested map type: "map-geojson".
+
+Rules:
+- Return ONLY valid JSON, no explanation, no markdown fences.
+- Only identify columns that clearly contain geographic data based on column
+  names AND sample values.
+- For lat-lon pairs, verify: latitude values range [-90, 90], longitude values
+  range [-180, 180].
+- For country/region columns, verify sample values look like real place names
+  or codes.
+- If no geographic columns are found, return {"geo_columns": []}.
+- Each entry must reference real table and column names from the provided
+  schema.
 """
 
 
@@ -967,3 +1028,113 @@ def generate_plot_spec(
         explanation = ""
 
     return {"spec": spec, "explanation": explanation}
+
+
+def _validate_geo_columns(parsed: Any) -> list[dict[str, Any]]:
+    """Validate and sanitize geo column detection results.
+
+    Returns a list of valid geo column dicts. Returns an empty list if
+    no valid entries are found (this is not an error — a dataset may have
+    no geographic columns).
+    """
+    if not isinstance(parsed, dict):
+        raise ValueError("Geo column response must be a JSON object")
+
+    geo_columns = parsed.get("geo_columns")
+    if not isinstance(geo_columns, list):
+        raise ValueError("Response must contain a 'geo_columns' array")
+
+    valid: list[dict[str, Any]] = []
+    for item in geo_columns:
+        if not isinstance(item, dict):
+            continue
+        col_type = item.get("type")
+        if not isinstance(col_type, str) or col_type not in VALID_GEO_COLUMN_TYPES:
+            continue
+        table = item.get("table")
+        if not isinstance(table, str) or not table.strip():
+            continue
+        suggested = item.get("suggested_map_type")
+        if not isinstance(suggested, str) or suggested not in VALID_MAP_TYPES:
+            continue
+
+        if col_type == "lat-lon-pair":
+            lat_col = item.get("lat_column")
+            lon_col = item.get("lon_column")
+            if not isinstance(lat_col, str) or not lat_col.strip():
+                continue
+            if not isinstance(lon_col, str) or not lon_col.strip():
+                continue
+        else:
+            column = item.get("column")
+            if not isinstance(column, str) or not column.strip():
+                continue
+
+        valid.append(item)
+
+    return valid
+
+
+def detect_geo_columns(
+    schema: list[dict[str, Any]],
+    sample_rows: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    """Detect geographic columns in the dataset using Claude.
+
+    Parameters
+    ----------
+    schema:
+        List of table metadata dicts, each with ``table_name``, ``columns``
+        (list of ``{name, type}``), and ``row_count``.
+    sample_rows:
+        Dict mapping table names to lists of sample row dicts (max 50 each).
+
+    Returns
+    -------
+    dict with keys:
+        ``geo_columns`` — list of validated geo column dicts. Each dict has
+        ``type``, ``table``, ``suggested_map_type``, and either
+        ``lat_column``/``lon_column`` (for lat-lon pairs) or ``column``
+        (for country/region).
+
+    Raises
+    ------
+    ValueError
+        If the API key is missing, the API call fails, or the response
+        is not valid JSON.
+    """
+    client = _get_client()
+    schema_context = _build_schema_context(schema, sample_rows)
+
+    user_message = (
+        f"Database schema and sample data:\n{schema_context}\n"
+        "Identify any geographic columns in this data. "
+        "Return only the JSON object."
+    )
+
+    try:
+        response = client.messages.create(
+            model=_get_model(),
+            max_tokens=2048,
+            system=GEO_COLUMNS_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_message}],
+        )
+    except anthropic.APIError as exc:
+        raise ValueError(f"Claude API error: {exc}") from exc
+
+    raw = ""
+    for block in response.content:
+        if block.type == "text":
+            raw = block.text.strip()
+            break
+
+    raw = _extract_json(raw)
+
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Claude returned invalid JSON: {exc}") from exc
+
+    geo_columns = _validate_geo_columns(parsed)
+
+    return {"geo_columns": geo_columns}

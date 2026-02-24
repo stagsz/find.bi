@@ -15,6 +15,7 @@ from models.insight_cache import InsightCache
 from models.user import User
 from models.workspace import Workspace
 from services.ai_service import chat as ai_chat
+from services.ai_service import detect_geo_columns as ai_detect_geo_columns
 from services.ai_service import generate_deck as ai_generate_deck
 from services.ai_service import generate_insights, text_to_sql
 from services.duckdb_service import list_tables
@@ -402,4 +403,62 @@ def deck_endpoint(
         deck_title=result["deck_title"],
         summary=result["summary"],
         slides=[DeckSlide(**s) for s in result["slides"]],
+    )
+
+
+class GeoColumnsRequest(BaseModel):
+    workspace_id: str
+
+
+class GeoColumnItem(BaseModel):
+    type: str
+    table: str
+    suggested_map_type: str
+    lat_column: str | None = None
+    lon_column: str | None = None
+    column: str | None = None
+
+
+class GeoColumnsResponse(BaseModel):
+    geo_columns: list[GeoColumnItem]
+
+
+@router.post("/geo-columns", response_model=GeoColumnsResponse)
+def geo_columns_endpoint(
+    body: GeoColumnsRequest,
+    user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> GeoColumnsResponse:
+    """Detect geographic columns in workspace data using Claude AI.
+
+    Fetches the workspace schema and sample rows from DuckDB, sends
+    them to Claude for geo-column analysis, and returns detected
+    geographic columns with suggested map types.
+    """
+    db_path = _get_workspace_db_path(body.workspace_id, user, db)
+
+    if os.path.isfile(db_path):
+        try:
+            schema = list_tables(db_path)
+        except ValueError:
+            schema = []
+    else:
+        schema = []
+
+    if not schema:
+        raise HTTPException(
+            status_code=400,
+            detail="No data tables found in workspace. Upload data first.",
+        )
+
+    table_names = [t["table_name"] for t in schema]
+    sample_rows = _fetch_sample_rows(db_path, table_names)
+
+    try:
+        result = ai_detect_geo_columns(schema, sample_rows)
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+    return GeoColumnsResponse(
+        geo_columns=[GeoColumnItem(**gc) for gc in result["geo_columns"]],
     )
