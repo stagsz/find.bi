@@ -1,4 +1,5 @@
 import { useLocation } from "react-router-dom";
+import VoiceStatusIndicator from "@/components/voice/VoiceStatusIndicator";
 
 const pageTitles: Record<string, string> = {
   "/": "Home",
@@ -14,8 +15,11 @@ function TopBar() {
     (location.pathname.startsWith("/dashboard") ? "Dashboard" : "find.bi");
 
   return (
-    <header className="flex items-center h-14 px-4 bg-white border-b border-gray-200">
-      <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
+    <header className="flex items-center justify-between h-14 px-4 border-b border-[#2A2A2A] bg-[#141414]">
+      <h2 className="text-sm font-semibold tracking-wide text-[#F0EDE4]">
+        {title}
+      </h2>
+      <VoiceStatusIndicator />
     </header>
   );
 }

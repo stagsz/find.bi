@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { DuckDBProvider } from "@/hooks/useDuckDB";
+import { VoiceProvider } from "@/contexts/VoiceContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
@@ -37,31 +38,33 @@ function AppLayout() {
 
   return (
     <DuckDBProvider>
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed((c) => !c)}
-        />
-        <div className="flex flex-col flex-1 min-w-0">
-          <TopBar />
-          <main className="flex flex-1 overflow-hidden">
-            <div className="flex-1 overflow-auto">
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/dashboards/:id" element={<DashboardPage />} />
-                <Route path="/dashboards" element={<DashboardListPage />} />
-                <Route path="/editor" element={<EditorPage />} />
-                <Route path="/upload" element={<UploadPage />} />
-              </Routes>
-            </div>
-            <ChatPanel
-              workspaceId={workspaceId}
-              open={chatOpen}
-              onToggle={handleChatToggle}
-            />
-          </main>
+      <VoiceProvider>
+        <div className="flex h-screen bg-[#0E0E0E]">
+          <Sidebar
+            collapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed((c) => !c)}
+          />
+          <div className="flex flex-col flex-1 min-w-0">
+            <TopBar />
+            <main className="flex flex-1 overflow-hidden">
+              <div className="flex-1 overflow-auto">
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/dashboards/:id" element={<DashboardPage />} />
+                  <Route path="/dashboards" element={<DashboardListPage />} />
+                  <Route path="/editor" element={<EditorPage />} />
+                  <Route path="/upload" element={<UploadPage />} />
+                </Routes>
+              </div>
+              <ChatPanel
+                workspaceId={workspaceId}
+                open={chatOpen}
+                onToggle={handleChatToggle}
+              />
+            </main>
+          </div>
         </div>
-      </div>
+      </VoiceProvider>
     </DuckDBProvider>
   );
 }

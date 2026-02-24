@@ -1,7 +1,36 @@
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import TopBar from "./TopBar";
+
+// ─── Mock VoiceContext (used by VoiceStatusIndicator) ───────────────
+
+vi.mock("@/contexts/VoiceContext", () => ({
+  useVoiceContext: () => ({
+    voice: {
+      status: "idle",
+      isConnected: false,
+      isRecording: false,
+      isPlaying: false,
+      transcript: "",
+      responseText: "",
+      error: null,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      startRecording: vi.fn(),
+      stopRecording: vi.fn(),
+    },
+    wakeWord: {
+      isListening: false,
+      isSupported: true,
+      enable: vi.fn(),
+      disable: vi.fn(),
+      toggle: vi.fn(),
+    },
+    wakeWordEnabled: false,
+    setWakeWordEnabled: vi.fn(),
+  }),
+}));
 
 function renderTopBar(route = "/") {
   return render(
@@ -30,5 +59,10 @@ describe("TopBar", () => {
   it("shows Dashboard title on dashboard route", () => {
     renderTopBar("/dashboard/abc-123");
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
+  });
+
+  it("does not show voice indicator when idle", () => {
+    renderTopBar("/");
+    expect(screen.queryByTestId("voice-status-indicator")).not.toBeInTheDocument();
   });
 });
