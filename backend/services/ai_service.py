@@ -1,5 +1,6 @@
 """AI service: Claude API client for text-to-SQL and related AI features."""
 
+import json
 import os
 from typing import Any
 
@@ -69,6 +70,59 @@ Rules:
 - Limit results to 1000 rows unless the user asks for a specific count.
 - Do NOT use INSERT, UPDATE, DELETE, DROP, ALTER, or any DDL/DML statements.
   Only SELECT queries are allowed.
+"""
+
+# Mark types supported by the frontend PlotRenderer (must stay in sync).
+SUPPORTED_MARK_TYPES: set[str] = {
+    "area", "areaX", "areaY", "barX", "barY",
+    "cell", "cellX", "cellY",
+    "dot", "dotX", "dotY",
+    "frame",
+    "line", "lineX", "lineY",
+    "link",
+    "rect", "rectX", "rectY",
+    "ruleX", "ruleY",
+    "text", "textX", "textY",
+    "tickX", "tickY",
+    "tip",
+}
+
+PLOT_SYSTEM_PROMPT = """\
+You are a data visualisation assistant for a Business Intelligence application.
+Given a user question and the result of a SQL query, generate an Observable Plot
+chart specification as JSON.
+
+The specification must follow this exact structure:
+{
+  "marks": [
+    {
+      "type": "<mark_type>",
+      "data": [ ... ],
+      "options": { "x": "<column>", "y": "<column>", ... }
+    }
+  ],
+  "width": 640,
+  "height": 400,
+  "x": { "label": "X Axis Label" },
+  "y": { "label": "Y Axis Label" }
+}
+
+Supported mark types:
+  area, areaX, areaY, barX, barY, cell, cellX, cellY,
+  dot, dotX, dotY, frame, line, lineX, lineY, link,
+  rect, rectX, rectY, ruleX, ruleY, text, textX, textY,
+  tickX, tickY, tip
+
+Rules:
+- Return ONLY valid JSON, no explanation, no markdown fences.
+- Choose the most appropriate mark type for the data and question.
+- Embed the full query result rows in the mark's "data" array.
+- Use column names from the query result as keys in "options" (x, y, fill, etc.).
+- Keep the spec minimal — only include options that are needed.
+- For categorical comparisons use barY or barX.
+- For trends over time use line.
+- For distributions use dot or rect.
+- For parts of a whole, consider cell or barY with stacking.
 """
 
 
@@ -156,3 +210,157 @@ def text_to_sql(
         explanation = ""
 
     return {"sql": sql, "explanation": explanation}
+
+
+def _extract_json(text: str) -> str:
+    """Strip markdown code fences from a JSON string if present."""
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.split("\n")
+        lines = [ln for ln in lines if not ln.strip().startswith("```")]
+        text = "\n".join(lines).strip()
+    return text
+
+
+def _validate_plot_spec(spec: Any) -> dict[str, Any]:
+    """Validate and sanitize a Plot spec dict.
+
+    Raises ValueError if the spec is fundamentally invalid.
+    Removes marks with unsupported types.
+    """
+    if not isinstance(spec, dict):
+        raise ValueError("Plot spec must be a JSON object")
+
+    marks = spec.get("marks")
+    if not isinstance(marks, list) or len(marks) == 0:
+        raise ValueError("Plot spec must contain a non-empty 'marks' array")
+
+    valid_marks: list[dict[str, Any]] = []
+    for mark in marks:
+        if not isinstance(mark, dict):
+            continue
+        mark_type = mark.get("type")
+        if not isinstance(mark_type, str):
+            continue
+        if mark_type not in SUPPORTED_MARK_TYPES:
+            continue
+        valid_marks.append(mark)
+
+    if len(valid_marks) == 0:
+        raise ValueError(
+            "Plot spec contains no marks with supported types. "
+            f"Supported: {sorted(SUPPORTED_MARK_TYPES)}"
+        )
+
+    spec["marks"] = valid_marks
+    return spec
+
+
+def generate_plot_spec(
+    question: str,
+    query_result: dict[str, Any],
+) -> dict[str, Any]:
+    """Generate an Observable Plot spec from a query result using Claude.
+
+    Parameters
+    ----------
+    question:
+        The user's original natural language question.
+    query_result:
+        Dict with ``columns`` (list of column name strings) and ``rows``
+        (list of row lists, where each inner list has values positionally
+        matching the columns).
+
+    Returns
+    -------
+    dict with keys:
+        ``spec`` — the validated Observable Plot spec dict.
+        ``explanation`` — a brief description of the generated chart.
+
+    Raises
+    ------
+    ValueError
+        If the API key is missing, the API call fails, or the response
+        is not valid JSON / a valid Plot spec.
+    """
+    client = _get_client()
+
+    columns: list[str] = query_result.get("columns", [])
+    rows: list[list[Any]] = query_result.get("rows", [])
+
+    # Convert columnar rows into list-of-dicts for Claude
+    row_dicts = [dict(zip(columns, row)) for row in rows]
+
+    # Build data context — show columns + first few sample rows
+    sample = row_dicts[:10]
+    data_context = (
+        f"Columns: {columns}\n"
+        f"Total rows: {len(row_dicts)}\n"
+        f"Sample rows (first {len(sample)}):\n"
+    )
+    for row in sample:
+        data_context += f"  {row}\n"
+
+    user_message = (
+        f"Question: {question}\n\n"
+        f"Query result:\n{data_context}\n"
+        f"Full data ({len(row_dicts)} rows) is available — embed all rows "
+        f"in the mark's data array.\n\n"
+        f"Generate the Observable Plot spec JSON."
+    )
+
+    try:
+        response = client.messages.create(
+            model=_get_model(),
+            max_tokens=4096,
+            system=PLOT_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_message}],
+        )
+    except anthropic.APIError as exc:
+        raise ValueError(f"Claude API error: {exc}") from exc
+
+    raw = ""
+    for block in response.content:
+        if block.type == "text":
+            raw = block.text.strip()
+            break
+
+    raw = _extract_json(raw)
+
+    try:
+        spec = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Claude returned invalid JSON: {exc}") from exc
+
+    spec = _validate_plot_spec(spec)
+
+    # Inject full row data into marks that don't already have it
+    for mark in spec["marks"]:
+        if not mark.get("data"):
+            mark["data"] = row_dicts
+
+    # Generate explanation in a second lightweight call
+    try:
+        explain_response = client.messages.create(
+            model=_get_model(),
+            max_tokens=256,
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"Briefly explain in one sentence what this chart "
+                        f"shows:\nQuestion: {question}\n"
+                        f"Chart type: {spec['marks'][0]['type']}"
+                    ),
+                },
+            ],
+        )
+        explanation = ""
+        for block in explain_response.content:
+            if block.type == "text":
+                explanation = block.text.strip()
+                break
+    except anthropic.APIError:
+        explanation = ""
+
+    return {"spec": spec, "explanation": explanation}

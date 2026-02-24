@@ -1,5 +1,6 @@
-"""Tests for AI service: text_to_sql with mocked Anthropic API."""
+"""Tests for AI service: text_to_sql and generate_plot_spec."""
 
+import json
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -406,3 +407,418 @@ class TestGetClient:
 
         _get_client()
         mock_anthropic_cls.assert_called_once_with(api_key="sk-ant-test")
+
+
+# ---------------------------------------------------------------------------
+# Query result fixtures for generate_plot_spec tests
+# ---------------------------------------------------------------------------
+
+QUERY_RESULT: dict[str, Any] = {
+    "columns": ["region", "revenue"],
+    "rows": [
+        ["North", 1500.0],
+        ["South", 2300.0],
+        ["East", 1800.0],
+    ],
+}
+
+VALID_PLOT_SPEC_JSON = json.dumps({
+    "marks": [
+        {
+            "type": "barY",
+            "data": [
+                {"region": "North", "revenue": 1500.0},
+                {"region": "South", "revenue": 2300.0},
+                {"region": "East", "revenue": 1800.0},
+            ],
+            "options": {"x": "region", "y": "revenue"},
+        },
+    ],
+    "width": 640,
+    "height": 400,
+    "x": {"label": "Region"},
+    "y": {"label": "Revenue"},
+})
+
+
+# ---------------------------------------------------------------------------
+# generate_plot_spec tests
+# ---------------------------------------------------------------------------
+
+
+class TestGeneratePlotSpec:
+    """Tests for the generate_plot_spec function."""
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_returns_spec_and_explanation(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """generate_plot_spec returns dict with spec and explanation."""
+        from services.ai_service import generate_plot_spec
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.side_effect = [
+            _mock_response(VALID_PLOT_SPEC_JSON),
+            _mock_response("Bar chart showing revenue by region."),
+        ]
+
+        result = generate_plot_spec(
+            "What is revenue by region?", QUERY_RESULT,
+        )
+
+        assert "spec" in result
+        assert "explanation" in result
+        assert result["spec"]["marks"][0]["type"] == "barY"
+        assert result["explanation"] != ""
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_strips_markdown_fences_from_json(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Markdown code fences around JSON are stripped."""
+        from services.ai_service import generate_plot_spec
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        fenced = f"```json\n{VALID_PLOT_SPEC_JSON}\n```"
+        mock_client.messages.create.side_effect = [
+            _mock_response(fenced),
+            _mock_response("A bar chart."),
+        ]
+
+        result = generate_plot_spec("revenue by region", QUERY_RESULT)
+
+        assert result["spec"]["marks"][0]["type"] == "barY"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_filters_unsupported_mark_types(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Marks with unsupported types are removed from the spec."""
+        from services.ai_service import generate_plot_spec
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        spec_with_bad_mark = json.dumps({
+            "marks": [
+                {
+                    "type": "barY", "data": [],
+                    "options": {"x": "region", "y": "revenue"},
+                },
+                {"type": "invalidMark", "data": [], "options": {}},
+            ],
+        })
+        mock_client.messages.create.side_effect = [
+            _mock_response(spec_with_bad_mark),
+            _mock_response("A bar chart."),
+        ]
+
+        result = generate_plot_spec("test", QUERY_RESULT)
+
+        assert len(result["spec"]["marks"]) == 1
+        assert result["spec"]["marks"][0]["type"] == "barY"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_raises_when_all_marks_unsupported(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Raises ValueError when no marks have supported types."""
+        from services.ai_service import generate_plot_spec
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        spec_all_bad = json.dumps({
+            "marks": [{"type": "unknownType", "data": [], "options": {}}],
+        })
+        mock_client.messages.create.side_effect = [
+            _mock_response(spec_all_bad),
+        ]
+
+        with pytest.raises(ValueError, match="no marks with supported types"):
+            generate_plot_spec("test", QUERY_RESULT)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_raises_on_invalid_json(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Raises ValueError when Claude returns non-JSON."""
+        from services.ai_service import generate_plot_spec
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.side_effect = [
+            _mock_response("This is not valid JSON at all"),
+        ]
+
+        with pytest.raises(ValueError, match="invalid JSON"):
+            generate_plot_spec("test", QUERY_RESULT)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_raises_when_marks_missing(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Raises ValueError when spec has no marks array."""
+        from services.ai_service import generate_plot_spec
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.side_effect = [
+            _mock_response(json.dumps({"width": 640})),
+        ]
+
+        with pytest.raises(ValueError, match="non-empty 'marks' array"):
+            generate_plot_spec("test", QUERY_RESULT)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""})
+    def test_raises_without_api_key(self) -> None:
+        """Raises ValueError when API key is not set."""
+        from services.ai_service import generate_plot_spec
+
+        with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
+            generate_plot_spec("any question", QUERY_RESULT)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_raises_on_api_error(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Raises ValueError when Claude API returns an error."""
+        import anthropic as anthropic_mod
+
+        from services.ai_service import generate_plot_spec
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.side_effect = anthropic_mod.APIError(
+            message="rate limited",
+            request=MagicMock(),
+            body=None,
+        )
+
+        with pytest.raises(ValueError, match="Claude API error"):
+            generate_plot_spec("any question", QUERY_RESULT)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_sends_plot_system_prompt(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Verifies the Plot system prompt is sent."""
+        from services.ai_service import generate_plot_spec
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.side_effect = [
+            _mock_response(VALID_PLOT_SPEC_JSON),
+            _mock_response("A chart."),
+        ]
+
+        generate_plot_spec("revenue by region", QUERY_RESULT)
+
+        call_args = mock_client.messages.create.call_args_list[0]
+        system = call_args.kwargs["system"]
+        assert "Observable Plot" in system
+        assert "mark" in system.lower()
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_includes_query_data_in_prompt(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Verifies column names and sample data appear in the prompt."""
+        from services.ai_service import generate_plot_spec
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.side_effect = [
+            _mock_response(VALID_PLOT_SPEC_JSON),
+            _mock_response("A chart."),
+        ]
+
+        generate_plot_spec("revenue by region", QUERY_RESULT)
+
+        call_args = mock_client.messages.create.call_args_list[0]
+        user_content = call_args.kwargs["messages"][0]["content"]
+        assert "region" in user_content
+        assert "revenue" in user_content
+        assert "North" in user_content
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_injects_data_into_empty_marks(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Marks without data get the full query result injected."""
+        from services.ai_service import generate_plot_spec
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        spec_no_data = json.dumps({
+            "marks": [
+                {"type": "barY", "options": {"x": "region", "y": "revenue"}},
+            ],
+        })
+        mock_client.messages.create.side_effect = [
+            _mock_response(spec_no_data),
+            _mock_response("A chart."),
+        ]
+
+        result = generate_plot_spec("revenue by region", QUERY_RESULT)
+
+        mark_data = result["spec"]["marks"][0]["data"]
+        assert len(mark_data) == 3
+        assert mark_data[0]["region"] == "North"
+        assert mark_data[1]["revenue"] == 2300.0
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_explanation_empty_on_second_call_error(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Explanation is empty if the second API call fails."""
+        import anthropic as anthropic_mod
+
+        from services.ai_service import generate_plot_spec
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.side_effect = [
+            _mock_response(VALID_PLOT_SPEC_JSON),
+            anthropic_mod.APIError(
+                message="server error",
+                request=MagicMock(),
+                body=None,
+            ),
+        ]
+
+        result = generate_plot_spec("revenue by region", QUERY_RESULT)
+
+        assert result["spec"]["marks"][0]["type"] == "barY"
+        assert result["explanation"] == ""
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_handles_empty_query_result(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Works with an empty query result (no rows)."""
+        from services.ai_service import generate_plot_spec
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        empty_spec = json.dumps({
+            "marks": [{"type": "barY", "data": [], "options": {"x": "a", "y": "b"}}],
+        })
+        mock_client.messages.create.side_effect = [
+            _mock_response(empty_spec),
+            _mock_response("Empty chart."),
+        ]
+
+        result = generate_plot_spec("test", {"columns": [], "rows": []})
+
+        assert result["spec"]["marks"][0]["type"] == "barY"
+
+
+# ---------------------------------------------------------------------------
+# _validate_plot_spec tests
+# ---------------------------------------------------------------------------
+
+
+class TestValidatePlotSpec:
+    """Tests for the Plot spec validator."""
+
+    def test_valid_spec_passes(self) -> None:
+        """A valid spec passes validation unchanged."""
+        from services.ai_service import _validate_plot_spec
+
+        spec = {"marks": [{"type": "barY", "data": [], "options": {}}]}
+        result = _validate_plot_spec(spec)
+        assert len(result["marks"]) == 1
+
+    def test_rejects_non_dict(self) -> None:
+        """Raises ValueError for non-dict spec."""
+        from services.ai_service import _validate_plot_spec
+
+        with pytest.raises(ValueError, match="JSON object"):
+            _validate_plot_spec("not a dict")
+
+    def test_rejects_missing_marks(self) -> None:
+        """Raises ValueError when marks key is missing."""
+        from services.ai_service import _validate_plot_spec
+
+        with pytest.raises(ValueError, match="non-empty 'marks' array"):
+            _validate_plot_spec({"width": 640})
+
+    def test_rejects_empty_marks(self) -> None:
+        """Raises ValueError when marks array is empty."""
+        from services.ai_service import _validate_plot_spec
+
+        with pytest.raises(ValueError, match="non-empty 'marks' array"):
+            _validate_plot_spec({"marks": []})
+
+    def test_filters_unsupported_types(self) -> None:
+        """Unsupported mark types are removed."""
+        from services.ai_service import _validate_plot_spec
+
+        spec = {
+            "marks": [
+                {"type": "dot", "data": []},
+                {"type": "fakeType", "data": []},
+            ],
+        }
+        result = _validate_plot_spec(spec)
+        assert len(result["marks"]) == 1
+        assert result["marks"][0]["type"] == "dot"
+
+    def test_rejects_all_unsupported(self) -> None:
+        """Raises ValueError when all mark types are unsupported."""
+        from services.ai_service import _validate_plot_spec
+
+        with pytest.raises(ValueError, match="no marks with supported types"):
+            _validate_plot_spec({"marks": [{"type": "bad"}]})
+
+    def test_skips_non_dict_marks(self) -> None:
+        """Non-dict entries in marks array are skipped."""
+        from services.ai_service import _validate_plot_spec
+
+        spec = {"marks": ["not a dict", {"type": "line", "data": []}]}
+        result = _validate_plot_spec(spec)
+        assert len(result["marks"]) == 1
+        assert result["marks"][0]["type"] == "line"
+
+
+# ---------------------------------------------------------------------------
+# _extract_json tests
+# ---------------------------------------------------------------------------
+
+
+class TestExtractJson:
+    """Tests for the JSON extraction helper."""
+
+    def test_plain_json_unchanged(self) -> None:
+        """Plain JSON string is returned unchanged."""
+        from services.ai_service import _extract_json
+
+        raw = '{"marks": []}'
+        assert _extract_json(raw) == raw
+
+    def test_strips_json_fences(self) -> None:
+        """```json fences are stripped."""
+        from services.ai_service import _extract_json
+
+        raw = '```json\n{"marks": []}\n```'
+        assert _extract_json(raw) == '{"marks": []}'
+
+    def test_strips_plain_fences(self) -> None:
+        """Plain ``` fences are stripped."""
+        from services.ai_service import _extract_json
+
+        raw = '```\n{"marks": []}\n```'
+        assert _extract_json(raw) == '{"marks": []}'
