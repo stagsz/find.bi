@@ -1837,3 +1837,125 @@ class TestGeoColumnsEndpoint:
 
         assert resp.status_code == 404
         assert "Workspace not found" in resp.json()["detail"]
+
+
+# --- POST /api/ai/classify-intent ---
+
+
+class TestClassifyIntentEndpoint:
+    """Tests for POST /api/ai/classify-intent."""
+
+    def test_requires_authentication(self, client: TestClient) -> None:
+        """Returns 422 without auth header."""
+        resp = client.post(
+            "/api/ai/classify-intent",
+            json={"transcript": "What is revenue?"},
+        )
+        assert resp.status_code in (401, 422)
+
+    def test_empty_transcript_returns_400(self, client: TestClient) -> None:
+        """Returns 400 for empty transcript."""
+        token = _register_and_login(client)
+
+        resp = client.post(
+            "/api/ai/classify-intent",
+            json={"transcript": ""},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 400
+        assert "Transcript is required" in resp.json()["detail"]
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_classifies_query_intent(
+        self,
+        mock_anthropic_cls: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Successfully classifies a query intent."""
+        import json
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({
+                "intent": "query",
+                "confidence": 0.95,
+                "entities": {},
+            })
+        )
+
+        token = _register_and_login(client)
+
+        resp = client.post(
+            "/api/ai/classify-intent",
+            json={"transcript": "What is total revenue by region?"},
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["intent"] == "query"
+        assert data["confidence"] == 0.95
+        assert data["entities"] == {}
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_classifies_navigate_with_entities(
+        self,
+        mock_anthropic_cls: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Successfully classifies navigate intent with entities."""
+        import json
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({
+                "intent": "navigate",
+                "confidence": 0.97,
+                "entities": {"page": "sql-editor"},
+            })
+        )
+
+        token = _register_and_login(client)
+
+        resp = client.post(
+            "/api/ai/classify-intent",
+            json={"transcript": "Go to the SQL editor"},
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["intent"] == "navigate"
+        assert data["entities"]["page"] == "sql-editor"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_api_error_returns_502(
+        self,
+        mock_anthropic_cls: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Claude API error returns 502."""
+        import anthropic as _anthropic
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.side_effect = _anthropic.APIError(
+            message="Service unavailable",
+            request=MagicMock(),
+            body=None,
+        )
+
+        token = _register_and_login(client)
+
+        resp = client.post(
+            "/api/ai/classify-intent",
+            json={"transcript": "What is revenue?"},
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 502

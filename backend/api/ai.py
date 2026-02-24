@@ -15,6 +15,7 @@ from models.insight_cache import InsightCache
 from models.user import User
 from models.workspace import Workspace
 from services.ai_service import chat as ai_chat
+from services.ai_service import classify_voice_intent as ai_classify_intent
 from services.ai_service import detect_geo_columns as ai_detect_geo_columns
 from services.ai_service import generate_deck as ai_generate_deck
 from services.ai_service import generate_insights, text_to_sql
@@ -462,3 +463,34 @@ def geo_columns_endpoint(
     return GeoColumnsResponse(
         geo_columns=[GeoColumnItem(**gc) for gc in result["geo_columns"]],
     )
+
+
+class ClassifyIntentRequest(BaseModel):
+    transcript: str
+
+
+class ClassifyIntentResponse(BaseModel):
+    intent: str
+    confidence: float
+    entities: dict[str, Any] = {}
+
+
+@router.post("/classify-intent", response_model=ClassifyIntentResponse)
+def classify_intent_endpoint(
+    body: ClassifyIntentRequest,
+    user: User = Depends(get_authenticated_user),
+) -> ClassifyIntentResponse:
+    """Classify a voice transcript into an intent category using Claude AI.
+
+    Categories: query, filter, export, narrate, navigate. Returns the
+    classified intent along with a confidence score and extracted entities.
+    """
+    if not body.transcript.strip():
+        raise HTTPException(status_code=400, detail="Transcript is required")
+
+    try:
+        result = ai_classify_intent(body.transcript)
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+    return ClassifyIntentResponse(**result)

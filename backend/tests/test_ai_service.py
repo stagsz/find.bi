@@ -2697,3 +2697,384 @@ class TestValidateGeoColumns:
         }
         result = _validate_geo_columns(parsed)
         assert len(result) == 0
+
+
+# ---------------------------------------------------------------------------
+# classify_voice_intent tests
+# ---------------------------------------------------------------------------
+
+
+class TestClassifyVoiceIntent:
+    """Tests for the classify_voice_intent function."""
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_classifies_query_intent(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Classifies a data question as 'query' intent."""
+        from services.ai_service import classify_voice_intent
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({
+                "intent": "query",
+                "confidence": 0.95,
+                "entities": {},
+            })
+        )
+
+        result = classify_voice_intent("What is total revenue by region?")
+
+        assert result["intent"] == "query"
+        assert result["confidence"] == 0.95
+        assert result["entities"] == {}
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_classifies_filter_intent(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Classifies a filter command as 'filter' intent."""
+        from services.ai_service import classify_voice_intent
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({
+                "intent": "filter",
+                "confidence": 0.9,
+                "entities": {"column": "region", "value": "North"},
+            })
+        )
+
+        result = classify_voice_intent("Show only North region")
+
+        assert result["intent"] == "filter"
+        assert result["confidence"] == 0.9
+        assert result["entities"] == {"column": "region", "value": "North"}
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_classifies_export_intent(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Classifies an export request as 'export' intent."""
+        from services.ai_service import classify_voice_intent
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({
+                "intent": "export",
+                "confidence": 0.88,
+                "entities": {"format": "csv"},
+            })
+        )
+
+        result = classify_voice_intent("Export this as CSV")
+
+        assert result["intent"] == "export"
+        assert result["confidence"] == 0.88
+        assert result["entities"]["format"] == "csv"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_classifies_narrate_intent(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Classifies a narration request as 'narrate' intent."""
+        from services.ai_service import classify_voice_intent
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({
+                "intent": "narrate",
+                "confidence": 0.92,
+                "entities": {},
+            })
+        )
+
+        result = classify_voice_intent("Read me this dashboard")
+
+        assert result["intent"] == "narrate"
+        assert result["confidence"] == 0.92
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_classifies_navigate_intent(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Classifies a navigation command as 'navigate' intent."""
+        from services.ai_service import classify_voice_intent
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({
+                "intent": "navigate",
+                "confidence": 0.97,
+                "entities": {"page": "sql-editor"},
+            })
+        )
+
+        result = classify_voice_intent("Go to the SQL editor")
+
+        assert result["intent"] == "navigate"
+        assert result["confidence"] == 0.97
+        assert result["entities"]["page"] == "sql-editor"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_strips_markdown_fences(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Markdown code fences are stripped from the JSON response."""
+        from services.ai_service import classify_voice_intent
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            '```json\n{"intent": "query", "confidence": 0.9, "entities": {}}\n```'
+        )
+
+        result = classify_voice_intent("What are the top products?")
+
+        assert result["intent"] == "query"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_defaults_confidence_when_missing(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Missing confidence defaults to 0.5."""
+        from services.ai_service import classify_voice_intent
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({"intent": "query", "entities": {}})
+        )
+
+        result = classify_voice_intent("Show me sales data")
+
+        assert result["confidence"] == 0.5
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_defaults_entities_when_missing(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Missing entities defaults to empty dict."""
+        from services.ai_service import classify_voice_intent
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({"intent": "query", "confidence": 0.8})
+        )
+
+        result = classify_voice_intent("Show me sales data")
+
+        assert result["entities"] == {}
+
+    def test_empty_transcript_raises(self) -> None:
+        """Empty transcript raises ValueError."""
+        from services.ai_service import classify_voice_intent
+
+        with pytest.raises(ValueError, match="Transcript must not be empty"):
+            classify_voice_intent("")
+
+    def test_whitespace_transcript_raises(self) -> None:
+        """Whitespace-only transcript raises ValueError."""
+        from services.ai_service import classify_voice_intent
+
+        with pytest.raises(ValueError, match="Transcript must not be empty"):
+            classify_voice_intent("   ")
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""})
+    def test_missing_api_key_raises(self) -> None:
+        """Missing API key raises ValueError."""
+        from services.ai_service import classify_voice_intent
+
+        with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
+            classify_voice_intent("What is revenue?")
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_invalid_json_raises(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Invalid JSON response raises ValueError."""
+        from services.ai_service import classify_voice_intent
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            "not valid json"
+        )
+
+        with pytest.raises(ValueError, match="invalid JSON"):
+            classify_voice_intent("What is revenue?")
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_invalid_intent_category_raises(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Invalid intent category raises ValueError."""
+        from services.ai_service import classify_voice_intent
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({
+                "intent": "unknown_intent",
+                "confidence": 0.9,
+                "entities": {},
+            })
+        )
+
+        with pytest.raises(ValueError, match="Intent must be one of"):
+            classify_voice_intent("Do something weird")
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_api_error_raises(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Claude API error is converted to ValueError."""
+        import anthropic as _anthropic
+
+        from services.ai_service import classify_voice_intent
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.side_effect = _anthropic.APIError(
+            message="Service unavailable",
+            request=MagicMock(),
+            body=None,
+        )
+
+        with pytest.raises(ValueError, match="Claude API error"):
+            classify_voice_intent("What is revenue?")
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_integer_confidence_converted_to_float(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Integer confidence (e.g. 1) is converted to float."""
+        from services.ai_service import classify_voice_intent
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({
+                "intent": "query",
+                "confidence": 1,
+                "entities": {},
+            })
+        )
+
+        result = classify_voice_intent("What is total revenue?")
+
+        assert result["confidence"] == 1.0
+        assert isinstance(result["confidence"], float)
+
+
+# ---------------------------------------------------------------------------
+# _validate_intent_result tests
+# ---------------------------------------------------------------------------
+
+
+class TestValidateIntentResult:
+    """Tests for the _validate_intent_result validation function."""
+
+    def test_valid_result(self) -> None:
+        """Valid result passes validation."""
+        from services.ai_service import _validate_intent_result
+
+        result = _validate_intent_result({
+            "intent": "query",
+            "confidence": 0.95,
+            "entities": {},
+        })
+        assert result["intent"] == "query"
+        assert result["confidence"] == 0.95
+        assert result["entities"] == {}
+
+    def test_non_dict_raises(self) -> None:
+        """Non-dict input raises ValueError."""
+        from services.ai_service import _validate_intent_result
+
+        with pytest.raises(ValueError, match="JSON object"):
+            _validate_intent_result("not a dict")
+
+    def test_invalid_intent_raises(self) -> None:
+        """Invalid intent string raises ValueError."""
+        from services.ai_service import _validate_intent_result
+
+        with pytest.raises(ValueError, match="Intent must be one of"):
+            _validate_intent_result({
+                "intent": "bogus",
+                "confidence": 0.5,
+                "entities": {},
+            })
+
+    def test_missing_intent_raises(self) -> None:
+        """Missing intent key raises ValueError."""
+        from services.ai_service import _validate_intent_result
+
+        with pytest.raises(ValueError, match="Intent must be one of"):
+            _validate_intent_result({
+                "confidence": 0.5,
+                "entities": {},
+            })
+
+    def test_out_of_range_confidence_defaults(self) -> None:
+        """Out-of-range confidence defaults to 0.5."""
+        from services.ai_service import _validate_intent_result
+
+        result = _validate_intent_result({
+            "intent": "filter",
+            "confidence": 1.5,
+            "entities": {},
+        })
+        assert result["confidence"] == 0.5
+
+    def test_non_numeric_confidence_defaults(self) -> None:
+        """Non-numeric confidence defaults to 0.5."""
+        from services.ai_service import _validate_intent_result
+
+        result = _validate_intent_result({
+            "intent": "filter",
+            "confidence": "high",
+            "entities": {},
+        })
+        assert result["confidence"] == 0.5
+
+    def test_non_dict_entities_defaults(self) -> None:
+        """Non-dict entities defaults to empty dict."""
+        from services.ai_service import _validate_intent_result
+
+        result = _validate_intent_result({
+            "intent": "export",
+            "confidence": 0.8,
+            "entities": "not a dict",
+        })
+        assert result["entities"] == {}
+
+    def test_all_five_intents_valid(self) -> None:
+        """All five intent categories pass validation."""
+        from services.ai_service import _validate_intent_result
+
+        for intent in ["query", "filter", "export", "narrate", "navigate"]:
+            result = _validate_intent_result({
+                "intent": intent,
+                "confidence": 0.9,
+                "entities": {},
+            })
+            assert result["intent"] == intent

@@ -1075,6 +1075,136 @@ def _validate_geo_columns(parsed: Any) -> list[dict[str, Any]]:
     return valid
 
 
+VALID_VOICE_INTENTS: set[str] = {"query", "filter", "export", "narrate", "navigate"}
+
+INTENT_SYSTEM_PROMPT = """\
+You are an intent classifier for a voice assistant in a Business Intelligence
+application called find.bi. Given a transcribed voice command, classify it into
+exactly one intent category.
+
+Intent categories:
+- "query": The user is asking a data question or requesting analysis.
+  Examples: "What is total revenue by region?", "Show me sales trends",
+  "How many orders last quarter?", "Compare profit margins"
+- "filter": The user wants to change a dashboard filter or scope.
+  Examples: "Show only Q4 data", "Filter by North region",
+  "Change date range to last month", "Remove the product filter"
+- "export": The user wants to download or export data.
+  Examples: "Export as CSV", "Download this chart", "Save as PDF",
+  "Email me this report"
+- "narrate": The user wants the dashboard read aloud or summarised vocally.
+  Examples: "Narrate this dashboard", "Read me the charts",
+  "Summarise what I'm looking at", "Tell me about these numbers"
+- "navigate": The user wants to go to a different page or view.
+  Examples: "Go to the sales dashboard", "Open the SQL editor",
+  "Take me to upload page", "Switch to the home page"
+
+Return ONLY valid JSON with this structure:
+{
+  "intent": "<category>",
+  "confidence": <0.0 to 1.0>,
+  "entities": {}
+}
+
+Rules:
+- "intent" must be exactly one of: query, filter, export, narrate, navigate.
+- "confidence" is your certainty from 0.0 (uncertain) to 1.0 (certain).
+- "entities" is an optional dict of extracted parameters. Examples:
+  - For filter: {"column": "region", "value": "North"}
+  - For navigate: {"page": "sql-editor"}
+  - For export: {"format": "csv"}
+  - For query/narrate: {} (empty is fine)
+- Return ONLY the JSON object, no markdown fences, no extra text.
+- If the transcript is ambiguous, pick the most likely intent and lower
+  confidence accordingly.
+"""
+
+
+def _validate_intent_result(parsed: Any) -> dict[str, Any]:
+    """Validate and sanitize an intent classification result.
+
+    Raises ValueError if the result is fundamentally invalid.
+    """
+    if not isinstance(parsed, dict):
+        raise ValueError("Intent result must be a JSON object")
+
+    intent = parsed.get("intent")
+    if not isinstance(intent, str) or intent not in VALID_VOICE_INTENTS:
+        raise ValueError(
+            f"Intent must be one of {sorted(VALID_VOICE_INTENTS)}, "
+            f"got: {intent!r}"
+        )
+
+    confidence = parsed.get("confidence")
+    if isinstance(confidence, int):
+        confidence = float(confidence)
+    if not isinstance(confidence, float) or not (0.0 <= confidence <= 1.0):
+        # Default to 0.5 if confidence is missing or out of range
+        confidence = 0.5
+
+    entities = parsed.get("entities")
+    if not isinstance(entities, dict):
+        entities = {}
+
+    return {
+        "intent": intent,
+        "confidence": confidence,
+        "entities": entities,
+    }
+
+
+def classify_voice_intent(transcript: str) -> dict[str, Any]:
+    """Classify a voice transcript into one of five intent categories.
+
+    Parameters
+    ----------
+    transcript:
+        The transcribed text from the user's voice command.
+
+    Returns
+    -------
+    dict with keys:
+        ``intent`` — one of: query, filter, export, narrate, navigate.
+        ``confidence`` — float from 0.0 to 1.0.
+        ``entities`` — optional dict of extracted parameters.
+
+    Raises
+    ------
+    ValueError
+        If the transcript is empty, the API key is missing, the API call
+        fails, or the response is not valid JSON with a valid intent.
+    """
+    if not transcript.strip():
+        raise ValueError("Transcript must not be empty")
+
+    client = _get_client()
+
+    try:
+        response = client.messages.create(
+            model=_get_model(),
+            max_tokens=256,
+            system=INTENT_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": transcript.strip()}],
+        )
+    except anthropic.APIError as exc:
+        raise ValueError(f"Claude API error: {exc}") from exc
+
+    raw = ""
+    for block in response.content:
+        if block.type == "text":
+            raw = block.text.strip()
+            break
+
+    raw = _extract_json(raw)
+
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Claude returned invalid JSON: {exc}") from exc
+
+    return _validate_intent_result(parsed)
+
+
 def detect_geo_columns(
     schema: list[dict[str, Any]],
     sample_rows: dict[str, list[dict[str, Any]]],
