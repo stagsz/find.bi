@@ -875,3 +875,414 @@ class TestInsightsEndpoint:
         assert item["table"] is None
         assert item["columns"] is None
         assert item["metrics"] is None
+
+
+# --- POST /api/ai/chat ---
+
+VALID_CHAT_RESPONSE: dict[str, Any] = {
+    "text": "The total revenue is $5,600.",
+    "sql": "SELECT SUM(revenue) FROM sales",
+    "plot_spec": None,
+}
+
+VALID_CHAT_WITH_PLOT: dict[str, Any] = {
+    "text": "Here's revenue by region.",
+    "sql": "SELECT region, revenue FROM sales",
+    "plot_spec": {
+        "marks": [
+            {
+                "type": "barY",
+                "data": [{"region": "North", "revenue": 1500}],
+                "options": {"x": "region", "y": "revenue"},
+            }
+        ],
+        "width": 640,
+        "height": 400,
+    },
+}
+
+
+class TestChatEndpoint:
+    """Tests for POST /api/ai/chat."""
+
+    def test_requires_authentication(self, client: TestClient) -> None:
+        """Returns 422 without auth header."""
+        resp = client.post(
+            "/api/ai/chat",
+            json={
+                "message": "Hello Ralph",
+                "workspace_id": "x",
+            },
+        )
+        assert resp.status_code == 422
+
+    def test_invalid_auth_token(self, client: TestClient) -> None:
+        """Returns 401 with an invalid token."""
+        resp = client.post(
+            "/api/ai/chat",
+            json={
+                "message": "Hello Ralph",
+                "workspace_id": "x",
+            },
+            headers={"Authorization": "Bearer invalid-token"},
+        )
+        assert resp.status_code == 401
+
+    def test_workspace_not_found(self, client: TestClient) -> None:
+        """Returns 404 for non-existent workspace."""
+        token = _register_and_login(client)
+        resp = client.post(
+            "/api/ai/chat",
+            json={
+                "message": "Hello",
+                "workspace_id": "00000000-0000-0000-0000-000000000000",
+            },
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+        assert "Workspace not found" in resp.json()["detail"]
+
+    def test_workspace_invalid_uuid(self, client: TestClient) -> None:
+        """Returns 404 for invalid workspace UUID."""
+        token = _register_and_login(client)
+        resp = client.post(
+            "/api/ai/chat",
+            json={
+                "message": "Hello",
+                "workspace_id": "not-a-uuid",
+            },
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+
+    def test_empty_message(self, client: TestClient) -> None:
+        """Returns 400 when message is empty or whitespace."""
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+        resp = client.post(
+            "/api/ai/chat",
+            json={"message": "   ", "workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 400
+        assert "Message is required" in resp.json()["detail"]
+
+    def test_no_tables_in_workspace(self, client: TestClient) -> None:
+        """Returns 400 when workspace has no data tables."""
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+        resp = client.post(
+            "/api/ai/chat",
+            json={"message": "Hello", "workspace_id": workspace_id},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 400
+        assert "No data tables" in resp.json()["detail"]
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_chat")
+    def test_returns_text_and_sql(
+        self,
+        mock_chat: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Returns text and SQL on success."""
+        mock_chat.return_value = VALID_CHAT_RESPONSE
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/chat",
+            json={
+                "message": "What is total revenue?",
+                "workspace_id": workspace_id,
+            },
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["text"] == "The total revenue is $5,600."
+        assert data["sql"] == "SELECT SUM(revenue) FROM sales"
+        assert data["plot_spec"] is None
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_chat")
+    def test_returns_plot_spec(
+        self,
+        mock_chat: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Returns plot spec when provided by AI service."""
+        mock_chat.return_value = VALID_CHAT_WITH_PLOT
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/chat",
+            json={
+                "message": "Show revenue by region",
+                "workspace_id": workspace_id,
+            },
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["plot_spec"] is not None
+        assert data["plot_spec"]["marks"][0]["type"] == "barY"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_chat")
+    def test_passes_history_to_service(
+        self,
+        mock_chat: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Conversation history is forwarded to the AI service."""
+        mock_chat.return_value = VALID_CHAT_RESPONSE
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        history = [
+            {"role": "user", "content": "What tables do I have?"},
+            {"role": "assistant", "content": "You have a sales table."},
+        ]
+
+        resp = client.post(
+            "/api/ai/chat",
+            json={
+                "message": "Tell me more",
+                "workspace_id": workspace_id,
+                "history": history,
+            },
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        mock_chat.assert_called_once()
+        call_args = mock_chat.call_args
+        assert call_args[0][0] == "Tell me more"
+        assert len(call_args[0][1]) == 2
+        assert call_args[0][1][0]["role"] == "user"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_chat")
+    def test_passes_schema_to_service(
+        self,
+        mock_chat: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Schema and sample rows are passed to the AI service."""
+        mock_chat.return_value = VALID_CHAT_RESPONSE
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        client.post(
+            "/api/ai/chat",
+            json={
+                "message": "Show me data",
+                "workspace_id": workspace_id,
+            },
+            headers=_auth_headers(token),
+        )
+
+        mock_chat.assert_called_once()
+        call_args = mock_chat.call_args
+        schema_arg = call_args[0][2]
+        sample_rows_arg = call_args[0][3]
+
+        assert len(schema_arg) == 1
+        assert schema_arg[0]["table_name"] == "sales"
+        assert "sales" in sample_rows_arg
+        assert len(sample_rows_arg["sales"]) == 3
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""})
+    def test_ai_service_error_returns_502(
+        self, client: TestClient,
+    ) -> None:
+        """Returns 502 when AI service raises ValueError (missing key)."""
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/chat",
+            json={
+                "message": "Hello",
+                "workspace_id": workspace_id,
+            },
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 502
+        assert "ANTHROPIC_API_KEY" in resp.json()["detail"]
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_chat")
+    def test_ai_service_api_error_returns_502(
+        self,
+        mock_chat: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Returns 502 when the AI service raises a ValueError."""
+        mock_chat.side_effect = ValueError("Claude API error: rate limited")
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/chat",
+            json={
+                "message": "Hello",
+                "workspace_id": workspace_id,
+            },
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 502
+        assert "Claude API error" in resp.json()["detail"]
+
+    def test_other_user_cannot_access_workspace(
+        self, client: TestClient,
+    ) -> None:
+        """Returns 404 when trying to use another user's workspace."""
+        token_a = _register_and_login(client, "chatA@test.com")
+        token_b = _register_and_login(client, "chatB@test.com")
+
+        workspace_id_a = _get_workspace_id(client, token_a)
+
+        resp = client.post(
+            "/api/ai/chat",
+            json={
+                "message": "Hello",
+                "workspace_id": workspace_id_a,
+            },
+            headers=_auth_headers(token_b),
+        )
+
+        assert resp.status_code == 404
+        assert "Workspace not found" in resp.json()["detail"]
+
+    def test_missing_message_field(self, client: TestClient) -> None:
+        """Returns 422 when message field is missing."""
+        token = _register_and_login(client)
+        resp = client.post(
+            "/api/ai/chat",
+            json={"workspace_id": "some-id"},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 422
+
+    def test_missing_workspace_id_field(self, client: TestClient) -> None:
+        """Returns 422 when workspace_id field is missing."""
+        token = _register_and_login(client)
+        resp = client.post(
+            "/api/ai/chat",
+            json={"message": "Hello"},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 422
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_chat")
+    def test_empty_history_defaults(
+        self,
+        mock_chat: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Request without history field uses empty list as default."""
+        mock_chat.return_value = VALID_CHAT_RESPONSE
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/chat",
+            json={
+                "message": "Hello",
+                "workspace_id": workspace_id,
+            },
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        mock_chat.assert_called_once()
+        history_arg = mock_chat.call_args[0][1]
+        assert history_arg == []
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("api.ai.ai_chat")
+    def test_response_schema(
+        self,
+        mock_chat: MagicMock,
+        client: TestClient,
+    ) -> None:
+        """Response has exactly text, sql, and plot_spec fields."""
+        mock_chat.return_value = VALID_CHAT_RESPONSE
+
+        token = _register_and_login(client)
+        workspace_id = _get_workspace_id(client, token)
+
+        ws_resp = client.get(
+            "/api/workspaces/", headers=_auth_headers(token),
+        )
+        db_path = ws_resp.json()[0]["duckdb_path"]
+        _create_duckdb_with_table(db_path)
+
+        resp = client.post(
+            "/api/ai/chat",
+            json={
+                "message": "Hello",
+                "workspace_id": workspace_id,
+            },
+            headers=_auth_headers(token),
+        )
+
+        assert resp.status_code == 200
+        assert set(resp.json().keys()) == {"text", "sql", "plot_spec"}

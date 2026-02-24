@@ -3,7 +3,7 @@
 import json
 import logging
 import os
-from typing import Any
+from typing import Any, cast
 
 import anthropic
 import duckdb
@@ -506,6 +506,152 @@ def _validate_plot_spec(spec: Any) -> dict[str, Any]:
 
     spec["marks"] = valid_marks
     return spec
+
+
+CHAT_SYSTEM_PROMPT = """\
+You are Ralph, a friendly data analysis assistant for a Business Intelligence
+application called find.bi. You help users explore and understand their data
+through conversation.
+
+You have access to the user's database schema and sample data. You can:
+1. Answer questions about the data in plain language.
+2. Generate SQL queries when the user asks for specific data.
+3. Suggest Observable Plot chart specifications when a visualisation would help.
+
+Response format — return ONLY valid JSON with this structure:
+{
+  "text": "Your conversational response here.",
+  "sql": null,
+  "plot_spec": null
+}
+
+Rules:
+- "text" is ALWAYS required — your main conversational response.
+- Set "sql" to a DuckDB-compatible SELECT query string when the user asks
+  a data question that needs a query. Otherwise set it to null.
+- Set "plot_spec" to an Observable Plot specification object when a chart
+  would help illustrate your answer. Otherwise set it to null.
+- The plot_spec must follow this structure if provided:
+  {"marks": [{"type": "<mark_type>", "data": [], "options": {...}}],
+   "width": 640, "height": 400}
+  Supported mark types: area, areaX, areaY, barX, barY, cell, cellX, cellY,
+  dot, dotX, dotY, frame, line, lineX, lineY, link, rect, rectX, rectY,
+  ruleX, ruleY, text, textX, textY, tickX, tickY, tip
+- Do NOT include markdown fences or extra text — return ONLY the JSON object.
+- Use DuckDB SQL syntax for queries. Only SELECT queries are allowed.
+- Reference only tables and columns that exist in the provided schema.
+- Be helpful, concise, and slightly quirky — you're Ralph, after all.
+"""
+
+
+def chat(
+    message: str,
+    history: list[dict[str, str]],
+    schema: list[dict[str, Any]],
+    sample_rows: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    """Conduct a conversational chat turn about the user's data using Claude.
+
+    Parameters
+    ----------
+    message:
+        The user's current message.
+    history:
+        Previous conversation turns as ``[{"role": "user"|"assistant",
+        "content": "..."}]``.
+    schema:
+        List of table metadata dicts, each with ``table_name``, ``columns``
+        (list of ``{name, type}``), and ``row_count``.
+    sample_rows:
+        Dict mapping table names to lists of sample row dicts (max 50 each).
+
+    Returns
+    -------
+    dict with keys:
+        ``text`` — the main conversational response.
+        ``sql`` — an optional SQL query string (or None).
+        ``plot_spec`` — an optional Observable Plot spec dict (or None).
+
+    Raises
+    ------
+    ValueError
+        If the API key is missing, the API call fails, or the response
+        is not valid JSON.
+    """
+    client = _get_client()
+    schema_context = _build_schema_context(schema, sample_rows)
+
+    # Build the messages array: system context in first user message + history
+    context_prefix = (
+        f"Database schema and sample data:\n{schema_context}\n"
+        "Use this schema to answer my questions about the data.\n\n"
+    )
+
+    messages: list[dict[str, Any]] = []
+    for i, turn in enumerate(history):
+        role = turn.get("role", "user")
+        content = turn.get("content", "")
+        if i == 0 and role == "user":
+            # Prepend schema context to the first user message in history
+            content = context_prefix + content
+        messages.append({"role": role, "content": content})
+
+    # Add the current message
+    current_content = message
+    if not messages:
+        # No history — prepend schema context to the current message
+        current_content = context_prefix + message
+    messages.append({"role": "user", "content": current_content})
+
+    try:
+        response = client.messages.create(
+            model=_get_model(),
+            max_tokens=4096,
+            system=CHAT_SYSTEM_PROMPT,
+            messages=cast(Any, messages),
+        )
+    except anthropic.APIError as exc:
+        raise ValueError(f"Claude API error: {exc}") from exc
+
+    raw = ""
+    for block in response.content:
+        if block.type == "text":
+            raw = block.text.strip()
+            break
+
+    raw = _extract_json(raw)
+
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Claude returned invalid JSON: {exc}") from exc
+
+    if not isinstance(parsed, dict):
+        raise ValueError("Chat response must be a JSON object")
+
+    text_value = parsed.get("text")
+    if not isinstance(text_value, str) or not text_value.strip():
+        raise ValueError("Chat response must contain a non-empty 'text' field")
+
+    sql_value = parsed.get("sql")
+    if sql_value is not None and not isinstance(sql_value, str):
+        sql_value = None
+
+    plot_spec = parsed.get("plot_spec")
+    if plot_spec is not None:
+        if not isinstance(plot_spec, dict):
+            plot_spec = None
+        else:
+            try:
+                plot_spec = _validate_plot_spec(plot_spec)
+            except ValueError:
+                plot_spec = None
+
+    return {
+        "text": text_value.strip(),
+        "sql": sql_value,
+        "plot_spec": plot_spec,
+    }
 
 
 def generate_plot_spec(

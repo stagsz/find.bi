@@ -1331,3 +1331,349 @@ class TestValidateInsights:
         ]
         result = _validate_insights(insights)
         assert len(result) == 3
+
+
+# ---------------------------------------------------------------------------
+# chat tests
+# ---------------------------------------------------------------------------
+
+VALID_CHAT_JSON = json.dumps({
+    "text": "The total revenue across all regions is $5,600.",
+    "sql": "SELECT SUM(revenue) FROM sales",
+    "plot_spec": None,
+})
+
+VALID_CHAT_WITH_PLOT_JSON = json.dumps({
+    "text": "Here's a bar chart of revenue by region.",
+    "sql": "SELECT region, revenue FROM sales",
+    "plot_spec": {
+        "marks": [
+            {
+                "type": "barY",
+                "data": [
+                    {"region": "North", "revenue": 1500},
+                    {"region": "South", "revenue": 2300},
+                ],
+                "options": {"x": "region", "y": "revenue"},
+            }
+        ],
+        "width": 640,
+        "height": 400,
+    },
+})
+
+VALID_CHAT_TEXT_ONLY_JSON = json.dumps({
+    "text": "I can help you explore your sales data. What would you like to know?",
+    "sql": None,
+    "plot_spec": None,
+})
+
+
+class TestChat:
+    """Tests for the chat() service function."""
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_returns_text_and_sql(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Returns text and SQL when Claude provides both."""
+        from services.ai_service import chat
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_CHAT_JSON,
+        )
+
+        result = chat("What is total revenue?", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert result["text"] == "The total revenue across all regions is $5,600."
+        assert result["sql"] == "SELECT SUM(revenue) FROM sales"
+        assert result["plot_spec"] is None
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_returns_text_only(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Returns text only when no SQL or plot is needed."""
+        from services.ai_service import chat
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_CHAT_TEXT_ONLY_JSON,
+        )
+
+        result = chat("Hi Ralph!", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert "explore" in result["text"].lower()
+        assert result["sql"] is None
+        assert result["plot_spec"] is None
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_returns_plot_spec(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Returns validated plot spec when Claude provides one."""
+        from services.ai_service import chat
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_CHAT_WITH_PLOT_JSON,
+        )
+
+        result = chat(
+            "Show me a chart of revenue by region",
+            [],
+            SAMPLE_SCHEMA,
+            SAMPLE_ROWS,
+        )
+
+        assert result["plot_spec"] is not None
+        assert result["plot_spec"]["marks"][0]["type"] == "barY"
+        assert result["sql"] == "SELECT region, revenue FROM sales"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_passes_history_to_claude(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Conversation history is sent as messages to Claude."""
+        from services.ai_service import chat
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_CHAT_TEXT_ONLY_JSON,
+        )
+
+        history = [
+            {"role": "user", "content": "What tables do I have?"},
+            {"role": "assistant", "content": "You have a sales table."},
+        ]
+
+        chat("Tell me more about it", history, SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        call_args = mock_client.messages.create.call_args
+        messages = call_args.kwargs["messages"]
+        # History (2 turns) + current message = 3 messages
+        assert len(messages) == 3
+        assert messages[0]["role"] == "user"
+        assert messages[1]["role"] == "assistant"
+        assert messages[2]["role"] == "user"
+        assert messages[2]["content"] == "Tell me more about it"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_schema_context_in_first_message(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Schema context is prepended to the first user message."""
+        from services.ai_service import chat
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_CHAT_TEXT_ONLY_JSON,
+        )
+
+        chat("What is total revenue?", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        call_args = mock_client.messages.create.call_args
+        messages = call_args.kwargs["messages"]
+        first_content = messages[0]["content"]
+        assert "sales" in first_content
+        assert "revenue" in first_content
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_schema_context_in_history_first_message(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Schema context is prepended to the first history user message."""
+        from services.ai_service import chat
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_CHAT_TEXT_ONLY_JSON,
+        )
+
+        history = [
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hi!"},
+        ]
+
+        chat("Show data", history, SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        call_args = mock_client.messages.create.call_args
+        messages = call_args.kwargs["messages"]
+        # Schema should be in first message (history[0])
+        assert "sales" in messages[0]["content"]
+        # Current message should NOT have schema prepended
+        assert messages[2]["content"] == "Show data"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_uses_chat_system_prompt(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Verifies the chat-specific system prompt is sent."""
+        from services.ai_service import chat
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_CHAT_TEXT_ONLY_JSON,
+        )
+
+        chat("Hello", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        call_args = mock_client.messages.create.call_args
+        system = call_args.kwargs["system"]
+        assert "Ralph" in system
+        assert "find.bi" in system
+
+    def test_raises_without_api_key(self) -> None:
+        """Raises ValueError when ANTHROPIC_API_KEY is not set."""
+        from services.ai_service import chat
+
+        with patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""}):
+            with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
+                chat("Hello", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_raises_on_invalid_json(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Raises ValueError when Claude returns non-JSON."""
+        from services.ai_service import chat
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            "This is not JSON at all",
+        )
+
+        with pytest.raises(ValueError, match="invalid JSON"):
+            chat("Hello", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_raises_on_missing_text(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Raises ValueError when response has no text field."""
+        from services.ai_service import chat
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps({"sql": "SELECT 1"}),
+        )
+
+        with pytest.raises(ValueError, match="text"):
+            chat("Hello", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_raises_on_non_object_response(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Raises ValueError when response is a JSON array instead of object."""
+        from services.ai_service import chat
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            json.dumps([{"text": "hi"}]),
+        )
+
+        with pytest.raises(ValueError, match="JSON object"):
+            chat("Hello", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_invalid_plot_spec_becomes_none(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Invalid plot_spec is silently set to None instead of raising."""
+        from services.ai_service import chat
+
+        response_json = json.dumps({
+            "text": "Here's a chart.",
+            "sql": None,
+            "plot_spec": {"marks": []},  # invalid — empty marks
+        })
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(response_json)
+
+        result = chat("Show chart", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert result["text"] == "Here's a chart."
+        assert result["plot_spec"] is None
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_non_string_sql_becomes_none(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Non-string sql value is silently set to None."""
+        from services.ai_service import chat
+
+        response_json = json.dumps({
+            "text": "Response.",
+            "sql": 123,
+            "plot_spec": None,
+        })
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(response_json)
+
+        result = chat("Query", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert result["sql"] is None
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_single_api_call(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """chat makes exactly one API call."""
+        from services.ai_service import chat
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(
+            VALID_CHAT_JSON,
+        )
+
+        chat("Hello", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert mock_client.messages.create.call_count == 1
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key-123"})
+    @patch("services.ai_service.anthropic.Anthropic")
+    def test_strips_markdown_fences(
+        self, mock_anthropic_cls: MagicMock,
+    ) -> None:
+        """Handles Claude wrapping JSON in markdown code fences."""
+        from services.ai_service import chat
+
+        fenced = "```json\n" + VALID_CHAT_JSON + "\n```"
+
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = _mock_response(fenced)
+
+        result = chat("Hello", [], SAMPLE_SCHEMA, SAMPLE_ROWS)
+
+        assert result["text"] == "The total revenue across all regions is $5,600."

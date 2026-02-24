@@ -14,6 +14,7 @@ from db import get_db
 from models.insight_cache import InsightCache
 from models.user import User
 from models.workspace import Workspace
+from services.ai_service import chat as ai_chat
 from services.ai_service import generate_insights, text_to_sql
 from services.duckdb_service import list_tables
 
@@ -60,6 +61,23 @@ class CachedInsightEntry(BaseModel):
 
 class CachedInsightsResponse(BaseModel):
     entries: list[CachedInsightEntry]
+
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    message: str
+    workspace_id: str
+    history: list[ChatMessage] = []
+
+
+class ChatResponse(BaseModel):
+    text: str
+    sql: str | None = None
+    plot_spec: dict[str, Any] | None = None
 
 
 def _get_workspace_db_path(
@@ -258,3 +276,54 @@ def cached_insights_endpoint(
         )
 
     return CachedInsightsResponse(entries=entries)
+
+
+@router.post("/chat", response_model=ChatResponse)
+def chat_endpoint(
+    body: ChatRequest,
+    user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> ChatResponse:
+    """Conversational chat about workspace data using Claude AI.
+
+    Accepts a message and optional conversation history. Claude receives
+    full schema context and returns a text response with optional SQL
+    and/or Observable Plot chart specification.
+    """
+    if not body.message.strip():
+        raise HTTPException(status_code=400, detail="Message is required")
+
+    db_path = _get_workspace_db_path(body.workspace_id, user, db)
+
+    # Get schema from DuckDB
+    if os.path.isfile(db_path):
+        try:
+            schema = list_tables(db_path)
+        except ValueError:
+            schema = []
+    else:
+        schema = []
+
+    if not schema:
+        raise HTTPException(
+            status_code=400,
+            detail="No data tables found in workspace. Upload data first.",
+        )
+
+    # Fetch sample rows for AI context
+    table_names = [t["table_name"] for t in schema]
+    sample_rows = _fetch_sample_rows(db_path, table_names)
+
+    # Convert Pydantic models to dicts for the service layer
+    history = [{"role": m.role, "content": m.content} for m in body.history]
+
+    try:
+        result = ai_chat(body.message, history, schema, sample_rows)
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+    return ChatResponse(
+        text=result["text"],
+        sql=result.get("sql"),
+        plot_spec=result.get("plot_spec"),
+    )
