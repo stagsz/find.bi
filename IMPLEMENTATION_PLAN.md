@@ -191,7 +191,7 @@
 
 ### 3.1 Voice Assistant Core (F015)
 
-- [x] VOICE-01: Create voice WebSocket proxy — `backend/api/voice.py` with WebSocket endpoint `/ws/voice`. Proxies audio stream to OpenAI Realtime API. Handles authentication. Streams response audio back. Write connection test.
+- [x] VOICE-01: Create voice WebSocket proxy — `backend/api/voice.py` with WebSocket endpoint `/ws/voice`. Proxies audio stream to OpenAI Realtime API. Handles authentication. Streams response audio back. Write connection test. *(142fcfd)*
 - [ ] VOICE-02: Create `useVoice` hook — `frontend/src/hooks/useVoice.ts`. MediaStream API for microphone access. WebSocket connection to backend. Send audio chunks while recording. Receive and play response audio via Web Audio API.
 - [ ] VOICE-03: Create push-to-talk UI — `frontend/src/components/voice/PushToTalk.tsx`. Hold-to-record button (microphone icon). Visual indicator: idle, recording (pulsing), processing (spinner), playing (waveform). Transcript shown below.
 
@@ -413,3 +413,4 @@ CLEANUP-01 → SETUP-01 → SETUP-02..07 (parallel)
 | GEO-05 | ed5ef57 | 2026-02-24 |
 | GEO-06 | acc2a38 | 2026-02-24 |
 | GEO-07 | 06e7663 | 2026-02-24 |
+| VOICE-01 | 142fcfd | 2026-02-24 |
