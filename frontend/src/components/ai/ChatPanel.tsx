@@ -34,6 +34,8 @@ interface ChatMessage {
   sql?: string | null;
   plot_spec?: Record<string, unknown> | null;
   data_table?: DataTable | null;
+  /** "voice" when originating from voice query pipeline. */
+  source?: "voice" | "text";
 }
 
 interface ChatApiResponse {
@@ -48,6 +50,12 @@ interface ChatPanelProps {
   open: boolean;
   onToggle: () => void;
   className?: string;
+  /** Set to a non-null string to inject a voice query as a message. */
+  pendingVoiceQuery?: string | null;
+  /** Called after the voice query has been consumed and sent. */
+  onVoiceQueryProcessed?: () => void;
+  /** Called with the assistant response text (for TTS). */
+  onAssistantResponse?: (text: string) => void;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────
@@ -380,7 +388,15 @@ function ChatSqlBlock({ sql }: ChatSqlBlockProps) {
 
 // ─── Component ──────────────────────────────────────────────────────
 
-function ChatPanel({ workspaceId, open, onToggle, className }: ChatPanelProps) {
+function ChatPanel({
+  workspaceId,
+  open,
+  onToggle,
+  className,
+  pendingVoiceQuery,
+  onVoiceQueryProcessed,
+  onAssistantResponse,
+}: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -403,67 +419,102 @@ function ChatPanel({ workspaceId, open, onToggle, className }: ChatPanelProps) {
     }
   }, [open]);
 
-  const handleSend = useCallback(async () => {
-    const trimmed = input.trim();
-    if (!trimmed || loading || !workspaceId) return;
+  /**
+   * Send a message to the chat API. Accepts an optional override text
+   * and source tag so voice queries can be injected programmatically.
+   */
+  const sendMessage = useCallback(
+    async (overrideText?: string, source: "text" | "voice" = "text") => {
+      const trimmed = (overrideText ?? input).trim();
+      if (!trimmed || loading || !workspaceId) return;
 
-    const userMessage: ChatMessage = {
-      id: generateId(),
-      role: "user",
-      content: trimmed,
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setLoading(true);
-    setError(null);
-
-    // Build history for API (exclude the message we're about to send)
-    const history = messages.map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
-
-    try {
-      const res = await api.post<ChatApiResponse>("/api/ai/chat", {
-        message: trimmed,
-        workspace_id: workspaceId,
-        history,
-      });
-
-      const assistantMessage: ChatMessage = {
+      const userMessage: ChatMessage = {
         id: generateId(),
-        role: "assistant",
-        content: res.data.text,
-        sql: res.data.sql,
-        plot_spec: res.data.plot_spec,
-        data_table: res.data.data_table,
+        role: "user",
+        content: trimmed,
+        source,
       };
 
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch (err: unknown) {
-      if (
-        err !== null &&
-        typeof err === "object" &&
-        "response" in err &&
-        err.response !== null &&
-        typeof err.response === "object" &&
-        "data" in err.response &&
-        err.response.data !== null &&
-        typeof err.response.data === "object" &&
-        "detail" in err.response.data &&
-        typeof err.response.data.detail === "string"
-      ) {
-        setError(err.response.data.detail);
-      } else {
-        setError(
-          err instanceof Error ? err.message : "Failed to get response",
-        );
+      setMessages((prev) => [...prev, userMessage]);
+      if (!overrideText) setInput("");
+      setLoading(true);
+      setError(null);
+
+      // Build history for API (exclude the message we're about to send)
+      const history = messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      try {
+        const res = await api.post<ChatApiResponse>("/api/ai/chat", {
+          message: trimmed,
+          workspace_id: workspaceId,
+          history,
+        });
+
+        const assistantMessage: ChatMessage = {
+          id: generateId(),
+          role: "assistant",
+          content: res.data.text,
+          sql: res.data.sql,
+          plot_spec: res.data.plot_spec,
+          data_table: res.data.data_table,
+          source,
+        };
+
+        setMessages((prev) => [...prev, assistantMessage]);
+
+        // Notify parent of assistant response (for TTS).
+        if (onAssistantResponse && source === "voice") {
+          onAssistantResponse(res.data.text);
+        }
+      } catch (err: unknown) {
+        if (
+          err !== null &&
+          typeof err === "object" &&
+          "response" in err &&
+          err.response !== null &&
+          typeof err.response === "object" &&
+          "data" in err.response &&
+          err.response.data !== null &&
+          typeof err.response.data === "object" &&
+          "detail" in err.response.data &&
+          typeof err.response.data.detail === "string"
+        ) {
+          setError(err.response.data.detail);
+        } else {
+          setError(
+            err instanceof Error ? err.message : "Failed to get response",
+          );
+        }
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
+    },
+    [input, loading, workspaceId, messages, onAssistantResponse],
+  );
+
+  const handleSend = useCallback(async () => {
+    await sendMessage();
+  }, [sendMessage]);
+
+  // ── Voice query injection ────────────────────────────────────────
+  // When a voice query is set, auto-send it as a voice-originated message.
+  const voiceQueryProcessedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (
+      pendingVoiceQuery &&
+      pendingVoiceQuery !== voiceQueryProcessedRef.current &&
+      !loading &&
+      workspaceId
+    ) {
+      voiceQueryProcessedRef.current = pendingVoiceQuery;
+      void sendMessage(pendingVoiceQuery, "voice");
+      onVoiceQueryProcessed?.();
     }
-  }, [input, loading, workspaceId, messages]);
+  }, [pendingVoiceQuery, loading, workspaceId, sendMessage, onVoiceQueryProcessed]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -625,6 +676,19 @@ function ChatPanel({ workspaceId, open, onToggle, className }: ChatPanelProps) {
                   : "border border-[#2A2A2A] bg-[#141414] text-[#F0EDE4]"
               }`}
             >
+              {/* Voice badge for voice-originated messages */}
+              {msg.source === "voice" && msg.role === "user" && (
+                <span
+                  data-testid="voice-badge"
+                  className="mb-1 inline-flex items-center gap-1 rounded bg-[#F5A623]/10 px-1.5 py-0.5 font-mono text-[0.5rem] uppercase tracking-wider text-[#F5A623]/70"
+                >
+                  <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="9" y="1" width="6" height="11" rx="3" />
+                    <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+                  </svg>
+                  Voice
+                </span>
+              )}
               <p className="whitespace-pre-wrap text-[0.8rem] leading-relaxed">
                 {msg.role === "assistant"
                   ? renderRichText(msg.content)

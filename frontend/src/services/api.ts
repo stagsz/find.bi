@@ -37,4 +37,22 @@ api.interceptors.response.use(
   },
 );
 
+// ─── AI Voice Query Helpers ──────────────────────────────────────────
+
+export interface ClassifyIntentResult {
+  intent: string;
+  confidence: number;
+  entities: Record<string, unknown>;
+}
+
+export async function classifyIntent(
+  transcript: string,
+): Promise<ClassifyIntentResult> {
+  const res = await api.post<ClassifyIntentResult>(
+    "/api/ai/classify-intent",
+    { transcript },
+  );
+  return res.data;
+}
+
 export default api;

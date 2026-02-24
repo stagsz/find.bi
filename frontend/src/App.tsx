@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { DuckDBProvider } from "@/hooks/useDuckDB";
 import { VoiceProvider } from "@/contexts/VoiceContext";
+import { useVoiceQuery } from "@/hooks/useVoiceQuery";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
@@ -39,33 +40,89 @@ function AppLayout() {
   return (
     <DuckDBProvider>
       <VoiceProvider>
-        <div className="flex h-screen bg-[#0E0E0E]">
-          <Sidebar
-            collapsed={sidebarCollapsed}
-            onToggle={() => setSidebarCollapsed((c) => !c)}
-          />
-          <div className="flex flex-col flex-1 min-w-0">
-            <TopBar />
-            <main className="flex flex-1 overflow-hidden">
-              <div className="flex-1 overflow-auto">
-                <Routes>
-                  <Route path="/" element={<HomePage />} />
-                  <Route path="/dashboards/:id" element={<DashboardPage />} />
-                  <Route path="/dashboards" element={<DashboardListPage />} />
-                  <Route path="/editor" element={<EditorPage />} />
-                  <Route path="/upload" element={<UploadPage />} />
-                </Routes>
-              </div>
-              <ChatPanel
-                workspaceId={workspaceId}
-                open={chatOpen}
-                onToggle={handleChatToggle}
-              />
-            </main>
-          </div>
-        </div>
+        <AppLayoutInner
+          sidebarCollapsed={sidebarCollapsed}
+          onSidebarToggle={() => setSidebarCollapsed((c) => !c)}
+          chatOpen={chatOpen}
+          onChatToggle={handleChatToggle}
+          workspaceId={workspaceId}
+        />
       </VoiceProvider>
     </DuckDBProvider>
+  );
+}
+
+/**
+ * Inner layout component rendered inside VoiceProvider so that the
+ * useVoiceQuery hook has access to VoiceContext.
+ */
+function AppLayoutInner({
+  sidebarCollapsed,
+  onSidebarToggle,
+  chatOpen,
+  onChatToggle,
+  workspaceId,
+}: {
+  sidebarCollapsed: boolean;
+  onSidebarToggle: () => void;
+  chatOpen: boolean;
+  onChatToggle: () => void;
+  workspaceId: string | null;
+}) {
+  const {
+    pendingQuery,
+    clearPendingQuery,
+    speak,
+  } = useVoiceQuery(workspaceId);
+
+  // Auto-open chat panel when a voice query is detected.
+  const handleVoiceQueryProcessed = useCallback(() => {
+    clearPendingQuery();
+  }, [clearPendingQuery]);
+
+  const handleAssistantResponse = useCallback(
+    (text: string) => {
+      speak(text);
+    },
+    [speak],
+  );
+
+  // Open chat panel when voice query arrives.
+  useEffect(() => {
+    if (pendingQuery && !chatOpen) {
+      onChatToggle();
+    }
+  }, [pendingQuery, chatOpen, onChatToggle]);
+
+  return (
+    <div className="flex h-screen bg-[#0E0E0E]">
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggle={onSidebarToggle}
+      />
+      <div className="flex flex-col flex-1 min-w-0">
+        <TopBar />
+        <main className="flex flex-1 overflow-hidden">
+          <div className="flex-1 overflow-auto">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/dashboards/:id" element={<DashboardPage />} />
+              <Route path="/dashboards" element={<DashboardListPage />} />
+              <Route path="/editor" element={<EditorPage />} />
+              <Route path="/upload" element={<UploadPage />} />
+            </Routes>
+          </div>
+          <ChatPanel
+            workspaceId={workspaceId}
+            open={chatOpen}
+            onToggle={onChatToggle}
+            pendingVoiceQuery={pendingQuery}
+            onVoiceQueryProcessed={handleVoiceQueryProcessed}
+            onAssistantResponse={handleAssistantResponse}
+          />
+        </main>
+      </div>
+    </div>
   );
 }
 
