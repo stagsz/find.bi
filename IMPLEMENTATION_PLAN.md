@@ -193,7 +193,7 @@
 
 - [x] VOICE-01: Create voice WebSocket proxy — `backend/api/voice.py` with WebSocket endpoint `/ws/voice`. Proxies audio stream to OpenAI Realtime API. Handles authentication. Streams response audio back. Write connection test. *(142fcfd)*
 - [x] VOICE-02: Create `useVoice` hook — `frontend/src/hooks/useVoice.ts`. MediaStream API for microphone access. WebSocket connection to backend. Send audio chunks while recording. Receive and play response audio via Web Audio API. *(8264d8d)*
-- [x] VOICE-03: Create push-to-talk UI — `frontend/src/components/voice/PushToTalk.tsx`. Hold-to-record button (microphone icon). Visual indicator: idle, recording (pulsing), processing (spinner), playing (waveform). Transcript shown below.
+- [x] VOICE-03: Create push-to-talk UI — `frontend/src/components/voice/PushToTalk.tsx`. Hold-to-record button (microphone icon). Visual indicator: idle, recording (pulsing), processing (spinner), playing (waveform). Transcript shown below. *(af74c1e)*
 
 ### 3.2 Wake Word Detection (F016)
 
@@ -415,3 +415,4 @@ CLEANUP-01 → SETUP-01 → SETUP-02..07 (parallel)
 | GEO-07 | 06e7663 | 2026-02-24 |
 | VOICE-01 | 142fcfd | 2026-02-24 |
 | VOICE-02 | 8264d8d | 2026-02-24 |
+| VOICE-03 | af74c1e | 2026-02-24 |
