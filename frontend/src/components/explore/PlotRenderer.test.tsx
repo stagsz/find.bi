@@ -1,4 +1,4 @@
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const mocks = vi.hoisted(() => {
@@ -192,5 +192,64 @@ describe("PlotRenderer", () => {
     const emptySpec: PlotSpec = { marks: [] };
     render(<PlotRenderer spec={emptySpec} />);
     expect(mocks.plot).toHaveBeenCalledWith({ marks: [] });
+  });
+
+  describe("promote to dashboard", () => {
+    it("does not show promote button when onPromote is not provided", () => {
+      render(<PlotRenderer spec={barSpec} />);
+      expect(screen.queryByTestId("promote-to-dashboard")).not.toBeInTheDocument();
+    });
+
+    it("shows promote button when onPromote is provided and spec has promotable marks", () => {
+      const onPromote = vi.fn();
+      render(<PlotRenderer spec={barSpec} onPromote={onPromote} />);
+      expect(screen.getByTestId("promote-to-dashboard")).toBeInTheDocument();
+    });
+
+    it("does not show promote button when spec has only decorative marks", () => {
+      const onPromote = vi.fn();
+      const decorativeSpec: PlotSpec = {
+        marks: [{ type: "frame" }, { type: "ruleY" }],
+      };
+      render(<PlotRenderer spec={decorativeSpec} onPromote={onPromote} />);
+      expect(screen.queryByTestId("promote-to-dashboard")).not.toBeInTheDocument();
+    });
+
+    it("calls onPromote with conversion result when clicked", () => {
+      const onPromote = vi.fn();
+      render(
+        <PlotRenderer
+          spec={barSpec}
+          onPromote={onPromote}
+          promoteTitle="Revenue Chart"
+        />,
+      );
+      fireEvent.click(screen.getByTestId("promote-to-dashboard"));
+      expect(onPromote).toHaveBeenCalledTimes(1);
+      const result = onPromote.mock.calls[0][0];
+      expect(result.type).toBe("bar");
+      expect(result.title).toBe("Revenue Chart");
+      expect(result.columnMappings).toEqual({
+        xField: "region",
+        yField: "revenue",
+      });
+      expect(result.query).toContain("VALUES");
+    });
+
+    it("uses default title when promoteTitle is not provided", () => {
+      const onPromote = vi.fn();
+      render(<PlotRenderer spec={barSpec} onPromote={onPromote} />);
+      fireEvent.click(screen.getByTestId("promote-to-dashboard"));
+      expect(onPromote.mock.calls[0][0].title).toBe("Promoted Chart");
+    });
+
+    it("wraps chart and button in plot-renderer container", () => {
+      const onPromote = vi.fn();
+      render(<PlotRenderer spec={barSpec} onPromote={onPromote} />);
+      const wrapper = screen.getByTestId("plot-renderer");
+      expect(wrapper).toBeInTheDocument();
+      expect(wrapper.querySelector("[data-testid='plot-container']")).toBeInTheDocument();
+      expect(wrapper.querySelector("[data-testid='promote-to-dashboard']")).toBeInTheDocument();
+    });
   });
 });

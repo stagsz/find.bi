@@ -1,5 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import * as Plot from "@observablehq/plot";
+import { convertPlotSpec, findPrimaryMark } from "./plotToEcharts";
+import type { PromoteResult } from "./plotToEcharts";
 
 /**
  * JSON-serializable mark definition that Claude generates.
@@ -33,6 +35,10 @@ interface PlotRendererProps {
   spec: PlotSpec;
   className?: string;
   style?: React.CSSProperties;
+  /** When provided, a "Promote to Dashboard" button is shown below the chart. */
+  onPromote?: (result: PromoteResult) => void;
+  /** Title used for the promoted dashboard card. */
+  promoteTitle?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,7 +85,7 @@ function buildMarks(defs: MarkDef[]): Plot.Markish[] {
     .filter((m): m is Plot.Markish => m !== null);
 }
 
-function PlotRenderer({ spec, className, style }: PlotRendererProps) {
+function PlotRenderer({ spec, className, style, onPromote, promoteTitle }: PlotRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -111,13 +117,44 @@ function PlotRenderer({ spec, className, style }: PlotRendererProps) {
     };
   }, [spec]);
 
+  const canPromote = useMemo(
+    () => onPromote != null && findPrimaryMark(spec) != null,
+    [spec, onPromote],
+  );
+
+  const handlePromote = useCallback(() => {
+    if (!onPromote) return;
+    const result = convertPlotSpec(spec, promoteTitle);
+    if (result) onPromote(result);
+  }, [spec, promoteTitle, onPromote]);
+
   return (
-    <div
-      ref={containerRef}
-      className={className}
-      style={{ width: "100%", minHeight: 200, ...style }}
-      data-testid="plot-container"
-    />
+    <div data-testid="plot-renderer">
+      <div
+        ref={containerRef}
+        className={className}
+        style={{ width: "100%", minHeight: 200, ...style }}
+        data-testid="plot-container"
+      />
+      {canPromote && (
+        <button
+          data-testid="promote-to-dashboard"
+          type="button"
+          onClick={handlePromote}
+          className="mt-2 inline-flex items-center gap-1.5 rounded border border-amber-600/40 bg-amber-600/10 px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-amber-400 transition-colors hover:bg-amber-600/20 hover:text-amber-300"
+        >
+          <svg
+            className="h-3.5 w-3.5"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M10 5a1 1 0 0 1 1 1v3h3a1 1 0 1 1 0 2h-3v3a1 1 0 1 1-2 0v-3H6a1 1 0 1 1 0-2h3V6a1 1 0 0 1 1-1Z" />
+          </svg>
+          Promote to Dashboard
+        </button>
+      )}
+    </div>
   );
 }
 
