@@ -12,11 +12,16 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@deck.gl/core": "^9.2.9",
+    "@deck.gl/layers": "^9.2.9",
+    "@deck.gl/react": "^9.2.9",
     "@duckdb/duckdb-wasm": "^1.33.1-dev18.0",
     "@monaco-editor/react": "^4.7.0",
     "@observablehq/plot": "^0.6.17",
     "axios": "^1.13.5",
+    "deck.gl": "^9.2.9",
     "echarts": "^6.0.0",
+    "maplibre-gl": "^5.19.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-grid-layout": "^2.2.2",
