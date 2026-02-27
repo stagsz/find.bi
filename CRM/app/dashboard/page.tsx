@@ -2,7 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import PipelineChartWrapper from '@/components/dashboard/PipelineChartWrapper'
 import DealsDonutChartWrapper from '@/components/dashboard/DealsDonutChartWrapper'
-import DateRangeFilter, { getDateRangeFromParams, type DateRangePreset } from '@/components/dashboard/DateRangeFilter'
+import DateRangeFilter from '@/components/dashboard/DateRangeFilter'
+import { getDateRangeFromParams, type DateRangePreset } from '@/lib/date-utils'
 
 interface DashboardStats {
   totalContacts: number
