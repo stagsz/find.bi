@@ -10,6 +10,7 @@ const navItems = [
   { to: "/settings/connections", label: "Connections", icon: ConnectionsIcon },
   { to: "/settings/schedules", label: "Schedules", icon: ScheduleIcon },
   { to: "/settings/alerts", label: "Alerts", icon: AlertsIcon },
+  { to: "/help", label: "Help", icon: HelpIcon },
 ];
 
 interface SidebarProps {
@@ -231,6 +232,25 @@ function LogoutIcon({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+      />
+    </svg>
+  );
+}
+
+function HelpIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <circle cx="12" cy="12" r="10" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3m.08 4h.01"
       />
     </svg>
   );

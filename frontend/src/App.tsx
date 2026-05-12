@@ -21,6 +21,7 @@ import WebhookPage from "@/pages/WebhookPage";
 import ConnectionsPage from "@/pages/ConnectionsPage";
 import SchedulePage from "@/pages/SchedulePage";
 import AlertsPage from "@/pages/AlertsPage";
+import HelpPage from "@/pages/HelpPage";
 import api from "@/services/api";
 
 function AppLayout() {
@@ -142,6 +143,7 @@ function AppLayoutInner({
               <Route path="/settings/connections" element={<ConnectionsPage />} />
               <Route path="/settings/schedules" element={<SchedulePage />} />
               <Route path="/settings/alerts" element={<AlertsPage />} />
+              <Route path="/help" element={<HelpPage />} />
             </Routes>
           </div>
           <ChatPanel
