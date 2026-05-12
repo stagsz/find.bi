@@ -14,6 +14,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getAccessToken } from "@/services/api";
 import api from "@/services/api";
 import { useDuckDB } from "@/hooks/useDuckDB";
 import type { QueryResult } from "@/hooks/useDuckDB";
@@ -420,8 +421,10 @@ function ChatPanel({
   }, [open]);
 
   /**
-   * Send a message to the chat API. Accepts an optional override text
-   * and source tag so voice queries can be injected programmatically.
+   * Send a message to the chat API using the streaming endpoint.
+   * Tokens stream in via SSE; the message bubble updates in real time.
+   * Accepts an optional override text and source tag so voice queries
+   * can be injected programmatically.
    */
   const sendMessage = useCallback(
     async (overrideText?: string, source: "text" | "voice" = "text") => {
@@ -440,54 +443,108 @@ function ChatPanel({
       setLoading(true);
       setError(null);
 
-      // Build history for API (exclude the message we're about to send)
+      // Placeholder assistant message — updated progressively as tokens arrive
+      const assistantId = generateId();
+      const assistantMessage: ChatMessage = {
+        id: assistantId,
+        role: "assistant",
+        content: "",
+        source,
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+
       const history = messages.map((m) => ({
         role: m.role,
         content: m.content,
       }));
 
+      const baseURL =
+        (api as unknown as { defaults?: { baseURL?: string } }).defaults?.baseURL ?? "http://localhost:8000";
+      const token = getAccessToken();
+
       try {
-        const res = await api.post<ChatApiResponse>("/api/ai/chat", {
-          message: trimmed,
-          workspace_id: workspaceId,
-          history,
+        const response = await fetch(`${baseURL}/api/ai/chat/stream`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            message: trimmed,
+            workspace_id: workspaceId,
+            history,
+          }),
         });
 
-        const assistantMessage: ChatMessage = {
-          id: generateId(),
-          role: "assistant",
-          content: res.data.text,
-          sql: res.data.sql,
-          plot_spec: res.data.plot_spec,
-          data_table: res.data.data_table,
-          source,
-        };
+        if (!response.ok) {
+          let detail = `HTTP ${response.status}`;
+          try {
+            const body = await response.json() as { detail?: string };
+            if (body.detail) detail = body.detail;
+          } catch { /* ignore */ }
+          throw new Error(detail);
+        }
 
-        setMessages((prev) => [...prev, assistantMessage]);
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("No response body");
+        const decoder = new TextDecoder();
+        let buffer = "";
 
-        // Notify parent of assistant response (for TTS).
-        if (onAssistantResponse && source === "voice") {
-          onAssistantResponse(res.data.text);
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          // Process complete SSE lines
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? ""; // keep incomplete line
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const jsonStr = line.slice(6).trim();
+            if (!jsonStr) continue;
+
+            let evt: { type: string; text?: string; sql?: string | null; plot_spec?: Record<string, unknown> | null; data_table?: { columns: string[]; rows: unknown[][] } | null; message?: string };
+            try {
+              evt = JSON.parse(jsonStr) as typeof evt;
+            } catch { continue; }
+
+            if (evt.type === "token" && evt.text) {
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId
+                    ? { ...m, content: m.content + evt.text! }
+                    : m,
+                ),
+              );
+            } else if (evt.type === "done") {
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId
+                    ? {
+                        ...m,
+                        content: evt.text ?? m.content,
+                        sql: evt.sql ?? null,
+                        plot_spec: evt.plot_spec ?? null,
+                        data_table: evt.data_table ?? null,
+                      }
+                    : m,
+                ),
+              );
+              if (onAssistantResponse && source === "voice" && evt.text) {
+                onAssistantResponse(evt.text);
+              }
+            } else if (evt.type === "error") {
+              setError(evt.message ?? "Stream error");
+              // Remove the empty assistant placeholder
+              setMessages((prev) => prev.filter((m) => m.id !== assistantId));
+            }
+          }
         }
       } catch (err: unknown) {
-        if (
-          err !== null &&
-          typeof err === "object" &&
-          "response" in err &&
-          err.response !== null &&
-          typeof err.response === "object" &&
-          "data" in err.response &&
-          err.response.data !== null &&
-          typeof err.response.data === "object" &&
-          "detail" in err.response.data &&
-          typeof err.response.data.detail === "string"
-        ) {
-          setError(err.response.data.detail);
-        } else {
-          setError(
-            err instanceof Error ? err.message : "Failed to get response",
-          );
-        }
+        setError(err instanceof Error ? err.message : "Failed to get response");
+        // Remove the empty assistant placeholder on hard errors
+        setMessages((prev) => prev.filter((m) => m.id !== assistantId || m.content));
       } finally {
         setLoading(false);
       }

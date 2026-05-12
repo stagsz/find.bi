@@ -4,12 +4,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // ─── Hoisted mocks ──────────────────────────────────────────────────
 const mocks = vi.hoisted(() => ({
-  post: vi.fn(),
   query: vi.fn().mockResolvedValue({ columns: [], rows: [], duration: 0 }),
+  fetchImpl: vi.fn(),
 }));
 
 vi.mock("@/services/api", () => ({
-  default: { post: mocks.post },
+  default: { defaults: { baseURL: "http://localhost:8000" } },
+  getAccessToken: () => "test-token",
 }));
 
 vi.mock("@/hooks/useDuckDB", () => ({
@@ -24,60 +25,63 @@ vi.mock("@/hooks/useDuckDB", () => ({
 
 import ChatPanel from "./ChatPanel";
 
+// ─── SSE stream helpers ─────────────────────────────────────────────
+
+/**
+ * Build a Response whose body streams SSE events from the given data payloads.
+ * Each payload becomes a `data: <json>\n\n` chunk.
+ */
+function makeSseResponse(events: object[]): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      for (const evt of events) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(evt)}\n\n`));
+      }
+      controller.close();
+    },
+  });
+  return new Response(stream, { status: 200, headers: { "Content-Type": "text/event-stream" } });
+}
+
+/** Convenience: a simple done-only SSE response (no tokens). */
+function makeDoneResponse(
+  text: string,
+  sql: string | null = null,
+  plotSpec: object | null = null,
+  dataTable: object | null = null,
+): Response {
+  return makeSseResponse([
+    { type: "done", text, sql, plot_spec: plotSpec, data_table: dataTable },
+  ]);
+}
+
+/** Convenience: token + done pair. */
+function makeStreamingResponse(text: string, sql: string | null = null): Response {
+  return makeSseResponse([
+    { type: "token", text: text.slice(0, 5) },
+    { type: "token", text: text.slice(5) },
+    { type: "done", text, sql, plot_spec: null, data_table: null },
+  ]);
+}
+
 // ─── Setup / Teardown ───────────────────────────────────────────────
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: success with plain text response
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+    makeDoneResponse("Here are the sales by region.", "SELECT region, SUM(revenue) FROM sales GROUP BY region"),
+  ));
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   cleanup();
 });
 
 const WORKSPACE_ID = "ws-chat-123";
 const onToggle = vi.fn();
-
-const MOCK_RESPONSE = {
-  data: {
-    text: "Here are the sales by region.",
-    sql: "SELECT region, SUM(revenue) FROM sales GROUP BY region",
-    plot_spec: null,
-  },
-};
-
-const MOCK_RESPONSE_WITH_CHART = {
-  data: {
-    text: "I made a chart with my brain!",
-    sql: null,
-    plot_spec: {
-      marks: [{ type: "barY", data: [{ x: "A", y: 1 }], options: { x: "x", y: "y" } }],
-    },
-  },
-};
-
-const MOCK_RESPONSE_TEXT_ONLY = {
-  data: {
-    text: "I'm Ralph!",
-    sql: null,
-    plot_spec: null,
-  },
-};
-
-const MOCK_RESPONSE_WITH_TABLE = {
-  data: {
-    text: "Here are the top products:",
-    sql: null,
-    plot_spec: null,
-    data_table: {
-      columns: ["name", "price"],
-      rows: [
-        ["Widget", 9.99],
-        ["Gadget", 19.99],
-        ["Doohickey", 14.50],
-      ],
-    },
-  },
-};
 
 const MOCK_RESPONSE_WITH_ALL = {
   data: {
@@ -265,7 +269,7 @@ describe("ChatPanel", () => {
   describe("sending messages", () => {
     it("adds user message bubble on send", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_TEXT_ONLY);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("I'm Ralph!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -279,7 +283,7 @@ describe("ChatPanel", () => {
 
     it("clears input after sending", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_TEXT_ONLY);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("I'm Ralph!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -292,7 +296,7 @@ describe("ChatPanel", () => {
 
     it("calls chat API with message and workspace_id", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_TEXT_ONLY);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("I'm Ralph!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -300,18 +304,22 @@ describe("ChatPanel", () => {
       await user.type(screen.getByTestId("chat-input"), "show me sales");
       await user.click(screen.getByTestId("chat-send-button"));
 
-      expect(mocks.post).toHaveBeenCalledWith("/api/ai/chat", {
-        message: "show me sales",
-        workspace_id: WORKSPACE_ID,
-        history: [],
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          expect.stringContaining("/api/ai/chat/stream"),
+          expect.objectContaining({
+            method: "POST",
+            body: expect.stringContaining('"show me sales"'),
+          }),
+        );
       });
     });
 
     it("sends conversation history with subsequent messages", async () => {
       const user = userEvent.setup();
-      mocks.post
-        .mockResolvedValueOnce(MOCK_RESPONSE_TEXT_ONLY)
-        .mockResolvedValueOnce(MOCK_RESPONSE_TEXT_ONLY);
+      vi.stubGlobal("fetch", vi.fn()
+        .mockResolvedValueOnce(makeDoneResponse("I'm Ralph!"))
+        .mockResolvedValueOnce(makeDoneResponse("I'm Ralph!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -329,9 +337,10 @@ describe("ChatPanel", () => {
       await user.type(screen.getByTestId("chat-input"), "more");
       await user.click(screen.getByTestId("chat-send-button"));
 
-      expect(mocks.post).toHaveBeenCalledTimes(2);
-      const secondCall = mocks.post.mock.calls[1];
-      expect(secondCall[1].history).toEqual([
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+      const secondFetchCall = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[1];
+      const secondBody = JSON.parse((secondFetchCall[1] as RequestInit).body as string) as { history: Array<{role: string; content: string}> };
+      expect(secondBody.history).toEqual([
         { role: "user", content: "hello" },
         { role: "assistant", content: "I'm Ralph!" },
       ]);
@@ -339,7 +348,7 @@ describe("ChatPanel", () => {
 
     it("trims whitespace from message before sending", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_TEXT_ONLY);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("I'm Ralph!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -347,23 +356,24 @@ describe("ChatPanel", () => {
       await user.type(screen.getByTestId("chat-input"), "  hello  ");
       await user.click(screen.getByTestId("chat-send-button"));
 
-      expect(mocks.post).toHaveBeenCalledWith("/api/ai/chat", {
-        message: "hello",
-        workspace_id: WORKSPACE_ID,
-        history: [],
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          expect.stringContaining("/api/ai/chat/stream"),
+          expect.objectContaining({ body: expect.stringContaining('"hello"') }),
+        );
       });
     });
 
     it("submits on Enter key press", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_TEXT_ONLY);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("I'm Ralph!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
       );
       await user.type(screen.getByTestId("chat-input"), "hello{enter}");
 
-      expect(mocks.post).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
     });
 
     it("does not submit on empty input via Enter", async () => {
@@ -375,7 +385,7 @@ describe("ChatPanel", () => {
       await user.click(input);
       await user.keyboard("{enter}");
 
-      expect(mocks.post).not.toHaveBeenCalled();
+      expect(global.fetch).not.toHaveBeenCalled();
     });
   });
 
@@ -384,7 +394,7 @@ describe("ChatPanel", () => {
   describe("loading state", () => {
     it("shows loading indicator while waiting for response", async () => {
       const user = userEvent.setup();
-      mocks.post.mockReturnValue(new Promise(() => {}));
+      vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -397,7 +407,7 @@ describe("ChatPanel", () => {
 
     it("disables send button while loading", async () => {
       const user = userEvent.setup();
-      mocks.post.mockReturnValue(new Promise(() => {}));
+      vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -410,7 +420,7 @@ describe("ChatPanel", () => {
 
     it("disables input while loading", async () => {
       const user = userEvent.setup();
-      mocks.post.mockReturnValue(new Promise(() => {}));
+      vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -423,7 +433,7 @@ describe("ChatPanel", () => {
 
     it("hides empty state when user sends message", async () => {
       const user = userEvent.setup();
-      mocks.post.mockReturnValue(new Promise(() => {}));
+      vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -443,7 +453,7 @@ describe("ChatPanel", () => {
   describe("successful response", () => {
     it("displays assistant message bubble", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_TEXT_ONLY);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("I'm Ralph!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -459,7 +469,7 @@ describe("ChatPanel", () => {
 
     it("hides loading indicator after response", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_TEXT_ONLY);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("I'm Ralph!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -474,7 +484,7 @@ describe("ChatPanel", () => {
 
     it("shows SQL code block when response contains SQL", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("Here are the sales by region.", "SELECT region, SUM(revenue) FROM sales GROUP BY region")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -492,7 +502,7 @@ describe("ChatPanel", () => {
 
     it("shows chart indicator when response contains plot_spec", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_WITH_CHART);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("I made a chart with my brain!", null, {marks: [{type: "barY", data: [{x: "A", y: 1}], options: {x: "x", y: "y"}}]})));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -507,7 +517,7 @@ describe("ChatPanel", () => {
 
     it("does not show SQL block when sql is null", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_TEXT_ONLY);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("I'm Ralph!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -523,7 +533,7 @@ describe("ChatPanel", () => {
 
     it("does not show chart indicator when plot_spec is null", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_TEXT_ONLY);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("I'm Ralph!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -539,7 +549,7 @@ describe("ChatPanel", () => {
 
     it("shows clear button after first message", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_TEXT_ONLY);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("I'm Ralph!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -558,11 +568,9 @@ describe("ChatPanel", () => {
   describe("multiple messages", () => {
     it("accumulates messages in conversation", async () => {
       const user = userEvent.setup();
-      mocks.post
-        .mockResolvedValueOnce(MOCK_RESPONSE_TEXT_ONLY)
-        .mockResolvedValueOnce({
-          data: { text: "Sure thing!", sql: null, plot_spec: null },
-        });
+      vi.stubGlobal("fetch", vi.fn()
+        .mockResolvedValueOnce(makeDoneResponse("I'm Ralph!"))
+        .mockResolvedValueOnce(makeDoneResponse("Sure thing!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -594,9 +602,9 @@ describe("ChatPanel", () => {
   describe("error handling", () => {
     it("shows error on API failure with detail", async () => {
       const user = userEvent.setup();
-      mocks.post.mockRejectedValue({
-        response: { data: { detail: "AI service unavailable" } },
-      });
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ detail: "AI service unavailable" }), { status: 502 }),
+      ));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -612,7 +620,7 @@ describe("ChatPanel", () => {
 
     it("shows generic error on network failure", async () => {
       const user = userEvent.setup();
-      mocks.post.mockRejectedValue(new Error("Network Error"));
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network Error")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -628,8 +636,9 @@ describe("ChatPanel", () => {
 
     it("clears error on next successful send", async () => {
       const user = userEvent.setup();
-      mocks.post.mockRejectedValueOnce(new Error("fail"));
-      mocks.post.mockResolvedValueOnce(MOCK_RESPONSE_TEXT_ONLY);
+      vi.stubGlobal("fetch", vi.fn()
+        .mockRejectedValueOnce(new Error("fail"))
+        .mockResolvedValueOnce(makeDoneResponse("I'm Ralph!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -654,7 +663,7 @@ describe("ChatPanel", () => {
 
     it("preserves user message even when API fails", async () => {
       const user = userEvent.setup();
-      mocks.post.mockRejectedValue(new Error("fail"));
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fail")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -677,7 +686,7 @@ describe("ChatPanel", () => {
   describe("clear history", () => {
     it("clears all messages when clear button clicked", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_TEXT_ONLY);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("I'm Ralph!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -701,7 +710,7 @@ describe("ChatPanel", () => {
 
     it("clears error on clear", async () => {
       const user = userEvent.setup();
-      mocks.post.mockRejectedValue(new Error("fail"));
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fail")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -722,7 +731,7 @@ describe("ChatPanel", () => {
 
     it("hides clear button after clearing", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_TEXT_ONLY);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("I'm Ralph!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -746,7 +755,7 @@ describe("ChatPanel", () => {
   describe("data table rendering", () => {
     it("shows inline data table when response contains data_table", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_WITH_TABLE);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("Here are the top products:", null, null, {columns: ["name", "price"], rows: [["Widget", 9.99], ["Gadget", 19.99], ["Doohickey", 14.50]]})));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -761,7 +770,7 @@ describe("ChatPanel", () => {
 
     it("renders column headers in data table", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_WITH_TABLE);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("Here are the top products:", null, null, {columns: ["name", "price"], rows: [["Widget", 9.99], ["Gadget", 19.99], ["Doohickey", 14.50]]})));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -778,7 +787,7 @@ describe("ChatPanel", () => {
 
     it("renders row data in data table", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_WITH_TABLE);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("Here are the top products:", null, null, {columns: ["name", "price"], rows: [["Widget", 9.99], ["Gadget", 19.99], ["Doohickey", 14.50]]})));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -796,7 +805,7 @@ describe("ChatPanel", () => {
 
     it("shows row count in data table", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_WITH_TABLE);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("Here are the top products:", null, null, {columns: ["name", "price"], rows: [["Widget", 9.99], ["Gadget", 19.99], ["Doohickey", 14.50]]})));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -812,7 +821,7 @@ describe("ChatPanel", () => {
 
     it("does not show data table when data_table is null", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_TEXT_ONLY);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("I'm Ralph!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -832,7 +841,7 @@ describe("ChatPanel", () => {
   describe("rich response with all components", () => {
     it("renders chart and data table together", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_WITH_ALL);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("Here's a **full analysis** with `revenue` data:", null, {marks: [{type: "barY", data: [{x: "A", y: 1}], options: {x: "x", y: "y"}}]}, {columns: ["name", "price"], rows: [["Widget", 9.99]]})));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -849,7 +858,7 @@ describe("ChatPanel", () => {
 
     it("renders rich text with inline code formatting", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_WITH_ALL);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("Here's a **full analysis** with `revenue` data:", null, {marks: [{type: "barY", data: [{x: "A", y: 1}], options: {x: "x", y: "y"}}]}, {columns: ["name", "price"], rows: [["Widget", 9.99]]})));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -868,7 +877,7 @@ describe("ChatPanel", () => {
 
     it("renders rich text with bold formatting", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_WITH_ALL);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("Here's a **full analysis** with `revenue` data:", null, {marks: [{type: "barY", data: [{x: "A", y: 1}], options: {x: "x", y: "y"}}]}, {columns: ["name", "price"], rows: [["Widget", 9.99]]})));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,
@@ -887,7 +896,7 @@ describe("ChatPanel", () => {
 
     it("does not apply rich text formatting to user messages", async () => {
       const user = userEvent.setup();
-      mocks.post.mockResolvedValue(MOCK_RESPONSE_TEXT_ONLY);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeDoneResponse("I'm Ralph!")));
 
       render(
         <ChatPanel workspaceId={WORKSPACE_ID} open={true} onToggle={onToggle} />,

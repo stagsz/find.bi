@@ -6,6 +6,10 @@ const navItems = [
   { to: "/dashboards", label: "Dashboards", icon: DashboardIcon },
   { to: "/editor", label: "SQL Editor", icon: EditorIcon },
   { to: "/upload", label: "Upload", icon: UploadIcon },
+  { to: "/settings/webhooks", label: "Webhooks", icon: WebhookIcon },
+  { to: "/settings/connections", label: "Connections", icon: ConnectionsIcon },
+  { to: "/settings/schedules", label: "Schedules", icon: ScheduleIcon },
+  { to: "/settings/alerts", label: "Alerts", icon: AlertsIcon },
 ];
 
 interface SidebarProps {
@@ -167,6 +171,49 @@ function UploadIcon({ className }: { className?: string }) {
         strokeLinejoin="round"
         d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"
       />
+    </svg>
+  );
+}
+
+function WebhookIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+      />
+    </svg>
+  );
+}
+
+function ConnectionsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h7m6-1v4m0 0l2-2m-2 2l-2-2" />
+    </svg>
+  );
+}
+
+function ScheduleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <circle cx="12" cy="12" r="10" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" />
+    </svg>
+  );
+}
+
+function AlertsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
     </svg>
   );
 }

@@ -523,3 +523,103 @@ describe("UploadPage", () => {
     expect(panel).toHaveAttribute("data-workspace-id", WORKSPACE_ID);
   });
 });
+
+// ─── Download buttons ────────────────────────────────────────────────────────
+
+const downloadMocks = vi.hoisted(() => ({
+  downloadTableCsv: vi.fn().mockResolvedValue(undefined),
+  downloadTableExcel: vi.fn().mockResolvedValue(undefined),
+  downloadTableJson: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/services/export", () => downloadMocks);
+
+/** Reach the done (success) state with table_name "sales" */
+async function reachSuccessState() {
+  mockUploadAndSchema();
+  mocks.post.mockResolvedValueOnce({
+    data: {
+      table_name: "sales",
+      columns: [{ name: "region", type: "string", duckdb_type: "VARCHAR" }],
+      row_count: 42,
+    },
+  });
+
+  renderUpload();
+  const user = userEvent.setup();
+  const input = screen.getByTestId("file-input");
+
+  await user.upload(input, createCsvFile());
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: /confirm/i })).toBeInTheDocument(),
+  );
+  await user.click(screen.getByRole("button", { name: /confirm/i }));
+  await waitFor(() =>
+    expect(screen.getByText(/import successful/i)).toBeInTheDocument(),
+  );
+}
+
+describe("UploadPage — download buttons", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockWorkspace();
+    downloadMocks.downloadTableCsv.mockResolvedValue(undefined);
+    downloadMocks.downloadTableExcel.mockResolvedValue(undefined);
+    downloadMocks.downloadTableJson.mockResolvedValue(undefined);
+  });
+
+  it("shows download CSV button after successful ingestion", async () => {
+    await reachSuccessState();
+    expect(screen.getByTestId("download-csv-button")).toBeInTheDocument();
+  });
+
+  it("shows download Excel button after successful ingestion", async () => {
+    await reachSuccessState();
+    expect(screen.getByTestId("download-excel-button")).toBeInTheDocument();
+  });
+
+  it("shows download JSON button after successful ingestion", async () => {
+    await reachSuccessState();
+    expect(screen.getByTestId("download-json-button")).toBeInTheDocument();
+  });
+
+  it("clicking download CSV calls downloadTableCsv with correct args", async () => {
+    await reachSuccessState();
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("download-csv-button"));
+    expect(downloadMocks.downloadTableCsv).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+      "sales",
+    );
+  });
+
+  it("clicking download Excel calls downloadTableExcel with correct args", async () => {
+    await reachSuccessState();
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("download-excel-button"));
+    expect(downloadMocks.downloadTableExcel).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+      "sales",
+    );
+  });
+
+  it("clicking download JSON calls downloadTableJson with correct args", async () => {
+    await reachSuccessState();
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("download-json-button"));
+    expect(downloadMocks.downloadTableJson).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+      "sales",
+    );
+  });
+
+  it("shows error message when download fails", async () => {
+    downloadMocks.downloadTableCsv.mockRejectedValue(new Error("Server error"));
+    await reachSuccessState();
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("download-csv-button"));
+    await waitFor(() =>
+      expect(screen.getByTestId("download-error")).toBeInTheDocument(),
+    );
+  });
+});

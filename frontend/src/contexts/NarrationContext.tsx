@@ -110,8 +110,11 @@ export function NarrationProvider({ children }: { children: ReactNode }) {
       const segment = segs[index];
       currentIndexRef.current = index;
 
+      // Set "loading" while TTS audio is being fetched for this segment.
+      // NarrationPlayback shows a spinner during this time.
       setState((prev) => ({
         ...prev,
+        status: "loading",
         currentIndex: index,
         activeCardId: segment.card_id,
         progress: { current: index + 1, total: segs.length },
@@ -122,6 +125,9 @@ export function NarrationProvider({ children }: { children: ReactNode }) {
         const blob = await fetchTTSAudio(segment.narration);
 
         if (stoppedRef.current) return;
+
+        // Switch to "playing" before audio starts so controls are visible.
+        setState((prev) => ({ ...prev, status: "playing" }));
 
         // Create audio element for playback
         cleanup();

@@ -9,7 +9,8 @@ services:
     container_name: findbi-backend-dev
     working_dir: /app
     command: >
-      bash -c "pip install -r requirements.txt &&
+      bash -c "pip install -r requirements.txt -q &&
+               alembic upgrade head &&
                uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
     ports:
       - "8000:8000"
@@ -21,6 +22,9 @@ services:
       DATABASE_URL: postgresql://ralph:ralph@postgres:5432/ralph
       JWT_SECRET: dev-secret-change-in-production
       DUCKDB_PATH: /data/workspaces
+      # Add your API keys here (or use a .env file):
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

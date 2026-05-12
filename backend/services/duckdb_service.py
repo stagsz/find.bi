@@ -261,6 +261,86 @@ def export_table(
         conn.close()
 
 
+def ingest_from_records(
+    db_path: str,
+    table_name: str,
+    records: list[dict],
+) -> int:
+    """Ingest a list of dicts into a DuckDB table, creating it if it doesn't exist.
+
+    If the table exists, inserts rows matching existing columns (ignoring extra
+    keys in the records).  If the table does not exist, creates it from the
+    first record's keys — all columns are stored as VARCHAR initially.
+
+    Parameters
+    ----------
+    db_path:
+        Absolute path to the workspace ``.db`` file.  Must already exist.
+    table_name:
+        Target table name.  Will be sanitized via ``_sanitize_table_name``.
+    records:
+        Non-empty list of dicts representing the rows to insert.
+
+    Returns
+    -------
+    int
+        Number of rows ingested.
+
+    Raises
+    ------
+    ValueError
+        If ``db_path`` does not exist or ``records`` is empty.
+    """
+    if not os.path.isfile(db_path):
+        raise ValueError(f"Database file not found: {db_path}")
+    if not records:
+        raise ValueError("records must not be empty")
+
+    safe_name = _sanitize_table_name(table_name)
+
+    conn = duckdb.connect(db_path)
+    try:
+        existing_tables: set[str] = {
+            row[0]
+            for row in conn.execute(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'main'"
+            ).fetchall()
+        }
+
+        if safe_name not in existing_tables:
+            # Create table from first record's keys — all VARCHAR
+            columns = list(records[0].keys())
+            col_defs = ", ".join(f'"{c}" VARCHAR' for c in columns)
+            conn.execute(
+                f'CREATE TABLE IF NOT EXISTS "{safe_name}" ({col_defs})'
+            )
+            insert_columns = columns
+        else:
+            # Determine columns that exist in the table
+            describe = conn.execute(f'DESCRIBE "{safe_name}"').fetchall()
+            insert_columns = [row[0] for row in describe]
+
+        # Build parameterised INSERT for the matching column set
+        col_list = ", ".join(f'"{c}"' for c in insert_columns)
+        placeholders = ", ".join("?" for _ in insert_columns)
+        sql = (
+            f'INSERT INTO "{safe_name}" ({col_list}) VALUES ({placeholders})'
+        )
+
+        rows_to_insert = [
+            [str(rec.get(c)) if rec.get(c) is not None else None
+             for c in insert_columns]
+            for rec in records
+        ]
+        conn.executemany(sql, rows_to_insert)
+        return len(records)
+    except duckdb.Error as e:
+        raise ValueError(f"Failed to ingest records: {e}") from e
+    finally:
+        conn.close()
+
+
 def drop_table(db_path: str, table_name: str) -> bool:
     """Drop a table from a workspace DuckDB database.
 

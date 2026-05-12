@@ -6,6 +6,7 @@ from typing import Any
 
 import duckdb
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -15,6 +16,7 @@ from models.insight_cache import InsightCache
 from models.user import User
 from models.workspace import Workspace
 from services.ai_service import chat as ai_chat
+from services.ai_service import chat_stream as ai_chat_stream
 from services.ai_service import classify_voice_intent as ai_classify_intent
 from services.ai_service import detect_geo_columns as ai_detect_geo_columns
 from services.ai_service import generate_deck as ai_generate_deck
@@ -345,6 +347,55 @@ def chat_endpoint(
         sql=result.get("sql"),
         plot_spec=result.get("plot_spec"),
         data_table=data_table_model,
+    )
+
+
+@router.post("/chat/stream")
+def chat_stream_endpoint(
+    body: ChatRequest,
+    user: User = Depends(get_authenticated_user),
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    """Stream a chat response as Server-Sent Events.
+
+    Each SSE event has one of these shapes (JSON in the data field):
+      ``{"type": "token", "text": "<chunk>"}``   — incremental text delta
+      ``{"type": "done", "text": "...", "sql": ..., "plot_spec": ..., "data_table": ...}``
+      ``{"type": "error", "message": "..."}``
+
+    The client accumulates tokens to show text in real time, then applies
+    sql/plot_spec/data_table from the final "done" event.
+    """
+    if not body.message.strip():
+        raise HTTPException(status_code=400, detail="Message is required")
+
+    db_path = _get_workspace_db_path(body.workspace_id, user, db)
+
+    if os.path.isfile(db_path):
+        try:
+            schema = list_tables(db_path)
+        except ValueError:
+            schema = []
+    else:
+        schema = []
+
+    if not schema:
+        raise HTTPException(
+            status_code=400,
+            detail="No data tables found in workspace. Upload data first.",
+        )
+
+    table_names = [t["table_name"] for t in schema]
+    sample_rows = _fetch_sample_rows(db_path, table_names)
+    history = [{"role": m.role, "content": m.content} for m in body.history]
+
+    return StreamingResponse(
+        ai_chat_stream(body.message, history, schema, sample_rows),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # disable Nginx buffering
+        },
     )
 
 

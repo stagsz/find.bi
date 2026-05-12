@@ -110,17 +110,26 @@ function DashboardPageInner() {
   }, [id]);
 
   const renderCard = useCallback(
-    (card: DashboardCardConfig) => (
-      <DashboardCard
-        config={card}
-        editMode={editMode}
-        onSettings={handleEditCard}
-        onRemove={handleRemoveCard}
-      >
-        <CardRenderer config={card} />
-      </DashboardCard>
-    ),
-    [editMode, handleEditCard, handleRemoveCard],
+    (card: DashboardCardConfig) => {
+      // Derive the primary table name from the card's SQL query.
+      // We look for the first FROM <identifier> in the query.
+      const tableMatch = /\bFROM\s+["'`]?(\w+)["'`]?/i.exec(card.query ?? "");
+      const derivedTableName = tableMatch ? tableMatch[1] : null;
+
+      return (
+        <DashboardCard
+          config={card}
+          editMode={editMode}
+          onSettings={handleEditCard}
+          onRemove={handleRemoveCard}
+          workspaceId={dashboard?.workspace_id ?? null}
+          tableName={derivedTableName}
+        >
+          <CardRenderer config={card} />
+        </DashboardCard>
+      );
+    },
+    [editMode, handleEditCard, handleRemoveCard, dashboard?.workspace_id],
   );
 
   if (loading) {

@@ -1,4 +1,11 @@
+import { useCallback, useRef, useState } from "react";
 import type { DashboardCardConfig } from "./DashboardGrid";
+import ChartErrorBoundary from "./ChartErrorBoundary";
+import {
+  downloadTableCsv,
+  downloadTableExcel,
+  downloadTableJson,
+} from "@/services/export";
 
 export interface DashboardCardProps {
   /** Card configuration */
@@ -11,6 +18,17 @@ export interface DashboardCardProps {
   onRemove?: (id: string) => void;
   /** Chart or content to render inside the card */
   children?: React.ReactNode;
+  /**
+   * Workspace ID used for table export endpoints.
+   * When combined with `tableName`, shows a download dropdown.
+   */
+  workspaceId?: string | null;
+  /**
+   * Table name to export. If null/undefined, the download dropdown is hidden.
+   * The card derives this from its SQL query (first FROM <table>) in
+   * DashboardPage — here we simply consume it.
+   */
+  tableName?: string | null;
 }
 
 function DashboardCard({
@@ -19,7 +37,46 @@ function DashboardCard({
   onSettings,
   onRemove,
   children,
+  workspaceId,
+  tableName,
 }: DashboardCardProps) {
+  const [downloadOpen, setDownloadOpen] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const canDownload = !!(workspaceId && tableName);
+
+  /** Download the ECharts canvas inside this card as a PNG. */
+  const handleDownloadPng = useCallback(() => {
+    setDownloadError("");
+    setDownloadOpen(false);
+    const canvas = contentRef.current?.querySelector("canvas");
+    if (!canvas) {
+      setDownloadError("No chart to download (canvas not found).");
+      return;
+    }
+    try {
+      const url = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${config.title.replace(/\s+/g, "_") || "chart"}.png`;
+      a.click();
+    } catch {
+      setDownloadError("PNG download failed.");
+    }
+  }, [config.title]);
+
+  function handleDownload(
+    fn: (ws: string, tbl: string) => Promise<void>,
+    label: string,
+  ) {
+    setDownloadError("");
+    setDownloadOpen(false);
+    fn(workspaceId!, tableName!).catch(() =>
+      setDownloadError(`${label} download failed.`),
+    );
+  }
+
   return (
     <div data-testid={`dashboard-card-${config.id}`} className="flex h-full flex-col">
       {/* Title bar */}
@@ -50,6 +107,67 @@ function DashboardCard({
         >
           {config.title}
         </span>
+
+        {/* Download dropdown — always visible when workspaceId + tableName are set */}
+        {canDownload && (
+          <div className="relative flex-shrink-0">
+            <button
+              type="button"
+              data-testid="card-download-button"
+              aria-label="Download table data"
+              className="rounded p-1 font-mono text-xs text-[#F5A623]/70 hover:bg-[#F5A623]/10 hover:text-[#F5A623]"
+              onClick={() => {
+                setDownloadError("");
+                setDownloadOpen((o) => !o);
+              }}
+            >
+              ↓
+            </button>
+
+            {downloadOpen && (
+              <div className="absolute right-0 top-full z-50 mt-1 min-w-[9rem] rounded border border-[#2A2A2A] bg-[#141414] py-1 shadow-lg">
+                <button
+                  type="button"
+                  data-testid="card-download-png"
+                  className="block w-full px-3 py-1.5 text-left font-mono text-xs text-[#F5A623] hover:bg-[#F5A623]/10"
+                  onClick={handleDownloadPng}
+                >
+                  Download PNG
+                </button>
+                <button
+                  type="button"
+                  data-testid="card-download-csv"
+                  className="block w-full px-3 py-1.5 text-left font-mono text-xs text-[#F5A623] hover:bg-[#F5A623]/10"
+                  onClick={() => handleDownload(downloadTableCsv, "CSV")}
+                >
+                  Download CSV
+                </button>
+                <button
+                  type="button"
+                  data-testid="card-download-excel"
+                  className="block w-full px-3 py-1.5 text-left font-mono text-xs text-[#F5A623] hover:bg-[#F5A623]/10"
+                  onClick={() => handleDownload(downloadTableExcel, "Excel")}
+                >
+                  Download Excel
+                </button>
+                <button
+                  type="button"
+                  data-testid="card-download-json"
+                  className="block w-full px-3 py-1.5 text-left font-mono text-xs text-[#F5A623] hover:bg-[#F5A623]/10"
+                  onClick={() => handleDownload(downloadTableJson, "JSON")}
+                >
+                  Download JSON
+                </button>
+              </div>
+            )}
+
+            {downloadError && (
+              <p className="absolute right-0 top-full z-50 mt-1 whitespace-nowrap rounded border border-[#E84393]/30 bg-[#141414] px-2 py-1 font-mono text-[10px] text-[#E84393]">
+                {downloadError}
+              </p>
+            )}
+          </div>
+        )}
 
         {editMode && (
           <div className="flex flex-shrink-0 items-center gap-1">
@@ -85,14 +203,17 @@ function DashboardCard({
 
       {/* Content area */}
       <div
+        ref={contentRef}
         data-testid={`card-content-${config.id}`}
         className="relative min-h-0 flex-1 overflow-auto"
       >
-        {children ?? (
-          <div className="flex h-full items-center justify-center text-sm text-gray-400">
-            No content
-          </div>
-        )}
+        <ChartErrorBoundary label={config.title}>
+          {children ?? (
+            <div className="flex h-full items-center justify-center text-sm text-gray-400">
+              No content
+            </div>
+          )}
+        </ChartErrorBoundary>
       </div>
     </div>
   );

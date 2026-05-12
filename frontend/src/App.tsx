@@ -17,6 +17,10 @@ import EditorPage from "@/pages/EditorPage";
 import UploadPage from "@/pages/UploadPage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
+import WebhookPage from "@/pages/WebhookPage";
+import ConnectionsPage from "@/pages/ConnectionsPage";
+import SchedulePage from "@/pages/SchedulePage";
+import AlertsPage from "@/pages/AlertsPage";
 import api from "@/services/api";
 
 function AppLayout() {
@@ -24,6 +28,8 @@ function AppLayout() {
   const [chatOpen, setChatOpen] = useState(false);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  // Query text to re-run via the chat panel (injected from transcript history).
+  const [rerunQuery, setRerunQuery] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -55,6 +61,8 @@ function AppLayout() {
           transcriptOpen={transcriptOpen}
           onTranscriptToggle={handleTranscriptToggle}
           workspaceId={workspaceId}
+          rerunQuery={rerunQuery}
+          onSetRerunQuery={setRerunQuery}
         />
       </VoiceProvider>
     </DuckDBProvider>
@@ -73,6 +81,8 @@ function AppLayoutInner({
   transcriptOpen,
   onTranscriptToggle,
   workspaceId,
+  rerunQuery,
+  onSetRerunQuery,
 }: {
   sidebarCollapsed: boolean;
   onSidebarToggle: () => void;
@@ -81,6 +91,8 @@ function AppLayoutInner({
   transcriptOpen: boolean;
   onTranscriptToggle: () => void;
   workspaceId: string | null;
+  rerunQuery: string | null;
+  onSetRerunQuery: (q: string | null) => void;
 }) {
   const {
     pendingQuery,
@@ -126,14 +138,21 @@ function AppLayoutInner({
               <Route path="/dashboards" element={<DashboardListPage />} />
               <Route path="/editor" element={<EditorPage />} />
               <Route path="/upload" element={<UploadPage />} />
+              <Route path="/settings/webhooks" element={<WebhookPage />} />
+              <Route path="/settings/connections" element={<ConnectionsPage />} />
+              <Route path="/settings/schedules" element={<SchedulePage />} />
+              <Route path="/settings/alerts" element={<AlertsPage />} />
             </Routes>
           </div>
           <ChatPanel
             workspaceId={workspaceId}
             open={chatOpen}
             onToggle={onChatToggle}
-            pendingVoiceQuery={pendingQuery}
-            onVoiceQueryProcessed={handleVoiceQueryProcessed}
+            pendingVoiceQuery={pendingQuery ?? rerunQuery}
+            onVoiceQueryProcessed={() => {
+              handleVoiceQueryProcessed();
+              onSetRerunQuery(null);
+            }}
             onAssistantResponse={handleAssistantResponse}
           />
           <TranscriptPanel
@@ -142,14 +161,9 @@ function AppLayoutInner({
             entries={transcriptEntries}
             onClearHistory={clearTranscriptHistory}
             onRerun={(query) => {
-              // Inject query into the chat panel as a pending voice query.
-              // Re-use the same pending-query infrastructure.
-              onChatToggle();
-              // pendingQuery is managed by useVoiceQuery; for re-run we open
-              // chat and let the user submit manually (text is pre-filled
-              // via the chat input in a future iteration).
-              // For now, opening the panel provides context.
-              void query; // consumed by parent in future
+              // Open the chat panel and inject the query as a pending message.
+              if (!chatOpen) onChatToggle();
+              onSetRerunQuery(query);
             }}
           />
         </main>

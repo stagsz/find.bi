@@ -3,6 +3,11 @@ import api from "@/services/api";
 import { useDuckDB } from "@/hooks/useDuckDB";
 import InsightPanel from "@/components/ai/InsightPanel";
 import DeckGeneratorModal from "@/components/ai/DeckGeneratorModal";
+import {
+  downloadTableCsv,
+  downloadTableExcel,
+  downloadTableJson,
+} from "@/services/export";
 
 interface ColumnInfo {
   name: string;
@@ -71,6 +76,7 @@ function UploadPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   const [deckModalOpen, setDeckModalOpen] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -499,6 +505,61 @@ function UploadPage() {
                 Generate Analysis Deck
               </button>
             </div>
+
+            {/* Download buttons */}
+            {workspaceId && (
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  data-testid="download-csv-button"
+                  className="rounded border border-[#F5A623]/40 bg-[#F5A623]/10 px-3 py-1.5 font-mono text-xs font-semibold text-[#F5A623] transition-colors hover:bg-[#F5A623]/20"
+                  onClick={() => {
+                    setDownloadError("");
+                    downloadTableCsv(workspaceId, ingestResult.table_name).catch(
+                      () => setDownloadError("CSV download failed. Please try again."),
+                    );
+                  }}
+                >
+                  Download CSV
+                </button>
+                <button
+                  type="button"
+                  data-testid="download-excel-button"
+                  className="rounded border border-[#F5A623]/40 bg-[#F5A623]/10 px-3 py-1.5 font-mono text-xs font-semibold text-[#F5A623] transition-colors hover:bg-[#F5A623]/20"
+                  onClick={() => {
+                    setDownloadError("");
+                    downloadTableExcel(workspaceId, ingestResult.table_name).catch(
+                      () => setDownloadError("Excel download failed. Please try again."),
+                    );
+                  }}
+                >
+                  Download Excel
+                </button>
+                <button
+                  type="button"
+                  data-testid="download-json-button"
+                  className="rounded border border-[#F5A623]/40 bg-[#F5A623]/10 px-3 py-1.5 font-mono text-xs font-semibold text-[#F5A623] transition-colors hover:bg-[#F5A623]/20"
+                  onClick={() => {
+                    setDownloadError("");
+                    downloadTableJson(workspaceId, ingestResult.table_name).catch(
+                      () => setDownloadError("JSON download failed. Please try again."),
+                    );
+                  }}
+                >
+                  Download JSON
+                </button>
+              </div>
+            )}
+
+            {downloadError && (
+              <p
+                role="alert"
+                data-testid="download-error"
+                className="mt-2 font-mono text-xs text-[#E84393]"
+              >
+                {downloadError}
+              </p>
+            )}
           </div>
           <InsightPanel
             workspaceId={workspaceId}

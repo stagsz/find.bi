@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+from collections.abc import Iterator
 from typing import Any, cast
 
 import anthropic
@@ -735,6 +736,107 @@ def chat(
         "plot_spec": plot_spec,
         "data_table": data_table,
     }
+
+
+def chat_stream(
+    message: str,
+    history: list[dict[str, str]],
+    schema: list[dict[str, Any]],
+    sample_rows: dict[str, list[dict[str, Any]]],
+) -> Iterator[str]:
+    """Stream a chat response from Claude as SSE-formatted text events.
+
+    Yields Server-Sent Events strings:
+      - ``data: {"type": "token", "text": "<chunk>"}\\n\\n`` for each text delta
+      - ``data: {"type": "done", "text": "<full>", "sql": ..., "plot_spec": ...,
+                  "data_table": ...}\\n\\n`` when complete
+      - ``data: {"type": "error", "message": "<msg>"}\\n\\n`` on failure
+
+    The frontend accumulates tokens in real time, then uses the "done" event
+    to set sql/plot_spec/data_table on the message.
+    """
+    client = _get_client()
+    schema_context = _build_schema_context(schema, sample_rows)
+
+    context_prefix = (
+        f"Database schema and sample data:\n{schema_context}\n"
+        "Use this schema to answer my questions about the data.\n\n"
+    )
+
+    messages: list[dict[str, Any]] = []
+    for i, turn in enumerate(history):
+        role = turn.get("role", "user")
+        content = turn.get("content", "")
+        if i == 0 and role == "user":
+            content = context_prefix + content
+        messages.append({"role": role, "content": content})
+
+    current_content = message
+    if not messages:
+        current_content = context_prefix + message
+    messages.append({"role": "user", "content": current_content})
+
+    accumulated = ""
+    try:
+        with client.messages.stream(
+            model=_get_model(),
+            max_tokens=4096,
+            system=CHAT_SYSTEM_PROMPT,
+            messages=cast(Any, messages),
+        ) as stream:
+            for text_delta in stream.text_stream:
+                accumulated += text_delta
+                yield f"data: {json.dumps({'type': 'token', 'text': text_delta})}\n\n"
+    except anthropic.APIError as exc:
+        yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+        return
+
+    # Parse the accumulated response the same way chat() does
+    raw = _extract_json(accumulated.strip())
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        # Treat as plain text if not JSON
+        yield f"data: {json.dumps({'type': 'done', 'text': accumulated.strip(), 'sql': None, 'plot_spec': None, 'data_table': None})}\n\n"
+        return
+
+    if not isinstance(parsed, dict):
+        yield f"data: {json.dumps({'type': 'done', 'text': accumulated.strip(), 'sql': None, 'plot_spec': None, 'data_table': None})}\n\n"
+        return
+
+    text_value = parsed.get("text", "")
+    if not isinstance(text_value, str):
+        text_value = accumulated.strip()
+
+    sql_value = parsed.get("sql")
+    if sql_value is not None and not isinstance(sql_value, str):
+        sql_value = None
+
+    plot_spec = parsed.get("plot_spec")
+    if plot_spec is not None:
+        if not isinstance(plot_spec, dict):
+            plot_spec = None
+        else:
+            try:
+                plot_spec = _validate_plot_spec(plot_spec)
+            except ValueError:
+                plot_spec = None
+
+    data_table = parsed.get("data_table")
+    if data_table is not None:
+        if not isinstance(data_table, dict):
+            data_table = None
+        else:
+            columns = data_table.get("columns")
+            rows = data_table.get("rows")
+            if (
+                not isinstance(columns, list)
+                or not isinstance(rows, list)
+                or len(columns) == 0
+            ):
+                data_table = None
+
+    yield f"data: {json.dumps({'type': 'done', 'text': text_value.strip(), 'sql': sql_value, 'plot_spec': plot_spec, 'data_table': data_table})}\n\n"
 
 
 DECK_SYSTEM_PROMPT = """\

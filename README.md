@@ -9,8 +9,8 @@ A self-hosted, local-first Business Intelligence platform with interactive dashb
 **Windows (PowerShell):**
 ```powershell
 # 1. Copy template to new project folder
-cp -r C:\Users\staff\find.bi C:\Users\staff\MyProject
-cd C:\Users\staff\MyProject
+cp -r C:\Users\staff\anthropicFun\Find.bi\Findbi C:\Users\staff\MyNewProject
+cd C:\Users\staff\MyNewProject
 
 # 2. Run interactive setup wizard (asks questions step-by-step)
 .\setup_project.ps1
@@ -27,8 +27,8 @@ cd C:\Users\staff\MyProject
 **Mac/Linux (Bash):**
 ```bash
 # 1. Copy template
-cp -r ~/find.bi ~/MyProject
-cd ~/MyProject
+cp -r ~/anthropicFun/Find.bi/Findbi ~/MyNewProject
+cd ~/MyNewProject
 
 # 2. Run setup wizard
 ./setup_project.sh
